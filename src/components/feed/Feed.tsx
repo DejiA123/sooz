@@ -1,82 +1,87 @@
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import PostCard from "./PostCard";
 import StoriesBar from "./StoriesBar";
+import { Loader2 } from "lucide-react";
 
-const mockPosts = [
-  {
-    id: "1",
-    user: {
-      name: "Praise Worship",
-      username: "praiseworship",
-      avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop",
-      verified: true,
-    },
-    content: {
-      type: "image" as const,
-      url: "https://images.unsplash.com/photo-1519681393784-d120267933ba?w=800&h=800&fit=crop",
-    },
-    caption: "The heavens declare the glory of God; the skies proclaim the work of his hands. ✨🙏 #Faith #Blessed",
-    likes: 12500,
-    comments: 432,
-    shares: 89,
-    timeAgo: "2h",
-  },
-  {
-    id: "2",
-    user: {
-      name: "Gospel Music Daily",
-      username: "gospelmusic",
-      avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop",
-      verified: true,
-    },
-    content: {
-      type: "video" as const,
-      url: "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=800&h=800&fit=crop",
-    },
-    caption: "New worship session just dropped! 🎵 Let the sound of Zion fill your heart. Link in bio 🔥",
-    likes: 45200,
-    comments: 1893,
-    shares: 567,
-    timeAgo: "4h",
-  },
-  {
-    id: "3",
-    user: {
-      name: "Faith Journey",
-      username: "faithjourney",
-      avatar: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&h=100&fit=crop",
-      verified: false,
-    },
-    content: {
-      type: "image" as const,
-      url: "https://images.unsplash.com/photo-1504052434569-70ad5836ab65?w=800&h=800&fit=crop",
-    },
-    caption: "Morning devotion hits different when you're surrounded by His creation. Psalms 110:3 🌅",
-    likes: 8934,
-    comments: 267,
-    shares: 45,
-    timeAgo: "6h",
-  },
-  {
-    id: "4",
-    user: {
-      name: "Zion Community",
-      username: "zioncommunity",
-      avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&h=100&fit=crop",
-      verified: true,
-    },
-    content: {
-      type: "image" as const,
-      url: "https://images.unsplash.com/photo-1507692049790-de58290a4334?w=800&h=800&fit=crop",
-    },
-    caption: "Sunday service was incredible! The presence of God was so strong 🙌 #ChurchFamily #Worship",
-    likes: 23100,
-    comments: 892,
-    shares: 234,
-    timeAgo: "8h",
-  },
-];
+interface Post {
+  id: string;
+  user_id: string;
+  caption: string | null;
+  media_url: string | null;
+  media_type: string | null;
+  created_at: string;
+  profiles: {
+    username: string;
+    display_name: string | null;
+    avatar_url: string | null;
+  };
+  likes: { id: string }[];
+  comments: { id: string }[];
+}
 
 const Feed = () => {
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchPosts();
+
+    // Set up real-time subscription
+    const channel = supabase
+      .channel("posts-changes")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "posts" },
+        () => {
+          fetchPosts();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
+  const fetchPosts = async () => {
+    const { data, error } = await supabase
+      .from("posts")
+      .select(`
+        *,
+        profiles:user_id (username, display_name, avatar_url),
+        likes (id),
+        comments (id)
+      `)
+      .order("created_at", { ascending: false })
+      .limit(50);
+
+    if (!error && data) {
+      setPosts(data as Post[]);
+    }
+    setLoading(false);
+  };
+
+  const formatTimeAgo = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+
+    if (diffInSeconds < 60) return "now";
+    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m`;
+    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h`;
+    if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)}d`;
+    return `${Math.floor(diffInSeconds / 604800)}w`;
+  };
+
+  if (loading) {
+    return (
+      <div className="pt-16 pb-24 flex items-center justify-center min-h-[50vh]">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
   return (
     <div className="pt-16 pb-24">
       {/* Stories */}
@@ -87,9 +92,39 @@ const Feed = () => {
       
       {/* Posts */}
       <div className="px-4 space-y-6">
-        {mockPosts.map((post) => (
-          <PostCard key={post.id} post={post} />
-        ))}
+        {posts.length > 0 ? (
+          posts.map((post) => (
+            <PostCard
+              key={post.id}
+              post={{
+                id: post.id,
+                user: {
+                  id: post.user_id,
+                  name: post.profiles.display_name || post.profiles.username,
+                  username: post.profiles.username,
+                  avatar: post.profiles.avatar_url || "",
+                  verified: false,
+                },
+                content: post.media_url
+                  ? {
+                      type: post.media_type as "image" | "video",
+                      url: post.media_url,
+                    }
+                  : null,
+                caption: post.caption || "",
+                likes: post.likes?.length || 0,
+                comments: post.comments?.length || 0,
+                shares: 0,
+                timeAgo: formatTimeAgo(post.created_at),
+              }}
+              onRefresh={fetchPosts}
+            />
+          ))
+        ) : (
+          <div className="py-12 text-center">
+            <p className="text-muted-foreground">No posts yet. Be the first to share!</p>
+          </div>
+        )}
       </div>
     </div>
   );
