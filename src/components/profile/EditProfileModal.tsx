@@ -1,0 +1,179 @@
+import { useState, useRef } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { X, Camera, Loader2 } from "lucide-react";
+import { toast } from "sonner";
+
+interface Profile {
+  id: string;
+  username: string;
+  display_name: string | null;
+  bio: string | null;
+  avatar_url: string | null;
+  cover_url: string | null;
+}
+
+interface EditProfileModalProps {
+  profile: Profile;
+  onClose: () => void;
+  onUpdate: () => void;
+}
+
+const EditProfileModal = ({ profile, onClose, onUpdate }: EditProfileModalProps) => {
+  const [displayName, setDisplayName] = useState(profile.display_name || "");
+  const [bio, setBio] = useState(profile.bio || "");
+  const [avatarUrl, setAvatarUrl] = useState(profile.avatar_url || "");
+  const [isLoading, setIsLoading] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingAvatar(true);
+
+    const fileExt = file.name.split(".").pop();
+    const filePath = `${profile.id}/avatar.${fileExt}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from("media")
+      .upload(filePath, file, { upsert: true });
+
+    if (uploadError) {
+      toast.error("Failed to upload image");
+      setUploadingAvatar(false);
+      return;
+    }
+
+    const { data } = supabase.storage.from("media").getPublicUrl(filePath);
+    setAvatarUrl(data.publicUrl);
+    setUploadingAvatar(false);
+  };
+
+  const handleSave = async () => {
+    setIsLoading(true);
+
+    const { error } = await supabase
+      .from("profiles")
+      .update({
+        display_name: displayName || null,
+        bio: bio || null,
+        avatar_url: avatarUrl || null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", profile.id);
+
+    if (error) {
+      toast.error("Failed to update profile");
+    } else {
+      toast.success("Profile updated!");
+      onUpdate();
+      onClose();
+    }
+
+    setIsLoading(false);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm">
+      <div className="glass rounded-3xl w-full max-w-md p-6 animate-scale-in">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-xl font-semibold">Edit Profile</h2>
+          <button
+            onClick={onClose}
+            className="p-2 rounded-full hover:bg-muted transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Avatar */}
+        <div className="flex justify-center mb-6">
+          <div className="relative">
+            <div className="w-24 h-24 rounded-full bg-muted overflow-hidden">
+              {avatarUrl ? (
+                <img
+                  src={avatarUrl}
+                  alt="Avatar"
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="w-full h-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
+                  <span className="text-2xl font-bold text-primary-foreground">
+                    {(displayName || profile.username).charAt(0).toUpperCase()}
+                  </span>
+                </div>
+              )}
+              {uploadingAvatar && (
+                <div className="absolute inset-0 bg-background/50 flex items-center justify-center">
+                  <Loader2 className="w-6 h-6 animate-spin" />
+                </div>
+              )}
+            </div>
+            <button
+              onClick={() => avatarInputRef.current?.click()}
+              className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-primary flex items-center justify-center"
+            >
+              <Camera className="w-4 h-4 text-primary-foreground" />
+            </button>
+            <input
+              ref={avatarInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleAvatarUpload}
+              className="hidden"
+            />
+          </div>
+        </div>
+
+        {/* Form */}
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="displayName">Display Name</Label>
+            <Input
+              id="displayName"
+              value={displayName}
+              onChange={(e) => setDisplayName(e.target.value)}
+              placeholder="Enter your display name"
+              className="bg-muted/50 border-border/50"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="bio">Bio</Label>
+            <Textarea
+              id="bio"
+              value={bio}
+              onChange={(e) => setBio(e.target.value)}
+              placeholder="Tell us about yourself..."
+              className="bg-muted/50 border-border/50 resize-none"
+              rows={3}
+            />
+          </div>
+        </div>
+
+        {/* Actions */}
+        <div className="flex gap-3 mt-6">
+          <Button variant="glass" className="flex-1" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button
+            variant="gold"
+            className="flex-1"
+            onClick={handleSave}
+            disabled={isLoading}
+          >
+            {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Save"}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default EditProfileModal;
