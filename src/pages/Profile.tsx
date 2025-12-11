@@ -197,7 +197,6 @@ const Profile = () => {
               className="w-full h-full object-cover"
               width={800}
               height={128}
-              priority={false}
             />
           )}
         </div>
@@ -325,7 +324,6 @@ const Profile = () => {
                       className="w-full h-full object-cover hover:opacity-80 transition-opacity cursor-pointer"
                       width={400}
                       height={400}
-                      priority={false}
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-muted-foreground">

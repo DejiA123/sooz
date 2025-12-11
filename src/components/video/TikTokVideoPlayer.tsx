@@ -227,7 +227,6 @@ const TikTokVideoPlayer = ({
                 className="w-full h-full rounded-full object-cover bg-black"
                 width={48}
                 height={48}
-                priority={false}
               />
             ) : (
               <div className="w-full h-full rounded-full bg-black flex items-center justify-center">

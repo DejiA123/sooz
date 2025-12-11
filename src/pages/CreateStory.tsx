@@ -200,7 +200,6 @@ const CreateStory = () => {
                   className="w-full h-96 object-cover"
                   width={800}
                   height={600}
-                  priority={false}
                 />
               )}
               

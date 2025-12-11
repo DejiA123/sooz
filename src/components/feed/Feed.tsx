@@ -14,6 +14,7 @@ interface Post {
   media_url: string | null;
   media_type: string | null;
   created_at: string;
+  view_count: number | null;
   profiles: {
     username: string;
     display_name: string | null;

@@ -278,7 +278,6 @@ const PostCard = ({ post, onRefresh }: PostCardProps) => {
                 className="w-full h-auto object-cover"
                 width={800}
                 height={800}
-                priority={false}
               />
               {/* Heart animation for double-tap */}
               {showHeartAnimation && (

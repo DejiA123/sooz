@@ -84,7 +84,7 @@ const Activity = () => {
         .from("follows")
         .select(`
           *,
-          profiles:follower_id (username, display_name, avatar_url)
+          profiles:profiles!follows_follower_id_fkey (username, display_name, avatar_url)
         `)
         .eq("following_id", user.id)
         .order("created_at", { ascending: false })
@@ -126,13 +126,15 @@ const Activity = () => {
       // Transform follows
       if (followsData) {
         followsData.forEach(follow => {
-          activities.push({
-            id: `follow_${follow.id}`,
-            type: "follow",
-            user_id: follow.follower_id,
-            created_at: follow.created_at,
-            profiles: follow.profiles,
-          });
+          if (follow.profiles && typeof follow.profiles === 'object' && 'username' in follow.profiles) {
+            activities.push({
+              id: `follow_${follow.id}`,
+              type: "follow",
+              user_id: follow.follower_id,
+              created_at: follow.created_at,
+              profiles: follow.profiles as { username: string; display_name: string | null; avatar_url: string | null; },
+            });
+          }
         });
       }
 
@@ -304,7 +306,6 @@ const Activity = () => {
                       className="w-full h-full object-cover"
                       width={48}
                       height={48}
-                      priority={false}
                     />
                   </div>
                 )}

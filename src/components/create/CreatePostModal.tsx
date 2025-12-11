@@ -152,7 +152,6 @@ const CreatePostModal = ({ onClose, onPostCreated }: CreatePostModalProps) => {
                 className="w-full max-h-80 object-contain bg-muted"
                 width={800}
                 height={600}
-                priority={false}
               />
             ) : (
               <video

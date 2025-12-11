@@ -35,6 +35,7 @@ const StoryModal = ({ stories, initialIndex, isOpen, onClose, onStoryChange }: S
   const [progress, setProgress] = useState(0);
   const [isPlaying, setIsPlaying] = useState(true);
   const [storyDuration] = useState(5000); // 5 seconds per story
+  const [showComments, setShowComments] = useState(false);
 
   useEffect(() => {
     setCurrentIndex(initialIndex);

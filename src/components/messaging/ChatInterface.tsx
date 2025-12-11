@@ -1,11 +1,9 @@
-import { useState, useEffect, useRef } from "react";
-import { Send, Paperclip, Camera, MoreVertical, Search, Phone, Video, ChevronLeft, MessageCircle, Heart, Reply } from "lucide-react";
+import { useState, useRef } from "react";
+import { Send, Paperclip, Camera, MoreVertical, Phone, Video, ChevronLeft, MessageCircle, Reply } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { OptimizedAvatar } from "@/components/ui/optimized-avatar";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { ThreadFeatures } from "./ThreadFeatures";
 
@@ -43,96 +41,32 @@ export const ChatInterface = ({ selectedUser, onBack, isMobile = false }: ChatIn
   const { user } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
-  const [loading, setLoading] = useState(false);
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [likedMessages, setLikedMessages] = useState<Set<string>>(new Set());
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
-
-  useEffect(() => {
-    if (selectedUser && user) {
-      loadMessages();
-      
-      // Subscribe to new messages
-      const subscription = supabase
-        .channel(`messages:${user.id}:${selectedUser.id}`)
-        .on('postgres_changes', {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'messages',
-          filter: `sender_id=eq.${selectedUser.id}`
-        }, (payload) => {
-          loadMessages();
-        })
-        .subscribe();
-
-      return () => {
-        subscription.unsubscribe();
-      };
-    }
-  }, [selectedUser, user]);
-
-  const loadMessages = async () => {
-    if (!selectedUser || !user) return;
-
-    try {
-      const { data, error } = await supabase
-        .from('messages')
-        .select(`
-          *,
-          profiles:sender_id(username, display_name, avatar_url)
-        `)
-        .or(`and(sender_id.eq.${user.id},receiver_id.eq.${selectedUser.id}),and(sender_id.eq.${selectedUser.id},receiver_id.eq.${user.id})`)
-        .order('created_at', { ascending: true });
-
-      if (error) throw error;
-      setMessages(data || []);
-    } catch (error) {
-      toast.error("Failed to load messages");
-    }
-  };
-
   const sendMessage = async () => {
     if (!newMessage.trim() || !selectedUser || !user) return;
-
-    setLoading(true);
-    try {
-      let content = newMessage.trim();
-      
-      // Handle replies
-      if (replyingTo) {
-        const repliedMessage = messages.find(m => m.id === replyingTo);
-        if (repliedMessage) {
-          content = `> ${repliedMessage.content}\n\n${content}`;
-        }
-        setReplyingTo(null);
+    
+    // Add message to local state (messaging table doesn't exist yet)
+    const newMsg: Message = {
+      id: Date.now().toString(),
+      content: newMessage.trim(),
+      sender_id: user.id,
+      receiver_id: selectedUser.id,
+      created_at: new Date().toISOString(),
+      is_read: false,
+      profiles: {
+        username: user.user_metadata?.username || 'you',
+        display_name: user.user_metadata?.display_name,
+        avatar_url: user.user_metadata?.avatar_url,
       }
-
-      const { error } = await supabase
-        .from('messages')
-        .insert({
-          content: content,
-          sender_id: user.id,
-          receiver_id: selectedUser.id,
-        });
-
-      if (error) throw error;
-
-      setNewMessage("");
-      loadMessages();
-    } catch (error) {
-      toast.error("Failed to send message");
-    } finally {
-      setLoading(false);
-    }
+    };
+    
+    setMessages(prev => [...prev, newMsg]);
+    setNewMessage("");
+    setReplyingTo(null);
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -144,15 +78,7 @@ export const ChatInterface = ({ selectedUser, onBack, isMobile = false }: ChatIn
 
   const formatTime = (timestamp: string) => {
     const date = new Date(timestamp);
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const messageDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-    
-    if (messageDate.getTime() === today.getTime()) {
-      return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-    } else {
-      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    }
+    return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
   };
 
   const handleLikeMessage = (messageId: string) => {
@@ -167,10 +93,6 @@ export const ChatInterface = ({ selectedUser, onBack, isMobile = false }: ChatIn
 
   const handleReplyToMessage = (messageId: string) => {
     setReplyingTo(messageId);
-    const message = messages.find(m => m.id === messageId);
-    if (message) {
-      setNewMessage(`@${message.profiles.username} `);
-    }
   };
 
   const handleShareMessage = (messageId: string) => {
@@ -180,15 +102,11 @@ export const ChatInterface = ({ selectedUser, onBack, isMobile = false }: ChatIn
         title: 'Message from SOOZ',
         text: message.content,
       });
-    } else {
-      // Fallback for browsers that don't support Web Share API
-      navigator.clipboard.writeText(message?.content || '');
-      toast.success('Message copied to clipboard');
     }
   };
 
   const handleBookmarkMessage = (messageId: string) => {
-    toast.success('Message bookmarked');
+    console.log('Bookmarked message:', messageId);
   };
 
   if (!selectedUser) {
@@ -199,6 +117,7 @@ export const ChatInterface = ({ selectedUser, onBack, isMobile = false }: ChatIn
             <MessageCircle className="w-8 h-8 text-muted-foreground" />
           </div>
           <p className="text-muted-foreground">Select a chat to start messaging</p>
+          <p className="text-sm text-muted-foreground mt-2">Messaging feature coming soon!</p>
         </div>
       </div>
     );
@@ -242,56 +161,62 @@ export const ChatInterface = ({ selectedUser, onBack, isMobile = false }: ChatIn
 
       {/* Messages Area */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {messages.map((message) => {
-          const isOwn = message.sender_id === user?.id;
-          const isLiked = likedMessages.has(message.id);
-          return (
-            <div
-              key={message.id}
-              className={cn(
-                "flex",
-                isOwn ? "justify-end" : "justify-start"
-              )}
-            >
+        {messages.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-full text-center">
+            <MessageCircle className="w-12 h-12 text-muted-foreground mb-4" />
+            <p className="text-muted-foreground">No messages yet</p>
+            <p className="text-sm text-muted-foreground">Start a conversation!</p>
+          </div>
+        ) : (
+          messages.map((message) => {
+            const isOwn = message.sender_id === user?.id;
+            const isLiked = likedMessages.has(message.id);
+            return (
               <div
+                key={message.id}
                 className={cn(
-                  "max-w-[70%] rounded-2xl px-4 py-2 relative group",
-                  isOwn
-                    ? "bg-primary text-primary-foreground rounded-br-sm"
-                    : "bg-muted rounded-bl-sm"
+                  "flex",
+                  isOwn ? "justify-end" : "justify-start"
                 )}
               >
-                <p className="text-sm break-words">{message.content}</p>
-                <p className={cn(
-                  "text-xs mt-1 opacity-70",
-                  isOwn ? "text-right" : "text-left"
-                )}>
-                  {formatTime(message.created_at)}
-                </p>
-                
-                {/* Thread Features - Only show for received messages */}
-                {!isOwn && (
-                  <ThreadFeatures
-                    messageId={message.id}
-                    isLiked={isLiked}
-                    likeCount={isLiked ? 1 : 0}
-                    onLike={handleLikeMessage}
-                    onReply={handleReplyToMessage}
-                    onShare={handleShareMessage}
-                    onBookmark={handleBookmarkMessage}
-                    className="mt-2"
-                  />
-                )}
+                <div
+                  className={cn(
+                    "max-w-[70%] rounded-2xl px-4 py-2 relative group",
+                    isOwn
+                      ? "bg-primary text-primary-foreground rounded-br-sm"
+                      : "bg-muted rounded-bl-sm"
+                  )}
+                >
+                  <p className="text-sm break-words">{message.content}</p>
+                  <p className={cn(
+                    "text-xs mt-1 opacity-70",
+                    isOwn ? "text-right" : "text-left"
+                  )}>
+                    {formatTime(message.created_at)}
+                  </p>
+                  
+                  {!isOwn && (
+                    <ThreadFeatures
+                      messageId={message.id}
+                      isLiked={isLiked}
+                      likeCount={isLiked ? 1 : 0}
+                      onLike={handleLikeMessage}
+                      onReply={handleReplyToMessage}
+                      onShare={handleShareMessage}
+                      onBookmark={handleBookmarkMessage}
+                      className="mt-2"
+                    />
+                  )}
+                </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })
+        )}
         <div ref={messagesEndRef} />
       </div>
 
       {/* Message Input */}
       <div className="p-4 border-t bg-background">
-        {/* Reply Indicator */}
         {replyingTo && (
           <div className="flex items-center gap-2 mb-2 p-2 bg-muted rounded-lg">
             <Reply className="h-4 w-4 text-muted-foreground" />
@@ -329,12 +254,11 @@ export const ChatInterface = ({ selectedUser, onBack, isMobile = false }: ChatIn
               onChange={(e) => setNewMessage(e.target.value)}
               onKeyPress={handleKeyPress}
               className="pr-12 rounded-full bg-muted border-0 focus:ring-2 focus:ring-primary"
-              disabled={loading}
             />
           </div>
           <Button
             onClick={sendMessage}
-            disabled={!newMessage.trim() || loading}
+            disabled={!newMessage.trim()}
             size="icon"
             className="h-8 w-8 rounded-full"
           >

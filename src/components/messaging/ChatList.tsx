@@ -38,41 +38,32 @@ export const ChatList = ({ onSelectChat, selectedUserId }: ChatListProps) => {
     if (!user) return;
 
     try {
-      // Get users who have had conversations with current user
-      const { data: messages, error } = await supabase
-        .from('messages')
+      // Get users that the current user follows (potential chat partners)
+      const { data: follows, error } = await supabase
+        .from('follows')
         .select(`
-          *,
-          sender:sender_id(username, display_name, avatar_url),
-          receiver:receiver_id(username, display_name, avatar_url)
+          following_id,
+          profiles:profiles!follows_following_id_fkey (id, username, display_name, avatar_url)
         `)
-        .or(`sender_id.eq.${user.id},receiver_id.eq.${user.id}`)
-        .order('created_at', { ascending: false });
+        .eq('follower_id', user.id)
+        .limit(20);
 
       if (error) throw error;
 
-      // Process messages to get unique conversation partners
-      const conversationMap = new Map();
-      
-      messages?.forEach((message) => {
-        const otherUser = message.sender_id === user.id ? message.receiver : message.sender;
-        if (otherUser && otherUser.username) {
-          const existing = conversationMap.get(otherUser.id);
-          if (!existing || new Date(message.created_at) > new Date(existing.last_message_time)) {
-            conversationMap.set(otherUser.id, {
-              id: otherUser.id,
-              username: otherUser.username,
-              display_name: otherUser.display_name,
-              avatar_url: otherUser.avatar_url,
-              last_message: message.content,
-              last_message_time: message.created_at,
-              unread_count: message.receiver_id === user.id && !message.is_read ? 1 : 0
-            });
-          }
-        }
-      });
+      // Transform follows to chat users
+      const chatUsers: ChatUser[] = (follows || [])
+        .filter(f => f.profiles && typeof f.profiles === 'object' && 'username' in f.profiles)
+        .map(f => ({
+          id: (f.profiles as any).id,
+          username: (f.profiles as any).username,
+          display_name: (f.profiles as any).display_name,
+          avatar_url: (f.profiles as any).avatar_url,
+          last_message: "Start a conversation",
+          last_message_time: undefined,
+          unread_count: 0
+        }));
 
-      setChats(Array.from(conversationMap.values()));
+      setChats(chatUsers);
     } catch (error) {
       console.error('Error loading chats:', error);
     } finally {
@@ -128,9 +119,9 @@ export const ChatList = ({ onSelectChat, selectedUserId }: ChatListProps) => {
             <div className="text-center">
               <MessageCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
               <p className="text-muted-foreground">No chats found</p>
-              {searchQuery && (
-                <p className="text-sm text-muted-foreground mt-1">Try a different search term</p>
-              )}
+              <p className="text-sm text-muted-foreground mt-1">
+                {searchQuery ? "Try a different search term" : "Follow people to start chatting"}
+              </p>
             </div>
           </div>
         ) : (
@@ -164,9 +155,11 @@ export const ChatList = ({ onSelectChat, selectedUserId }: ChatListProps) => {
                     <h4 className="font-medium text-sm truncate">
                       {chat.display_name || chat.username}
                     </h4>
-                    <span className="text-xs text-muted-foreground">
-                      {formatTime(chat.last_message_time)}
-                    </span>
+                    {chat.last_message_time && (
+                      <span className="text-xs text-muted-foreground">
+                        {formatTime(chat.last_message_time)}
+                      </span>
+                    )}
                   </div>
                   <p className="text-sm text-muted-foreground truncate">
                     {chat.last_message || "No messages yet"}

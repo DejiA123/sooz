@@ -302,6 +302,7 @@ const Discover = () => {
 
   // Helper function to format post data for PostCard component
   const formatPostForCard = (post: any) => {
+    const mediaType = post.media_type === "video" ? "video" : "image";
     return {
       id: post.id,
       user: {
@@ -311,7 +312,7 @@ const Discover = () => {
         avatar: post.profiles?.avatar_url || "",
       },
       content: post.media_url ? {
-        type: post.media_type === "video" ? "video" : "image",
+        type: mediaType as "image" | "video",
         url: post.media_url
       } : null,
       caption: post.caption || "",
@@ -436,7 +437,6 @@ const Discover = () => {
                           className="w-full h-full object-cover"
                           width={400}
                           height={400}
-                          priority={false}
                         />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center">
