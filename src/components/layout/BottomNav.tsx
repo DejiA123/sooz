@@ -66,10 +66,10 @@ const BottomNav = () => {
   return (
     <>
       <nav className={cn(
-        "fixed bottom-0 left-0 right-0 z-50 bg-surface/95 backdrop-blur-xl border-t border-surface-variant/20 shadow-lg md3-elevation-3 pb-safe transition-all duration-300",
+        "fixed bottom-0 left-0 right-0 z-[1000] bg-surface/95 backdrop-blur-xl border-t border-surface-variant/20 shadow-lg md3-elevation-3 pb-safe transition-all duration-300",
         isMounted && "animate-slide-up"
       )} role="navigation" aria-label="Bottom navigation">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="w-full px-3 sm:px-4">
           <div className="flex items-center justify-between h-20" role="menubar">
             {navItems.map((item) => {
               const Icon = item.icon;

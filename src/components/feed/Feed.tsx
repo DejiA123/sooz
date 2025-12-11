@@ -93,11 +93,11 @@ const Feed = () => {
 
   if (loading) {
     return (
-      <div className="pt-16 pb-24 bg-surface min-h-screen">
-        <div className="bg-surface/95 backdrop-blur-sm border-b border-surface-variant/20">
+      <div className="pt-20 pb-24 bg-surface min-h-screen">
+        <div className="bg-surface/95 backdrop-blur-sm border-b border-surface-variant/20 z-50 relative">
           <StoriesBar />
         </div>
-        <div className="max-w-2xl mx-auto">
+        <div className="max-w-5xl mx-auto">
           <FeedSkeleton />
         </div>
       </div>
@@ -120,14 +120,14 @@ const Feed = () => {
   }
 
   return (
-    <div className="pt-16 pb-24 bg-surface min-h-screen">
+    <div className="pt-20 pb-24 bg-surface min-h-screen">
       {/* Stories Section - Instagram-style */}
-      <div className="bg-surface/95 backdrop-blur-sm border-b border-surface-variant/20">
+      <div className="bg-surface/95 backdrop-blur-sm border-b border-surface-variant/20 z-50 relative">
         <StoriesBar />
       </div>
       
       {/* Posts Feed - Instagram-inspired layout */}
-      <div className="max-w-2xl mx-auto">
+      <div className="max-w-5xl mx-auto lg:max-w-6xl xl:max-w-7xl">
         {posts.length > 0 ? (
           <div className="space-y-0">
             {posts.map((post, index) => (

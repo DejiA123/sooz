@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { OptimizedImage } from "@/components/ui/optimized-image";
+import { OptimizedAvatar } from "@/components/ui/optimized-avatar";
 import { 
   Heart, 
   MessageCircle, 
@@ -11,7 +12,8 @@ import {
   Volume2,
   VolumeX,
   MoreVertical,
-  Music
+  Music,
+  Check
 } from "lucide-react";
 
 interface ModernVideoPlayerProps {
@@ -165,13 +167,12 @@ const ModernVideoPlayer = ({
 
   return (
     <div className={cn(
-      "relative w-full h-full bg-black rounded-2xl overflow-hidden group",
-      "max-w-[500px] mx-auto", // Limit width for better mobile experience
+      "relative w-full max-w-sm mx-auto bg-black rounded-2xl overflow-hidden shadow-xl group",
       className
     )}>
       {/* Video Element */}
       <div 
-        className="relative w-full h-full cursor-pointer"
+        className="relative aspect-[9/16] bg-black rounded-2xl cursor-pointer"
         onClick={handleVideoInteraction}
         onTouchStart={handleVideoInteraction}
         onMouseMove={showControlsTemporarily}
@@ -181,7 +182,7 @@ const ModernVideoPlayer = ({
           ref={videoRef}
           src={videoUrl}
           poster={thumbnail}
-          className="w-full h-full object-cover"
+          className="w-full h-full object-cover rounded-2xl"
           loop
           muted={isMuted}
           playsInline
@@ -279,149 +280,77 @@ const ModernVideoPlayer = ({
         </div>
       )}
 
-      {/* Side Interaction Panel - TikTok Style */}
-      <div className={cn(
-        "absolute right-4 bottom-20 flex flex-col items-center gap-6 transition-all duration-300 transform",
-        showSidePanel ? "translate-x-0 opacity-100" : "translate-x-full opacity-0"
-      )}>
-        
-        {/* Profile Picture with Follow Button */}
-        <div className="flex flex-col items-center gap-2">
-          <button 
-            className="relative focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-black/50 rounded-full"
-            onClick={(e) => {
-              e.stopPropagation();
-              // Navigate to user profile
-              window.location.href = `/profile/${user.username}`;
-            }}
-            aria-label={`View profile of ${user.name}`}
-            title={`View profile of ${user.name}`}
-          >
-            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 p-[2px]">
-              {user.avatar ? (
-                <OptimizedImage
-                  src={user.avatar}
-                  alt={`${user.name}'s avatar`}
-                  className="w-full h-full rounded-full object-cover bg-black"
-                  width={48}
-                  height={48}
-                  priority={false}
-                />
-              ) : (
-                <div className="w-full h-full rounded-full bg-black flex items-center justify-center">
-                  <span className="text-sm font-bold text-white">
-                    {user.name.charAt(0).toUpperCase()}
-                  </span>
-                </div>
-              )}
-            </div>
-          </button>
-          
-          {/* Follow Button */}
-          <button 
-            className="w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center text-lg font-bold hover:bg-blue-600 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-white"
-            aria-label={`Follow ${user.name}`}
-            title={`Follow ${user.name}`}
-          >
-            +
-          </button>
-        </div>
-
-        {/* Like Button with Animation */}
-        <div className="flex flex-col items-center">
+      {/* Side Panel - TikTok/Instagram Style */}
+      {isPlaying && (
+        <div className="absolute right-3 bottom-24 flex flex-col gap-5 z-10">
+          {/* Like Button */}
           <button
-            className={cn(
-              "w-12 h-12 rounded-full bg-black/40 backdrop-blur-sm border border-white/20 flex items-center justify-center transition-all duration-300 hover:bg-black/60 focus:outline-none focus:ring-2 focus:ring-white",
-              isLiked && "bg-red-500/80 border-red-400"
-            )}
-            onClick={(e) => {
-              e.stopPropagation();
-              onLike();
-              // Trigger like animation
-              const heartEvent = new CustomEvent('videoLike', { detail: { user: user.name } });
-              document.dispatchEvent(heartEvent);
-            }}
-            aria-label={isLiked ? `Unlike video by ${user.name}` : `Like video by ${user.name}`}
-            title={isLiked ? `Unlike video` : `Like video`}
+            onClick={onLike}
+            className="w-12 h-12 rounded-full bg-white/80 dark:bg-black/80 backdrop-blur-sm flex items-center justify-center transition-all duration-200 hover:scale-110 active:scale-95 shadow-lg group"
           >
-            <Heart 
-              className={cn(
-                "w-6 h-6 text-white transition-all duration-300",
-                isLiked && "fill-current text-red-500 animate-heart-beat"
-              )} 
-              fill={isLiked ? "currentColor" : "none"}
-            />
+            <Heart className={cn("w-6 h-6", isLiked ? "text-red-500 fill-current" : "text-gray-700 dark:text-gray-300")} />
           </button>
-          <span className="text-xs text-white font-semibold mt-1 drop-shadow-lg">
+          <span className="text-xs text-white font-semibold drop-shadow-lg">
             {formatNumber(likes)}
           </span>
-        </div>
 
-        {/* Comment Button */}
-        <div className="flex flex-col items-center">
+          {/* Comment Button */}
           <button
-            className="w-12 h-12 rounded-full bg-black/40 backdrop-blur-sm border border-white/20 flex items-center justify-center transition-all duration-300 hover:bg-black/60 focus:outline-none focus:ring-2 focus:ring-white"
-            onClick={(e) => {
-              e.stopPropagation();
-              onComment();
-            }}
-            aria-label={`Comment on video by ${user.name}`}
-            title={`Comment on video`}
+            onClick={onComment}
+            className="w-12 h-12 rounded-full bg-white/80 dark:bg-black/80 backdrop-blur-sm flex items-center justify-center transition-all duration-200 hover:scale-110 active:scale-95 shadow-lg group"
           >
-            <MessageCircle className="w-6 h-6 text-white" />
+            <MessageCircle className="w-6 h-6 text-gray-700 dark:text-gray-300" />
           </button>
-          <span className="text-xs text-white font-semibold mt-1 drop-shadow-lg">
+          <span className="text-xs text-white font-semibold drop-shadow-lg">
             {formatNumber(comments)}
           </span>
-        </div>
 
-        {/* Share Button */}
-        <div className="flex flex-col items-center">
+          {/* Share Button */}
           <button
-            className="w-12 h-12 rounded-full bg-black/40 backdrop-blur-sm border border-white/20 flex items-center justify-center transition-all duration-300 hover:bg-black/60 focus:outline-none focus:ring-2 focus:ring-white"
-            onClick={(e) => {
-              e.stopPropagation();
-              onShare();
-            }}
-            aria-label={`Share video by ${user.name}`}
-            title={`Share video`}
+            onClick={onShare}
+            className="w-12 h-12 rounded-full bg-white/80 dark:bg-black/80 backdrop-blur-sm flex items-center justify-center transition-all duration-200 hover:scale-110 active:scale-95 shadow-lg group"
           >
-            <Share2 className="w-6 h-6 text-white" />
+            <Share2 className="w-6 h-6 text-gray-700 dark:text-gray-300" />
           </button>
-          <span className="text-xs text-white font-semibold mt-1 drop-shadow-lg">
+          <span className="text-xs text-white font-semibold drop-shadow-lg">
             {formatNumber(shares)}
           </span>
         </div>
-      </div>
+      )}
 
       {/* Bottom Info Section - Instagram Reels Style */}
-      <div className="absolute left-4 right-20 bottom-6 space-y-3">
-        {/* User Info */}
-        <div className="flex items-center gap-2">
-          <span className="text-white font-semibold text-sm">@{user.username}</span>
-          {user.verified && (
-            <div className="w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center">
-              <svg className="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-              </svg>
+        <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/60 via-black/20 to-transparent">
+          {/* User Info */}
+          <div className="flex items-center gap-2 mb-2">
+            <OptimizedAvatar
+              src={user.avatar}
+              alt={user.name}
+              fallback={user.name.charAt(0)}
+              size="sm"
+              className="w-8 h-8 border border-white/80"
+            />
+            <div className="flex items-center gap-1">
+              <span className="text-white font-semibold text-sm">{user.name}</span>
+              {user.verified && (
+                <div className="w-3 h-3 bg-blue-500 rounded-full flex items-center justify-center">
+                  <Check className="w-2 h-2 text-white" />
+                </div>
+              )}
             </div>
-          )}
-        </div>
+          </div>
         
         {/* Caption */}
         {caption && (
-          <p className="text-white text-sm leading-relaxed line-clamp-3 drop-shadow-lg">
+          <p className="text-white text-sm leading-relaxed line-clamp-2 drop-shadow-md mb-2">
             {caption}
           </p>
         )}
         
         {/* Music Info - TikTok Style */}
         {music && (
-          <div className="flex items-center gap-2">
-            <Music className="w-4 h-4 text-white/80" />
-            <span className="text-white text-xs opacity-80 animate-pulse">
-              {music}
-            </span>
+          <div className="flex items-center gap-2 text-white/80 text-xs">
+            <Music className="w-3 h-3" />
+            <span className="drop-shadow-md">{music}</span>
           </div>
         )}
       </div>

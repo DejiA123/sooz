@@ -8,13 +8,13 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      <main className="container mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="max-w-2xl mx-auto">
+      <main className="w-full max-w-7xl mx-auto px-0 sm:px-4 lg:px-8">
+        <div className="w-full mx-auto">
           <div className="animate-modern-fade-in">
             <Feed />
           </div>
           {/* Modern video player for testing the new UI components */}
-          <div className="mt-8 mb-20 animate-modern-slide-up animate-delay-200">
+          <div className="mt-8 mb-20 animate-modern-slide-up animate-delay-200 max-w-md mx-auto">
             <ModernVideoPlayer 
               videoUrl="https://sample-videos.com/zip/10/mp4/SampleVideo_1280x720_1mb.mp4"
               thumbnail="https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=400&h=600&fit=crop"

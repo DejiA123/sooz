@@ -84,16 +84,14 @@ const ModernBottomNav = () => {
     <>
       {/* Modern Bottom Navigation - Instagram/TikTok/Facebook Hybrid */}
       <nav className={cn(
-        "fixed bottom-0 left-0 right-0 z-50 bg-white/95 dark:bg-black/95 backdrop-blur-xl border-t border-gray-200 dark:border-gray-800 shadow-lg transition-all duration-300",
-        "md:hidden", // Hide on desktop, show on mobile
+        "fixed bottom-0 left-0 right-0 z-[1000] bg-white/95 dark:bg-black/95 backdrop-blur-xl border-t border-gray-200 dark:border-gray-800 shadow-lg transition-all duration-300",
         isMounted && "animate-slide-in-up",
-        isVideoPlaying && "opacity-0 pointer-events-none", // Hide during video playback
-        "pb-safe" // Safe area for modern phones
+        "pb-safe"
       )} role="navigation" aria-label="Bottom navigation">
         
         {/* Navigation Container */}
-        <div className="container mx-auto px-4">
-          <div className="flex items-center justify-between h-16 relative">
+        <div className="w-full px-3 sm:px-4">
+          <div className="flex items-center justify-between h-20 relative">
             
             {/* Navigation Items */}
             {navItems.map((item, index) => {
@@ -106,12 +104,12 @@ const ModernBottomNav = () => {
                   key={item.id}
                   onClick={() => handleNavClick(item)}
                   className={cn(
-                    "flex flex-col items-center justify-center gap-1 px-3 py-2 rounded-2xl transition-all duration-200 transform hover:scale-110 active:scale-95 relative",
+                    "flex flex-col items-center justify-center gap-1 px-2 py-3 rounded-2xl transition-all duration-200 transform hover:scale-105 active:scale-95 relative",
                     "focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2",
-                    "min-w-[64px]", // Ensure minimum touch target size
+                    "min-w-[60px]", // Ensure minimum touch target size
                     isCreate && "relative",
-                    isActive && !isCreate && "bg-gradient-to-br from-purple-500 to-pink-500 text-white hover:from-purple-600 hover:to-pink-600 animate-gradient-shift",
-                    !isActive && !isCreate && "text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:animate-lift"
+                    isActive && !isCreate && "text-blue-600 dark:text-blue-400",
+                    !isActive && !isCreate && "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
                   )}
                   role="menuitem"
                   aria-label={`${item.label}${isActive ? " - Current page" : ""}`}
@@ -120,13 +118,13 @@ const ModernBottomNav = () => {
                   style={{ animationDelay: `${index * 50}ms` }}
                 >
                   {isCreate ? (
-                    // Instagram-style create button
+                    // Modern create button
                     <div className={cn(
-                      "w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-300",
-                      "bg-gradient-to-br from-blue-500 to-purple-600 shadow-lg hover:shadow-xl animate-morphing-shape hover:animate-scale",
+                      "w-16 h-16 rounded-2xl flex items-center justify-center transition-all duration-300",
+                      "bg-gradient-to-br from-blue-500 to-purple-600 shadow-lg hover:shadow-xl",
                       "border-2 border-white dark:border-gray-900"
                     )}>
-                      <Icon className="w-6 h-6 text-white" strokeWidth={2.5} aria-hidden="true" />
+                      <Icon className="w-8 h-8 text-white" strokeWidth={2.5} aria-hidden="true" />
                     </div>
                   ) : (
                     <>
@@ -134,28 +132,24 @@ const ModernBottomNav = () => {
                       <div className="relative">
                         <Icon
                           className={cn(
-                            "w-6 h-6 transition-all duration-200",
-                            isActive && "scale-110 drop-shadow-lg"
+                            "w-7 h-7 transition-all duration-200",
+                            isActive && "scale-110"
                           )}
                           strokeWidth={isActive ? 2.5 : 2}
+                          fill={isActive ? "currentColor" : "none"}
                           aria-hidden="true"
                         />
                         
-                        {/* Active dot indicator */}
-                        {isActive && (
-                          <div className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-1 h-1 bg-blue-600 dark:bg-blue-400 rounded-full animate-pulse" />
-                        )}
-                        
                         {/* Notification badge for activity */}
                         {item.id === "activity" && (
-                          <div className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+                          <div className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full" />
                         )}
                       </div>
                       
                       {/* Label */}
                       <span className={cn(
-                        "text-xs font-semibold transition-all duration-200",
-                        isActive ? "text-blue-600 dark:text-blue-400" : "text-gray-600 dark:text-gray-400"
+                        "text-[11px] font-medium transition-all duration-200 mt-1",
+                        isActive ? "text-blue-600 dark:text-blue-400" : "text-gray-500 dark:text-gray-500"
                       )}>
                         {item.label}
                       </span>

@@ -139,23 +139,23 @@ const StoriesBar = () => {
 
   return (
     <>
-      <div className="py-4 px-4 overflow-x-auto hide-scrollbar bg-surface/95 backdrop-blur-sm border-b border-surface-variant/10">
-        <div className="flex gap-5">
+      <div className="py-4 px-4 overflow-x-auto hide-scrollbar bg-surface/95 backdrop-blur-sm border-b border-surface-variant/10 shadow-sm">
+        <div className="flex gap-4">
           {stories.map((story, index) => (
             <div 
-              key={story.id} 
-              className="flex flex-col items-center gap-2 min-w-fit cursor-pointer group"
-              onClick={() => handleStoryClick(story, index)}
-            >
-              <div
-                className={`relative w-16 h-16 rounded-full p-[3px] transition-all duration-300 group-hover:scale-105 ${
-                  story.id === "add"
-                    ? "bg-neutral-300 dark:bg-neutral-600"
-                    : story.hasNew
-                    ? "bg-gradient-to-br from-primary-400 via-secondary-400 to-primary-500 animate-pulse"
-                    : "bg-neutral-300 dark:bg-neutral-600"
-                }`}
+                key={story.id} 
+                className="flex flex-col items-center gap-1.5 min-w-fit cursor-pointer group transition-all duration-200 hover:scale-105"
+                onClick={() => handleStoryClick(story, index)}
               >
+                <div
+                  className={`relative w-20 h-20 rounded-full p-[2px] transition-all duration-300 ${
+                    story.id === "add"
+                      ? "bg-gray-300 dark:bg-gray-600"
+                      : story.hasNew
+                      ? "bg-gradient-to-br from-pink-500 via-purple-500 to-blue-500 animate-pulse"
+                      : "bg-gray-300 dark:bg-gray-600"
+                  }`}
+                >
                 {story.id === "add" ? (
                   <div className="w-full h-full rounded-full bg-surface flex items-center justify-center border-2 border-dashed border-neutral-400 dark:border-neutral-500 group-hover:border-primary-400 transition-colors">
                     <Plus className="w-6 h-6 text-primary-500 group-hover:scale-110 transition-transform" />
@@ -170,10 +170,10 @@ const StoriesBar = () => {
                   />
                 )}
               </div>
-              <span className={`text-xs text-center w-16 truncate transition-colors ${
+              <span className={`text-xs text-center w-20 truncate transition-colors ${
                 story.hasNew 
-                  ? "text-neutral-800 dark:text-neutral-200 font-medium" 
-                  : "text-neutral-500 dark:text-neutral-400"
+                  ? "text-gray-800 dark:text-gray-200 font-semibold" 
+                  : "text-gray-500 dark:text-gray-400"
               }`}>
                 {story.name}
               </span>
