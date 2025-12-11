@@ -1,11 +1,15 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Heart, MessageCircle, Send, Bookmark, MoreHorizontal, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import CommentModal from "@/components/comments/CommentModal";
+import TikTokVideoPlayer from "@/components/video/TikTokVideoPlayer";
+import { OptimizedAvatar } from "@/components/ui/optimized-avatar";
+import { OptimizedImage } from "@/components/ui/optimized-image";
+import { PremiumHeart, PremiumMessage, PremiumShare, PremiumBookmark, PremiumMore, PremiumPlay } from "@/components/icons/PremiumIcons";
 
 interface PostCardProps {
   post: {
@@ -25,6 +29,7 @@ interface PostCardProps {
     likes: number;
     comments: number;
     shares: number;
+    view_count?: number;
     timeAgo: string;
   };
   onRefresh?: () => void;
@@ -37,13 +42,26 @@ const PostCard = ({ post, onRefresh }: PostCardProps) => {
   const [saved, setSaved] = useState(false);
   const [likesCount, setLikesCount] = useState(post.likes);
   const [isLiking, setIsLiking] = useState(false);
+  const [showComments, setShowComments] = useState(false);
+  const [commentsCount, setCommentsCount] = useState(post.comments);
+  const [viewCount, setViewCount] = useState(post.view_count || 0);
+  const [hasTrackedView, setHasTrackedView] = useState(false);
+  const [showHeartAnimation, setShowHeartAnimation] = useState(false);
+  const [lastTap, setLastTap] = useState(0);
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   useEffect(() => {
     if (user) {
       checkIfLiked();
       checkIfSaved();
     }
-  }, [user, post.id]);
+    fetchViewCount();
+    trackView();
+  }, [user, post.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const checkIfLiked = async () => {
     if (!user) return;
@@ -126,72 +144,168 @@ const PostCard = ({ post, onRefresh }: PostCardProps) => {
     return num.toString();
   };
 
+  const handleCommentClick = () => {
+    setShowComments(true);
+  };
+
+  const handleCommentAdded = () => {
+    // Refresh comments count
+    fetchCommentsCount();
+    if (onRefresh) onRefresh();
+  };
+
+  const fetchCommentsCount = async () => {
+    try {
+      const { count } = await supabase
+        .from("comments")
+        .select("*", { count: "exact", head: true })
+        .eq("post_id", post.id);
+      
+      setCommentsCount(count || 0);
+    } catch (error) {
+      console.error("Error fetching comments count:", error);
+    }
+  };
+
+  const fetchViewCount = async () => {
+    try {
+      const { count } = await supabase
+        .from("post_views")
+        .select("*", { count: "exact", head: true })
+        .eq("post_id", post.id);
+      
+      setViewCount(count || 0);
+    } catch (error) {
+      console.error("Error fetching view count:", error);
+    }
+  };
+
+  const trackView = async () => {
+    if (!user || hasTrackedView) return;
+    
+    // Check if user has already viewed this post
+    const { data: existingView } = await supabase
+      .from("post_views")
+      .select("id")
+      .eq("post_id", post.id)
+      .eq("user_id", user.id)
+      .maybeSingle();
+    
+    if (existingView) {
+      setHasTrackedView(true);
+      return;
+    }
+    
+    try {
+      await supabase.from("post_views").insert({
+        post_id: post.id,
+        user_id: user.id,
+      });
+      setHasTrackedView(true);
+      setViewCount(prev => prev + 1);
+    } catch (error) {
+      console.error("Error tracking view:", error);
+    }
+  };
+
+  const handleDoubleTap = () => {
+    const now = Date.now();
+    if (now - lastTap < 300) {
+      // Double tap detected
+      if (!liked) {
+        handleLike();
+        setShowHeartAnimation(true);
+        setTimeout(() => setShowHeartAnimation(false), 1000);
+      }
+    }
+    setLastTap(now);
+  };
+
   return (
-    <article className="bg-card rounded-2xl overflow-hidden border border-border/50 animate-fade-in">
+    <article className={cn(
+      "bg-surface rounded-xl sm:rounded-2xl overflow-hidden border border-surface-variant/20 shadow-sm md3-elevation-1 hover:md3-elevation-2 transition-all duration-300 max-w-full",
+      isMounted && "animate-fade-in-up"
+    )}>
       {/* Header */}
       <div className="flex items-center justify-between p-4">
-        <div 
-          className="flex items-center gap-3 cursor-pointer"
+        <button 
+          className="flex items-center gap-3 cursor-pointer group focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 rounded-xl p-1"
           onClick={() => navigate(`/profile/${post.user.username}`)}
+          aria-label={`View profile of ${post.user.name}`}
+          title={`View profile of ${post.user.name}`}
         >
           <div className="relative">
-            <div className="w-11 h-11 rounded-full bg-gradient-to-br from-primary to-secondary p-[2px]">
-              {post.user.avatar ? (
-                <img
-                  src={post.user.avatar}
-                  alt={post.user.name}
-                  className="w-full h-full rounded-full object-cover bg-background"
-                />
-              ) : (
-                <div className="w-full h-full rounded-full bg-muted flex items-center justify-center">
-                  <span className="text-sm font-bold">
-                    {post.user.name.charAt(0).toUpperCase()}
-                  </span>
-                </div>
-              )}
+            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary-500 to-accent-500 p-[2px] shadow-md shadow-primary-500/20 group-hover:shadow-lg group-hover:shadow-primary-500/30 transition-all duration-300">
+              <OptimizedAvatar 
+                src={post.user.avatar}
+                alt={`${post.user.name}'s avatar`}
+                fallback={post.user.name.charAt(0).toUpperCase()}
+                size="sm"
+                className="w-full h-full rounded-full"
+              />
             </div>
             {post.user.verified && (
-              <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-primary rounded-full flex items-center justify-center">
-                <svg className="w-2.5 h-2.5 text-primary-foreground" fill="currentColor" viewBox="0 0 20 20">
+              <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-primary-500 rounded-full flex items-center justify-center shadow-md" aria-hidden="true">
+                <svg className="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
                   <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                 </svg>
               </div>
             )}
           </div>
           <div>
-            <div className="flex items-center gap-1">
-              <span className="font-semibold text-sm">{post.user.name}</span>
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-sm text-neutral-900 dark:text-neutral-100 group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">{post.user.name}</span>
             </div>
-            <span className="text-xs text-muted-foreground">@{post.user.username} · {post.timeAgo}</span>
+            <span className="text-xs text-neutral-600 dark:text-neutral-400 font-medium">@{post.user.username} · {post.timeAgo}</span>
           </div>
-        </div>
-        <Button variant="icon" size="icon-sm">
-          <MoreHorizontal className="w-5 h-5 text-muted-foreground" />
+        </button>
+        <Button variant="md3-icon" size="md3-icon" className="md3-button" aria-label="More options" title="More options">
+          <PremiumMore className="w-5 h-5 text-neutral-600 dark:text-neutral-400" aria-hidden="true" />
         </Button>
       </div>
 
       {/* Content */}
       {post.content && (
-        <div className="relative bg-muted aspect-square">
+        <div className="relative bg-surface-variant w-full max-h-[400px] sm:max-h-[500px] lg:max-h-[600px] overflow-hidden">
           {post.content.type === "image" ? (
-            <img
-              src={post.content.url}
-              alt="Post content"
-              className="w-full h-full object-cover"
-            />
-          ) : (
-            <video
-              src={post.content.url}
-              className="w-full h-full object-cover"
-              controls
-            />
-          )}
-          {post.content.type === "video" && (
-            <div className="absolute inset-0 flex items-center justify-center bg-background/20 pointer-events-none">
-              <div className="w-16 h-16 rounded-full bg-background/80 backdrop-blur-sm flex items-center justify-center">
-                <Play className="w-8 h-8 text-foreground ml-1" fill="currentColor" />
-              </div>
+            <div 
+              className="relative cursor-pointer"
+              onClick={handleDoubleTap}
+            >
+              <OptimizedImage
+                src={post.content.url}
+                alt="Post content"
+                className="w-full h-auto object-cover"
+                width={800}
+                height={800}
+                priority={false}
+              />
+              {/* Heart animation for double-tap */}
+              {showHeartAnimation && (
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <div className="animate-heart-pop">
+                    <PremiumHeart 
+                      className="w-24 h-24 text-red-500 fill-current drop-shadow-2xl" 
+                      filled={true}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
+          ) : (
+            <TikTokVideoPlayer
+              videoUrl={post.content.url}
+              likes={likesCount}
+              comments={commentsCount}
+              shares={post.shares}
+              isLiked={liked}
+              onLike={handleLike}
+              onComment={handleCommentClick}
+              onShare={() => {/* TODO: Implement share */}}
+              user={post.user}
+              caption={post.caption}
+              className="w-full h-[400px] sm:h-[500px] lg:h-[600px]"
+            />
           )}
         </div>
       )}
@@ -199,37 +313,61 @@ const PostCard = ({ post, onRefresh }: PostCardProps) => {
       {/* Actions */}
       <div className="p-4">
         <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-4">
             <Button 
-              variant="icon" 
-              size="icon" 
+              variant="md3-icon" 
+              size="md3-icon" 
               onClick={handleLike}
-              className={cn(liked && "text-red-500")}
+              className={cn("md3-button transition-all duration-300 hover:scale-110", liked && "text-red-500")}
+              aria-label={liked ? `Unlike post by ${post.user.name}` : `Like post by ${post.user.name}`}
+              title={liked ? `Unlike post by ${post.user.name}` : `Like post by ${post.user.name}`}
+              aria-pressed={liked}
             >
-              <Heart 
+              <PremiumHeart 
                 className={cn(
-                  "w-6 h-6 transition-all",
-                  liked && "fill-current animate-heart-beat"
+                  "w-6 h-6 transition-all duration-300",
+                  liked && "fill-current animate-heart-beat drop-shadow-md"
                 )} 
+                filled={liked}
+                aria-hidden="true"
               />
             </Button>
-            <Button variant="icon" size="icon">
-              <MessageCircle className="w-6 h-6" />
+            <Button 
+              variant="md3-icon" 
+              size="md3-icon" 
+              onClick={handleCommentClick} 
+              className="md3-button"
+              aria-label={`Comment on post by ${post.user.name}`}
+              title={`Comment on post by ${post.user.name}`}
+            >
+              <PremiumMessage className="w-6 h-6" aria-hidden="true" />
             </Button>
-            <Button variant="icon" size="icon">
-              <Send className="w-6 h-6" />
+            <Button 
+              variant="md3-icon" 
+              size="md3-icon" 
+              className="md3-button"
+              aria-label={`Share post by ${post.user.name}`}
+              title={`Share post by ${post.user.name}`}
+            >
+              <PremiumShare className="w-6 h-6" aria-hidden="true" />
             </Button>
           </div>
           <Button 
-            variant="icon" 
-            size="icon"
+            variant="md3-icon" 
+            size="md3-icon"
             onClick={handleSave}
+            className="md3-button"
+            aria-label={saved ? `Remove post by ${post.user.name} from saved` : `Save post by ${post.user.name}`}
+            title={saved ? `Remove post by ${post.user.name} from saved` : `Save post by ${post.user.name}`}
+            aria-pressed={saved}
           >
-            <Bookmark 
+            <PremiumBookmark 
               className={cn(
-                "w-6 h-6 transition-all",
-                saved && "fill-current text-primary"
+                "w-6 h-6 transition-all duration-300",
+                saved && "fill-current text-neutral-900 dark:text-neutral-100 drop-shadow-md"
               )} 
+              filled={saved}
+              aria-hidden="true"
             />
           </Button>
         </div>
@@ -237,24 +375,57 @@ const PostCard = ({ post, onRefresh }: PostCardProps) => {
         {/* Stats */}
         <div className="space-y-2">
           <div className="flex items-center gap-4 text-sm">
-            <span className="font-semibold">{formatNumber(likesCount)} likes</span>
-            <span className="text-muted-foreground">{formatNumber(post.comments)} comments</span>
+            <button 
+              className="font-semibold text-neutral-900 dark:text-neutral-100 cursor-pointer hover:text-primary-600 dark:hover:text-primary-400 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-1 rounded-md px-1 py-0.5"
+              onClick={() => {/* TODO: Show likes modal */}}
+              aria-label={`View ${formatNumber(likesCount)} likes for post by ${post.user.name}`}
+              title={`View ${formatNumber(likesCount)} likes`}
+            >
+              {formatNumber(likesCount)} likes
+            </button>
+            <button 
+              className="text-neutral-600 dark:text-neutral-400 cursor-pointer hover:text-neutral-900 dark:hover:text-neutral-100 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-1 rounded-md px-1 py-0.5"
+              onClick={handleCommentClick}
+              aria-label={`View ${formatNumber(commentsCount)} comments for post by ${post.user.name}`}
+              title={`View ${formatNumber(commentsCount)} comments`}
+            >
+              {formatNumber(commentsCount)} comments
+            </button>
+            <button 
+              className="text-neutral-600 dark:text-neutral-400 cursor-pointer hover:text-neutral-900 dark:hover:text-neutral-100 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-1 rounded-md px-1 py-0.5"
+              onClick={() => {/* TODO: Show views modal */}}
+              aria-label={`View ${formatNumber(viewCount)} views for post by ${post.user.name}`}
+              title={`View ${formatNumber(viewCount)} views`}
+            >
+              {formatNumber(viewCount)} views
+            </button>
           </div>
           
           {/* Caption */}
           {post.caption && (
-            <p className="text-sm">
-              <span 
-                className="font-semibold mr-2 cursor-pointer hover:underline"
+            <p className="text-sm leading-relaxed">
+              <button 
+                className="font-semibold text-neutral-900 dark:text-neutral-100 mr-2 cursor-pointer hover:text-primary-600 dark:hover:text-primary-400 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-1 rounded-md px-1 py-0.5"
                 onClick={() => navigate(`/profile/${post.user.username}`)}
+                aria-label={`View profile of ${post.user.name}`}
+                title={`View profile of ${post.user.name}`}
               >
                 {post.user.username}
-              </span>
-              {post.caption}
+              </button>
+              <span className="text-neutral-800 dark:text-neutral-200">{post.caption}</span>
             </p>
           )}
         </div>
       </div>
+      
+      {/* Comment Modal */}
+      <CommentModal
+        postId={post.id}
+        postOwnerId={post.user.id}
+        isOpen={showComments}
+        onClose={() => setShowComments(false)}
+        onCommentAdded={handleCommentAdded}
+      />
     </article>
   );
 };

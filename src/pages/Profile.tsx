@@ -8,6 +8,11 @@ import { Button } from "@/components/ui/button";
 import { Settings, Grid3X3, Bookmark, Heart, Loader2, Camera } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { ErrorState } from "@/components/error/ErrorState";
+import { handleSupabaseError } from "@/lib/error-utils";
+import { OptimizedAvatar } from "@/components/ui/optimized-avatar";
+import { OptimizedImage } from "@/components/ui/optimized-image";
+import { ProfileSkeleton } from "@/components/profile/ProfileSkeleton";
 import EditProfileModal from "@/components/profile/EditProfileModal";
 
 interface Profile {
@@ -38,6 +43,7 @@ const Profile = () => {
   const [followingCount, setFollowingCount] = useState(0);
   const [isFollowing, setIsFollowing] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
   const [activeTab, setActiveTab] = useState<"posts" | "saved" | "liked">("posts");
   const [showEditModal, setShowEditModal] = useState(false);
 
@@ -53,19 +59,21 @@ const Profile = () => {
     if (!username) return;
     
     setLoading(true);
+    setError(null);
     
-    // Fetch profile
-    const { data: profileData, error: profileError } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("username", username)
-      .maybeSingle();
+    try {
+      // Fetch profile
+      const { data: profileData, error: profileError } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("username", username)
+        .maybeSingle();
 
-    if (profileError || !profileData) {
-      toast.error("Profile not found");
-      navigate("/");
-      return;
-    }
+      if (profileError || !profileData) {
+        const error = handleSupabaseError(profileError || new Error("Profile not found"), 'fetchProfile');
+        setError(error);
+        return;
+      }
 
     setProfile(profileData);
 
@@ -107,6 +115,11 @@ const Profile = () => {
     }
 
     setLoading(false);
+    } catch (error) {
+      const appError = handleSupabaseError(error, 'fetchProfile');
+      setError(appError);
+      setLoading(false);
+    }
   };
 
   const handleFollow = async () => {
@@ -141,8 +154,29 @@ const Profile = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      <div className="min-h-screen bg-background">
+        <Header />
+        <main className="max-w-lg mx-auto pt-16 pb-24">
+          <ProfileSkeleton />
+        </main>
+        <BottomNav />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Header />
+        <main className="max-w-lg mx-auto pt-16 pb-24">
+          <ErrorState 
+            error={error}
+            onRetry={fetchProfile}
+            title="Profile not found"
+            message={error.message || "We couldn't load this profile. Please try again."}
+          />
+        </main>
+        <BottomNav />
       </div>
     );
   }
@@ -157,10 +191,13 @@ const Profile = () => {
         {/* Cover Photo */}
         <div className="relative h-32 bg-gradient-to-br from-secondary/30 to-primary/20">
           {profile.cover_url && (
-            <img
+            <OptimizedImage
               src={profile.cover_url}
               alt="Cover"
               className="w-full h-full object-cover"
+              width={800}
+              height={128}
+              priority={false}
             />
           )}
         </div>
@@ -170,19 +207,13 @@ const Profile = () => {
           {/* Avatar */}
           <div className="relative -mt-12 mb-4">
             <div className="w-24 h-24 rounded-full border-4 border-background bg-muted overflow-hidden">
-              {profile.avatar_url ? (
-                <img
-                  src={profile.avatar_url}
-                  alt={profile.display_name || profile.username}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <div className="w-full h-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
-                  <span className="text-2xl font-bold text-primary-foreground">
-                    {(profile.display_name || profile.username).charAt(0).toUpperCase()}
-                  </span>
-                </div>
-              )}
+              <OptimizedAvatar 
+                src={profile.avatar_url}
+                alt={profile.display_name || profile.username}
+                fallback={(profile.display_name || profile.username).charAt(0).toUpperCase()}
+                size="xl"
+                className="w-full h-full"
+              />
             </div>
           </div>
 
@@ -288,10 +319,13 @@ const Profile = () => {
                   className="aspect-square bg-muted overflow-hidden"
                 >
                   {post.media_url ? (
-                    <img
+                    <OptimizedImage
                       src={post.media_url}
                       alt=""
                       className="w-full h-full object-cover hover:opacity-80 transition-opacity cursor-pointer"
+                      width={400}
+                      height={400}
+                      priority={false}
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-muted-foreground">
