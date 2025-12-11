@@ -161,6 +161,42 @@ export type Database = {
           },
         ]
       }
+      post_views: {
+        Row: {
+          id: string
+          post_id: string
+          user_id: string | null
+          viewed_at: string
+        }
+        Insert: {
+          id?: string
+          post_id: string
+          user_id?: string | null
+          viewed_at?: string
+        }
+        Update: {
+          id?: string
+          post_id?: string
+          user_id?: string | null
+          viewed_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "post_views_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "post_views_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       posts: {
         Row: {
           caption: string | null
@@ -169,6 +205,7 @@ export type Database = {
           media_type: string | null
           media_url: string | null
           user_id: string
+          view_count: number | null
         }
         Insert: {
           caption?: string | null
@@ -177,6 +214,7 @@ export type Database = {
           media_type?: string | null
           media_url?: string | null
           user_id: string
+          view_count?: number | null
         }
         Update: {
           caption?: string | null
@@ -185,6 +223,7 @@ export type Database = {
           media_type?: string | null
           media_url?: string | null
           user_id?: string
+          view_count?: number | null
         }
         Relationships: [
           {
@@ -228,6 +267,44 @@ export type Database = {
           username?: string
         }
         Relationships: []
+      }
+      stories: {
+        Row: {
+          caption: string | null
+          created_at: string
+          expires_at: string
+          id: string
+          media_type: string
+          media_url: string
+          user_id: string
+        }
+        Insert: {
+          caption?: string | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          media_type: string
+          media_url: string
+          user_id: string
+        }
+        Update: {
+          caption?: string | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          media_type?: string
+          media_url?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stories_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
