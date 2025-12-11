@@ -1,281 +1,73 @@
-# SOOZ - Sound Out Of Zion
+# Welcome to your Lovable project
 
-A faith-based social media platform built with React, TypeScript, and modern web technologies.
+## Project info
 
-## 🙏 About SOOZ
+**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
 
-SOOZ (Sound Out Of Zion) is a social media platform designed specifically for Christian communities. It provides a safe, respectful environment for sharing faith-based content, connecting with fellow believers, and building meaningful relationships centered around faith.
+## How can I edit this code?
 
-## ✨ Features
+There are several ways of editing your application.
 
-### Core Features
-- **User Profiles**: Customizable profiles with faith-focused information
-- **Social Feed**: Share posts, photos, and videos with your community
-- **Stories**: Temporary content sharing with 24-hour expiration
-- **Messaging**: Private conversations with other users
-- **Discover**: Find new content and connect with other believers
-- **Activity Feed**: Stay updated with community interactions
+**Use Lovable**
 
-### Premium Features
-- **Enhanced Profiles**: Additional customization options
-- **Advanced Search**: Find content and users more effectively
-- **Priority Support**: Faster response times
-- **Exclusive Content**: Access to premium faith-based resources
+Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
 
-### Technical Features
-- **Responsive Design**: Works perfectly on all devices
-- **Dark/Light Mode**: Automatic theme switching
-- **Accessibility**: WCAG 2.1 AA compliant
-- **Performance**: Optimized for speed and smooth interactions
-- **Error Handling**: Comprehensive error states and recovery
+Changes made via Lovable will be committed automatically to this repo.
 
-## 🚀 Getting Started
+**Use your preferred IDE**
 
-### Prerequisites
-- Node.js (v18 or higher)
-- npm or yarn
-- Git
+If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
 
-### Installation
+The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
 
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/yourusername/sooz.git
-   cd sooz
-   ```
+Follow these steps:
 
-2. **Install dependencies**
-   ```bash
-   npm install
-   ```
+```sh
+# Step 1: Clone the repository using the project's Git URL.
+git clone <YOUR_GIT_URL>
 
-3. **Set up environment variables**
-   ```bash
-   cp .env.example .env
-   # Edit .env with your configuration
-   ```
+# Step 2: Navigate to the project directory.
+cd <YOUR_PROJECT_NAME>
 
-4. **Start the development server**
-   ```bash
-   npm run dev
-   ```
+# Step 3: Install the necessary dependencies.
+npm i
 
-5. **Open your browser**
-   Navigate to `http://localhost:8080`
-
-## 📁 Project Structure
-
-```
-sooz/
-├── src/
-│   ├── components/          # React components
-│   │   ├── ui/             # Base UI components (shadcn/ui)
-│   │   ├── layout/         # Layout components (Header, BottomNav)
-│   │   ├── forms/          # Form-specific components
-│   │   ├── feedback/       # Error, loading, success states
-│   │   └── [feature]/      # Feature-specific components
-│   ├── pages/              # Page components
-│   ├── hooks/              # Custom React hooks
-│   ├── lib/                # Utility functions
-│   ├── styles/             # CSS files and themes
-│   └── types/              # TypeScript type definitions
-├── public/                 # Static assets
-├── docs/                   # Documentation
-└── tests/                  # Test files
+# Step 4: Start the development server with auto-reloading and an instant preview.
+npm run dev
 ```
 
-## 🎨 Design System
+**Edit a file directly in GitHub**
 
-SOOZ uses a comprehensive design system built on:
+- Navigate to the desired file(s).
+- Click the "Edit" button (pencil icon) at the top right of the file view.
+- Make your changes and commit the changes.
 
-- **Tailwind CSS**: Utility-first CSS framework
-- **shadcn/ui**: Accessible component library
-- **Custom Design Tokens**: Colors, typography, spacing
-- **WCAG 2.1 AA**: Accessibility compliance
+**Use GitHub Codespaces**
 
-### Design Documentation
-- [Design System](DESIGN_SYSTEM.md) - Complete design guidelines
-- [Style Guide](STYLE_GUIDE.md) - Component usage examples
-- [Component Documentation](COMPONENTS.md) - Component reference
+- Navigate to the main page of your repository.
+- Click on the "Code" button (green button) near the top right.
+- Select the "Codespaces" tab.
+- Click on "New codespace" to launch a new Codespace environment.
+- Edit files directly within the Codespace and commit and push your changes once you're done.
 
-## 🔧 Development
+## What technologies are used for this project?
 
-### Available Scripts
+This project is built with:
 
-- `npm run dev` - Start development server
-- `npm run build` - Build for production
-- `npm run preview` - Preview production build
-- `npm run lint` - Run ESLint
-- `npm run type-check` - Run TypeScript checks
+- Vite
+- TypeScript
+- React
+- shadcn-ui
+- Tailwind CSS
 
-### Testing
+## How can I deploy this project?
 
-#### Error Handling Testing
-Visit `/test/errors` to access the error testing panel and verify error handling functionality.
+Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
 
-#### Browser Testing
-Use the [browser testing checklist](browser-testing-checklist.md) to ensure compatibility across all major browsers and devices.
+## Can I connect a custom domain to my Lovable project?
 
-### Code Style
+Yes, you can!
 
-- **ESLint**: Enforces code quality
-- **Prettier**: Code formatting
-- **TypeScript**: Type safety
-- **Conventional Commits**: Commit message format
+To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
 
-## 🌟 Key Technologies
-
-### Frontend
-- **React 18**: UI library
-- **TypeScript**: Type safety
-- **Vite**: Build tool and development server
-- **Tailwind CSS**: Styling
-- **shadcn/ui**: Component library
-
-### Backend Integration
-- **Supabase**: Database and authentication
-- **Real-time**: Live updates and notifications
-
-### State Management
-- **React Query**: Server state management
-- **Zustand**: Client state management
-- **Context API**: Theme and auth state
-
-### Performance
-- **React.lazy**: Code splitting
-- **Image optimization**: Next-gen formats
-- **Service Worker**: Offline support (planned)
-
-## 🧪 Testing Strategy
-
-### Error Handling
-- Comprehensive error boundaries
-- User-friendly error messages
-- Retry functionality
-- Graceful degradation
-
-### Accessibility
-- Screen reader compatibility
-- Keyboard navigation
-- Color contrast compliance
-- Semantic HTML
-
-### Performance
-- Lighthouse scores > 90
-- First Contentful Paint < 1.5s
-- Time to Interactive < 3.5s
-- Smooth 60fps animations
-
-## 📱 Browser Support
-
-### Desktop
-- Chrome (latest)
-- Firefox (latest)
-- Safari (latest)
-- Edge (latest)
-
-### Mobile
-- Chrome Mobile (Android)
-- Safari Mobile (iOS)
-- Samsung Internet
-- Firefox Mobile
-
-## 🔒 Security
-
-### Authentication
-- JWT-based authentication
-- Secure password handling
-- Session management
-- OAuth integration (planned)
-
-### Data Protection
-- Input validation
-- XSS protection
-- CSRF protection
-- Rate limiting
-
-## 📈 Performance Metrics
-
-### Current Performance
-- **First Contentful Paint**: < 1.5s
-- **Largest Contentful Paint**: < 2.5s
-- **Time to Interactive**: < 3.5s
-- **Cumulative Layout Shift**: < 0.1
-
-### Optimization Strategies
-- Image lazy loading
-- Code splitting
-- Asset compression
-- CDN integration (production)
-
-## 🤝 Contributing
-
-### Development Workflow
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
-
-### Code Guidelines
-- Follow the existing code style
-- Write meaningful commit messages
-- Include tests for new features
-- Update documentation as needed
-- Ensure accessibility compliance
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🙏 Acknowledgments
-
-- **shadcn/ui** for the excellent component library
-- **Tailwind CSS** for the utility-first framework
-- **React community** for the amazing ecosystem
-- **Christian tech community** for inspiration and support
-
-## 📞 Support
-
-### Documentation
-- [Design System](DESIGN_SYSTEM.md)
-- [Style Guide](STYLE_GUIDE.md)
-- [Component Reference](COMPONENTS.md)
-- [Browser Testing](browser-testing-checklist.md)
-
-### Getting Help
-- Check the documentation first
-- Search existing issues
-- Create a new issue with details
-- Join our community discussions
-
-### Error Testing
-Access the error testing panel at `/test/errors` to verify error handling functionality.
-
-## 🗺️ Roadmap
-
-### Q1 2025
-- [ ] Video calling feature
-- [ ] Live streaming capabilities
-- [ ] Advanced search filters
-- [ ] Community groups
-
-### Q2 2025
-- [ ] Mobile app (React Native)
-- [ ] Offline functionality
-- [ ] Advanced analytics
-- [ ] Content moderation tools
-
-### Q3 2025
-- [ ] AI-powered content recommendations
-- [ ] Advanced privacy controls
-- [ ] Multi-language support
-- [ ] API for third-party integrations
-
----
-
-**Built with ❤️ for the Christian community**
-
-**Version**: 1.0.0  
-**Last Updated**: December 2025  
-**Maintained By**: SOOZ Development Team
+Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)

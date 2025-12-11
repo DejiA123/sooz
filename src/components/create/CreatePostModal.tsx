@@ -6,7 +6,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { X, Image, Film, Loader2, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { OptimizedImage } from "@/components/ui/optimized-image";
 
 interface CreatePostModalProps {
   onClose: () => void;
@@ -146,12 +145,10 @@ const CreatePostModal = ({ onClose, onPostCreated }: CreatePostModalProps) => {
         ) : (
           <div className="relative rounded-2xl overflow-hidden mb-4">
             {mediaType === "image" ? (
-              <OptimizedImage
+              <img
                 src={mediaPreview}
                 alt="Preview"
                 className="w-full max-h-80 object-contain bg-muted"
-                width={800}
-                height={600}
               />
             ) : (
               <video

@@ -19,7 +19,6 @@ const buttonVariants = cva(
         indigo: "bg-gradient-to-r from-secondary to-indigo-deep text-secondary-foreground hover:shadow-lg hover:shadow-secondary/30",
         glass: "glass text-foreground hover:bg-muted/50",
         icon: "rounded-full hover:bg-muted/50 active:scale-95",
-        "md3-icon": "md3-button rounded-xl",
       },
       size: {
         default: "h-10 px-4 py-2",
@@ -29,7 +28,6 @@ const buttonVariants = cva(
         icon: "h-10 w-10",
         "icon-sm": "h-8 w-8",
         "icon-lg": "h-12 w-12",
-        "md3-icon": "h-12 w-12",
       },
     },
     defaultVariants: {
