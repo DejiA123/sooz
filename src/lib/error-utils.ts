@@ -88,19 +88,19 @@ export function handleError(error: unknown, context?: string): AppError {
 }
 
 export function handleSupabaseError(error: any, context?: string): AppError {
-  let code = ErrorCodes.UNKNOWN_ERROR;
+  let code: keyof typeof ErrorCodes = 'UNKNOWN_ERROR';
   
   if (error?.code === 'PGRST116') {
-    code = ErrorCodes.NOT_FOUND_ERROR;
+    code = 'NOT_FOUND_ERROR';
   } else if (error?.code === '23505') {
-    code = ErrorCodes.VALIDATION_ERROR;
+    code = 'VALIDATION_ERROR';
   } else if (error?.code === '42501') {
-    code = ErrorCodes.PERMISSION_ERROR;
+    code = 'PERMISSION_ERROR';
   } else if (error?.message?.includes('JWT')) {
-    code = ErrorCodes.AUTH_ERROR;
+    code = 'AUTH_ERROR';
   } else if (error?.message?.includes('fetch')) {
-    code = ErrorCodes.NETWORK_ERROR;
+    code = 'NETWORK_ERROR';
   }
   
-  return handleError(error, context || code);
+  return handleError(error, context || ErrorCodes[code]);
 }

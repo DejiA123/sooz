@@ -329,9 +329,10 @@ export type Shadow = keyof typeof designSystem.shadows;
 export const getColor = (color: string, shade?: number | string): string => {
   const colorObj = designSystem.colors[color as keyof typeof designSystem.colors];
   if (typeof colorObj === 'object' && shade !== undefined) {
-    return colorObj[shade as keyof typeof colorObj];
+    const value = (colorObj as Record<string | number, string>)[shade];
+    return typeof value === 'string' ? value : String(colorObj);
   }
-  return colorObj as string;
+  return typeof colorObj === 'string' ? colorObj : '';
 };
 
 export const getSpacing = (spacing: Spacing): string => designSystem.spacing[spacing];
