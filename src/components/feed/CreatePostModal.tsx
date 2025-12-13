@@ -87,49 +87,37 @@ export default function CreatePostModal({ isOpen, onClose, onPostCreated }: Crea
             let mediaType = null;
 
             if (mediaFile) {
-                if (mediaFile.size > 2 * 1024 * 1024 * 1024) {
-                    toast.error("File size too large (max 2GB for this demo)");
+                // Local Server supports 10GB
+                if (mediaFile.size > 10 * 1024 * 1024 * 1024) {
+                    toast.error("File size too large (max 10GB)");
                     setIsUploading(false);
                     return;
                 }
 
-                const fileExt = mediaFile.name.split('.').pop();
-                const fileName = `${user.id}/${crypto.randomUUID()}.${fileExt}`;
+                // Upload to Local Node.js Server
+                const formData = new FormData();
+                formData.append('file', mediaFile);
 
-                // Initialize Firebase Storage Reference
-                const { storage } = await import('@/integrations/firebase/client');
-                const { ref, uploadBytesResumable, getDownloadURL } = await import('firebase/storage');
+                try {
+                    const response = await fetch('http://localhost:3000/upload', {
+                        method: 'POST',
+                        body: formData,
+                    });
 
-                const storageRef = ref(storage, `uploads/${fileName}`);
-                const uploadTask = uploadBytesResumable(storageRef, mediaFile);
+                    if (!response.ok) {
+                        throw new Error(`Server error: ${response.statusText}`);
+                    }
 
-                await new Promise<void>((resolve, reject) => {
-                    uploadTask.on('state_changed',
-                        (snapshot) => {
-                            const progress = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
-                            setUploadProgress(progress);
-                        },
-                        (error) => {
-                            console.error("Firebase Upload Error:", error);
-                            // Handle CORS errors specifically if they happen (user will likely see this first)
-                            if (error.message.includes('Cors') || error.code === 'storage/unauthorized') {
-                                toast.error('Upload failed. Check Firebase CORS/Rules.');
-                            } else {
-                                toast.error(`Upload failed: ${error.message}`);
-                            }
-                            reject(error);
-                        },
-                        () => {
-                            // Upload completed successfully, now we can get the download URL
-                            getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
-                                mediaUrl = downloadURL;
-                                resolve();
-                            });
-                        }
-                    );
-                });
+                    const data = await response.json();
+                    mediaUrl = data.url;
+                    mediaType = mediaFile.type.startsWith('video/') ? 'video' : 'image';
 
-                mediaType = mediaFile.type.startsWith('video/') ? 'video' : 'image';
+                    setUploadProgress(100);
+
+                } catch (uploadErr) {
+                    console.error("Local Upload Error:", uploadErr);
+                    throw new Error("Failed to upload to local server. Make sure 'npm run dev' is running.");
+                }
             }
 
             const { error: dbError } = await supabase
