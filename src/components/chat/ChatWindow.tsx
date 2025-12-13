@@ -2,16 +2,23 @@ import { useState, useRef, useEffect } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Send, Image as ImageIcon, Smile, ArrowLeft, Phone, Video } from "lucide-react";
+import { Send, Image as ImageIcon, Smile, ArrowLeft, Phone, Video, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
+import EmojiPicker from 'emoji-picker-react';
+import {
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+} from "@/components/ui/popover";
 
 interface Message {
     id: string;
-    content: string;
+    content: string; // If 'image', this is the URL
+    type: 'text' | 'image';
     senderId: string;
     timestamp: string;
 }
@@ -28,6 +35,8 @@ export const ChatWindow = ({ chatId, onBack }: ChatWindowProps) => {
     const [chatInfo, setChatInfo] = useState<{ name: string; avatar: string | null; online?: boolean }>({ name: "Chat", avatar: null });
     const [participants, setParticipants] = useState<Record<string, { username: string; avatar: string | null }>>({});
     const scrollRef = useRef<HTMLDivElement>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const [uploading, setUploading] = useState(false);
 
     // Fetch Chat Info & Messages
     useEffect(() => {
@@ -78,6 +87,7 @@ export const ChatWindow = ({ chatId, onBack }: ChatWindowProps) => {
                 setMessages(msgs.map(m => ({
                     id: m.id,
                     content: m.content,
+                    type: m.content.startsWith('http') && (m.content.includes('/chat-images/') || m.content.match(/\.(jpg|jpeg|png|gif|webp)$/i)) ? 'image' : 'text',
                     senderId: m.sender_id, // Store actual ID
                     timestamp: m.created_at
                 })));
@@ -101,6 +111,7 @@ export const ChatWindow = ({ chatId, onBack }: ChatWindowProps) => {
                         return [...prev, {
                             id: newMsg.id,
                             content: newMsg.content,
+                            type: newMsg.content.startsWith('http') && (newMsg.content.includes('/chat-images/') || newMsg.content.match(/\.(jpg|jpeg|png|gif|webp)$/i)) ? 'image' : 'text',
                             senderId: newMsg.sender_id,
                             timestamp: newMsg.created_at
                         }];
@@ -145,6 +156,50 @@ export const ChatWindow = ({ chatId, onBack }: ChatWindowProps) => {
             toast.error("Failed to send message");
             setInputValue(content); // Restore if failed
         }
+    };
+
+    const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file || !user) return;
+
+        setUploading(true);
+        try {
+            const fileExt = file.name.split('.').pop();
+            const fileName = `${crypto.randomUUID()}.${fileExt}`;
+            const filePath = `chat-images/${fileName}`;
+
+            const { error: uploadError } = await supabase.storage
+                .from('posts') // Reusing existing bucket to avoid "bucket not found"
+                .upload(filePath, file);
+
+            if (uploadError) throw uploadError;
+
+            const { data: { publicUrl } } = supabase.storage
+                .from('posts')
+                .getPublicUrl(filePath);
+
+            // Send message with image URL
+            const { error: msgError } = await supabase
+                .from('messages')
+                .insert({
+                    conversation_id: chatId,
+                    sender_id: user.id,
+                    content: publicUrl
+                });
+
+            if (msgError) throw msgError;
+
+        } catch (error) {
+            console.error("Upload failed:", error);
+            toast.error("Failed to upload image");
+        } finally {
+            setUploading(false);
+            if (fileInputRef.current) fileInputRef.current.value = "";
+        }
+    };
+
+    const onEmojiClick = (emojiObject: any) => {
+        setInputValue(prev => prev + emojiObject.emoji);
     };
 
     return (
@@ -215,25 +270,49 @@ export const ChatWindow = ({ chatId, onBack }: ChatWindowProps) => {
 
                             <div
                                 className={cn(
-                                    "max-w-[70%] px-4 py-3 text-sm leading-relaxed shadow-sm break-words",
+                                    "max-w-[70%] text-sm leading-relaxed shadow-sm break-words",
                                     isMe
                                         ? "bg-gradient-to-br from-indigo-600 to-violet-600 text-white rounded-2xl rounded-tr-sm"
-                                        : "bg-secondary/80 backdrop-blur-sm text-foreground rounded-2xl rounded-tl-sm border border-white/5"
+                                        : "bg-secondary/80 backdrop-blur-sm text-foreground rounded-2xl rounded-tl-sm border border-white/5",
+                                    msg.type === 'image' ? "p-1" : "px-4 py-3"
                                 )}
                             >
-                                {msg.content}
+                                {msg.type === 'image' ? (
+                                    <img
+                                        src={msg.content}
+                                        alt="Sent image"
+                                        className="rounded-xl w-full h-auto max-h-60 object-cover"
+                                        loading="lazy"
+                                    />
+                                ) : (
+                                    msg.content
+                                )}
                             </div>
                         </div>
                     );
                 })}
             </div>
 
-            {/* Input */}
-            <div className="p-3 bg-background/50 backdrop-blur-md border-t border-white/5">
+            {/* Input - Raised Position */}
+            <div className="p-3 pb-8 bg-background/80 backdrop-blur-md border-t border-white/5 z-20">
                 <div className="flex items-center gap-2 max-w-3xl mx-auto">
-                    <Button variant="ghost" size="icon" className="shrink-0 text-muted-foreground hover:text-primary">
+                    <input
+                        type="file"
+                        ref={fileInputRef}
+                        className="hidden"
+                        accept="image/*"
+                        onChange={handleFileUpload}
+                    />
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="shrink-0 text-muted-foreground hover:text-primary"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={uploading}
+                    >
                         <ImageIcon className="w-5 h-5" />
                     </Button>
+
                     <div className="flex-1 relative">
                         <Input
                             value={inputValue}
@@ -242,18 +321,28 @@ export const ChatWindow = ({ chatId, onBack }: ChatWindowProps) => {
                             placeholder="Message..."
                             className="bg-muted/50 border-none rounded-full pl-4 pr-10 focus-visible:ring-1 focus-visible:ring-primary/50"
                         />
-                        <Button
-                            size="icon"
-                            variant="ghost"
-                            className="absolute right-1 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full text-muted-foreground hover:text-primary"
-                        >
-                            <Smile className="w-5 h-5" />
-                        </Button>
+
+                        <Popover>
+                            <PopoverTrigger asChild>
+                                <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    className="absolute right-1 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full text-muted-foreground hover:text-primary"
+                                >
+                                    <Smile className="w-5 h-5" />
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent side="top" align="end" className="w-auto p-0 border-none bg-transparent shadow-none">
+                                <EmojiPicker onEmojiClick={onEmojiClick} theme="dark" width={300} height={400} />
+                            </PopoverContent>
+                        </Popover>
                     </div>
+
                     <Button
                         onClick={handleSend}
                         size="icon"
                         className="shrink-0 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg"
+                        disabled={(!inputValue.trim() && !uploading)}
                     >
                         <Send className="w-4 h-4 ml-0.5" />
                     </Button>

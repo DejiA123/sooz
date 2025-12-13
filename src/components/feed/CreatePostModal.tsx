@@ -45,13 +45,20 @@ export default function CreatePostModal({ isOpen, onClose, onPostCreated }: Crea
             let mediaType = null;
 
             if (mediaFile) {
+                if (mediaFile.size > 50 * 1024 * 1024) {
+                    toast.error("File size too large (max 50MB)");
+                    return;
+                }
+
                 const fileExt = mediaFile.name.split('.').pop();
-                const fileName = `${Math.random()}.${fileExt}`;
+                const fileName = `${crypto.randomUUID()}.${fileExt}`;
                 const filePath = `${user.id}/${fileName}`;
 
                 const { error: uploadError } = await supabase.storage
                     .from('posts')
-                    .upload(filePath, mediaFile);
+                    .upload(filePath, mediaFile, {
+                        upsert: false,
+                    });
 
                 if (uploadError) throw uploadError;
 

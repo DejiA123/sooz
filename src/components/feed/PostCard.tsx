@@ -1,7 +1,7 @@
 
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { Heart, MessageCircle, Share2, MoreHorizontal, Bookmark, Play } from "lucide-react";
+import { Heart, MessageCircle, Share2, MoreHorizontal, Bookmark, Play, Trash2, Edit } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
@@ -11,6 +11,13 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { CommentDrawer } from "./CommentDrawer";
 import { VideoFeedModal } from "./VideoFeedModal";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { EditPostDialog } from "./EditPostDialog";
 
 interface PostCardProps {
   id: string;
@@ -32,7 +39,7 @@ interface PostCardProps {
 export const PostCard = ({
   id,
   user,
-  caption,
+  caption: initialCaption,
   media_url,
   media_type,
   created_at,
@@ -45,6 +52,11 @@ export const PostCard = ({
   const [isLiked, setIsLiked] = useState(initialLiked);
   const [isLikeLoading, setIsLikeLoading] = useState(false);
   const [showVideoFeed, setShowVideoFeed] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [caption, setCaption] = useState(initialCaption);
+  const [isDeleted, setIsDeleted] = useState(false);
+
+  const isOwner = currentUser?.id === user.id;
 
   const handleLike = async () => {
     if (!currentUser) {
@@ -84,6 +96,27 @@ export const PostCard = ({
     }
   };
 
+  const handleDelete = async () => {
+    if (!confirm("Are you sure you want to delete this post?")) return;
+
+    try {
+      const { error } = await supabase
+        .from("posts")
+        .delete()
+        .eq("id", id);
+
+      if (error) throw error;
+
+      setIsDeleted(true);
+      toast.success("Post deleted");
+    } catch (error) {
+      console.error("Error deleting post:", error);
+      toast.error("Failed to delete post");
+    }
+  };
+
+  if (isDeleted) return null;
+
   return (
     <>
       <article className="mb-4 border-b border-white/5 pb-4 last:border-0 sm:border sm:rounded-lg sm:bg-card">
@@ -103,9 +136,33 @@ export const PostCard = ({
               {/* Optional: Location or subtext could go here */}
             </div>
           </div>
-          <Button variant="ghost" size="icon" className="h-8 w-8 text-white/50 hover:text-white">
-            <MoreHorizontal className="w-5 h-5" />
-          </Button>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-8 w-8 text-white/50 hover:text-white">
+                <MoreHorizontal className="w-5 h-5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {isOwner && (
+                <>
+                  <DropdownMenuItem onClick={() => setShowEditDialog(true)}>
+                    <Edit className="w-4 h-4 mr-2" />
+                    Edit
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleDelete} className="text-red-500 hover:text-red-600">
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Delete
+                  </DropdownMenuItem>
+                </>
+              )}
+              {!isOwner && (
+                <DropdownMenuItem onClick={() => toast.success("Reported (Mock)")}>
+                  Report
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
         {/* Media - Full bleed on mobile */}
@@ -239,6 +296,14 @@ export const PostCard = ({
           onClose={() => setShowVideoFeed(false)}
         />
       )}
+
+      <EditPostDialog
+        post={{ id, caption }}
+        open={showEditDialog}
+        onOpenChange={setShowEditDialog}
+        onUpdate={setCaption}
+      />
     </>
   );
 };
+
