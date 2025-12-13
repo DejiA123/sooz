@@ -7,6 +7,7 @@ import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
+import * as tus from "tus-js-client";
 
 interface CreatePostModalProps {
     isOpen: boolean;
@@ -32,11 +33,15 @@ export default function CreatePostModal({ isOpen, onClose, onPostCreated }: Crea
         }
     };
 
-    const uploadWithProgress = (file: File, filePath: string): Promise<void> => {
+    const uploadWithProgress = async (file: File, filePath: string): Promise<void> => {
+        // Get the session token for authenticated upload
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.access_token) {
+            throw new Error("Not authenticated");
+        }
+
         return new Promise((resolve, reject) => {
-            // Get the Supabase storage URL
             const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-            const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
             const xhr = new XMLHttpRequest();
             const url = `${supabaseUrl}/storage/v1/object/posts/${filePath}`;
@@ -61,7 +66,7 @@ export default function CreatePostModal({ isOpen, onClose, onPostCreated }: Crea
             });
 
             xhr.open("POST", url);
-            xhr.setRequestHeader("Authorization", `Bearer ${supabaseAnonKey}`);
+            xhr.setRequestHeader("Authorization", `Bearer ${session.access_token}`);
             xhr.setRequestHeader("x-upsert", "false");
             xhr.send(file);
         });
@@ -82,24 +87,48 @@ export default function CreatePostModal({ isOpen, onClose, onPostCreated }: Crea
             let mediaType = null;
 
             if (mediaFile) {
-                if (mediaFile.size > 1024 * 1024 * 1024) {
-                    toast.error("File size too large (max 1GB)");
+                if (mediaFile.size > 2 * 1024 * 1024 * 1024) {
+                    toast.error("File size too large (max 2GB for this demo)");
                     setIsUploading(false);
                     return;
                 }
 
                 const fileExt = mediaFile.name.split('.').pop();
-                const fileName = `${crypto.randomUUID()}.${fileExt}`;
-                const filePath = `${user.id}/${fileName}`;
+                const fileName = `${user.id}/${crypto.randomUUID()}.${fileExt}`;
 
-                // Upload with progress tracking
-                await uploadWithProgress(mediaFile, filePath);
+                // Initialize Firebase Storage Reference
+                const { storage } = await import('@/integrations/firebase/client');
+                const { ref, uploadBytesResumable, getDownloadURL } = await import('firebase/storage');
 
-                const { data } = supabase.storage
-                    .from('posts')
-                    .getPublicUrl(filePath);
+                const storageRef = ref(storage, `uploads/${fileName}`);
+                const uploadTask = uploadBytesResumable(storageRef, mediaFile);
 
-                mediaUrl = data.publicUrl;
+                await new Promise<void>((resolve, reject) => {
+                    uploadTask.on('state_changed',
+                        (snapshot) => {
+                            const progress = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
+                            setUploadProgress(progress);
+                        },
+                        (error) => {
+                            console.error("Firebase Upload Error:", error);
+                            // Handle CORS errors specifically if they happen (user will likely see this first)
+                            if (error.message.includes('Cors') || error.code === 'storage/unauthorized') {
+                                toast.error('Upload failed. Check Firebase CORS/Rules.');
+                            } else {
+                                toast.error(`Upload failed: ${error.message}`);
+                            }
+                            reject(error);
+                        },
+                        () => {
+                            // Upload completed successfully, now we can get the download URL
+                            getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
+                                mediaUrl = downloadURL;
+                                resolve();
+                            });
+                        }
+                    );
+                });
+
                 mediaType = mediaFile.type.startsWith('video/') ? 'video' : 'image';
             }
 
@@ -121,9 +150,11 @@ export default function CreatePostModal({ isOpen, onClose, onPostCreated }: Crea
             setUploadProgress(0);
             onPostCreated();
             onClose();
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error creating post:', error);
-            toast.error("Failed to create post");
+            const errorMsg = error?.message || "Failed to create post";
+            toast.error(errorMsg);
+            setUploadProgress(0);
         } finally {
             setIsUploading(false);
         }

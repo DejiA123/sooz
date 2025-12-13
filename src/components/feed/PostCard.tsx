@@ -1,7 +1,8 @@
 
-import { useState } from "react";
+
+import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
-import { Heart, MessageCircle, Share2, MoreHorizontal, Bookmark, Play, Trash2, Edit } from "lucide-react";
+import { Heart, MessageCircle, Share2, MoreHorizontal, Bookmark, Play, Trash2, Edit, Eye } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
@@ -33,6 +34,7 @@ interface PostCardProps {
   created_at: string;
   likes_count: number;
   comments_count: number;
+  views_count?: number;
   is_liked_by_user?: boolean;
 }
 
@@ -45,6 +47,7 @@ export const PostCard = ({
   created_at,
   likes_count: initialLikes,
   comments_count,
+  views_count: initialViews = 0,
   is_liked_by_user: initialLiked
 }: PostCardProps) => {
   const { user: currentUser } = useAuth();
@@ -55,8 +58,37 @@ export const PostCard = ({
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [caption, setCaption] = useState(initialCaption);
   const [isDeleted, setIsDeleted] = useState(false);
+  const [views, setViews] = useState(initialViews);
+  const [hasTrackedView, setHasTrackedView] = useState(false);
+  const postRef = useRef<HTMLElement>(null);
 
   const isOwner = currentUser?.id === user.id;
+
+  // Track view when post enters viewport
+  useEffect(() => {
+    if (hasTrackedView || !postRef.current) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && !hasTrackedView) {
+          setHasTrackedView(true);
+          setViews(prev => prev + 1);
+          // Fire and forget - wrap in async IIFE
+          (async () => {
+            try {
+              await supabase.rpc('increment_view_count', { post_id_param: id });
+            } catch (err) {
+              console.error("Failed to track view:", err);
+            }
+          })();
+        }
+      },
+      { threshold: 0.5 }
+    );
+
+    observer.observe(postRef.current);
+    return () => observer.disconnect();
+  }, [id, hasTrackedView]);
 
   const handleLike = async () => {
     if (!currentUser) {
@@ -119,7 +151,7 @@ export const PostCard = ({
 
   return (
     <>
-      <article className="mb-4 border-b border-white/5 pb-4 last:border-0 sm:border sm:rounded-lg sm:bg-card">
+      <article ref={postRef} className="mb-4 border-b border-white/5 pb-4 last:border-0 sm:border sm:rounded-lg sm:bg-card">
         {/* Header */}
         <div className="flex items-center justify-between p-3">
           <div className="flex items-center gap-3">
@@ -239,9 +271,13 @@ export const PostCard = ({
             </button>
           </div>
 
-          {/* Likes */}
-          <div className="mb-2">
+          {/* Likes & Views */}
+          <div className="mb-2 flex items-center gap-4">
             <p className="text-sm font-semibold">{likes.toLocaleString()} likes</p>
+            <p className="text-sm text-muted-foreground flex items-center gap-1">
+              <Eye className="w-4 h-4" />
+              {views.toLocaleString()} views
+            </p>
           </div>
 
           {/* Caption */}

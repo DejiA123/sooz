@@ -156,6 +156,8 @@ export default function Index() {
               // @ts-ignore
               comments_count={post.comments_count}
               // @ts-ignore
+              views_count={post.views_count || 0}
+              // @ts-ignore
               is_liked_by_user={post.is_liked_by_user}
             />
           ))}

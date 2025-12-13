@@ -169,13 +169,13 @@ export const ChatWindow = ({ chatId, onBack }: ChatWindowProps) => {
             const filePath = `chat-images/${fileName}`;
 
             const { error: uploadError } = await supabase.storage
-                .from('posts') // Reusing existing bucket to avoid "bucket not found"
+                .from('media') // User confirmed bucket name is 'media'
                 .upload(filePath, file);
 
             if (uploadError) throw uploadError;
 
             const { data: { publicUrl } } = supabase.storage
-                .from('posts')
+                .from('media')
                 .getPublicUrl(filePath);
 
             // Send message with image URL
