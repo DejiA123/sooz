@@ -1,262 +1,220 @@
-import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { Heart, MessageCircle, Send, Bookmark, MoreHorizontal, Play } from "lucide-react";
+
+import { useState } from "react";
+import { Link } from "react-router-dom";
+import { Heart, MessageCircle, Share2, MoreHorizontal, Bookmark, Play } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { formatDistanceToNow } from "date-fns";
+import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { CommentDrawer } from "./CommentDrawer";
+import { VideoFeedModal } from "./VideoFeedModal";
 
 interface PostCardProps {
-  post: {
+  id: string;
+  user: {
     id: string;
-    user: {
-      id: string;
-      name: string;
-      username: string;
-      avatar: string;
-      verified?: boolean;
-    };
-    content: {
-      type: "image" | "video";
-      url: string;
-    } | null;
-    caption: string;
-    likes: number;
-    comments: number;
-    shares: number;
-    timeAgo: string;
+    username: string;
+    avatar_url: string | null;
+    display_name: string | null;
   };
-  onRefresh?: () => void;
+  caption: string | null;
+  media_url: string | null;
+  media_type: string | null;
+  created_at: string;
+  likes_count: number;
+  comments_count: number;
+  is_liked_by_user?: boolean;
 }
 
-const PostCard = ({ post, onRefresh }: PostCardProps) => {
-  const { user } = useAuth();
-  const navigate = useNavigate();
-  const [liked, setLiked] = useState(false);
-  const [saved, setSaved] = useState(false);
-  const [likesCount, setLikesCount] = useState(post.likes);
-  const [isLiking, setIsLiking] = useState(false);
-
-  useEffect(() => {
-    if (user) {
-      checkIfLiked();
-      checkIfSaved();
-    }
-  }, [user, post.id]);
-
-  const checkIfLiked = async () => {
-    if (!user) return;
-    const { data } = await supabase
-      .from("likes")
-      .select("id")
-      .eq("user_id", user.id)
-      .eq("post_id", post.id)
-      .maybeSingle();
-    setLiked(!!data);
-  };
-
-  const checkIfSaved = async () => {
-    if (!user) return;
-    const { data } = await supabase
-      .from("bookmarks")
-      .select("id")
-      .eq("user_id", user.id)
-      .eq("post_id", post.id)
-      .maybeSingle();
-    setSaved(!!data);
-  };
+export const PostCard = ({
+  id,
+  user,
+  caption,
+  media_url,
+  media_type,
+  created_at,
+  likes_count: initialLikes,
+  comments_count,
+  is_liked_by_user: initialLiked
+}: PostCardProps) => {
+  const { user: currentUser } = useAuth();
+  const [likes, setLikes] = useState(initialLikes);
+  const [isLiked, setIsLiked] = useState(initialLiked);
+  const [isLikeLoading, setIsLikeLoading] = useState(false);
+  const [showVideoFeed, setShowVideoFeed] = useState(false);
 
   const handleLike = async () => {
-    if (!user) {
-      navigate("/auth");
+    if (!currentUser) {
+      toast.error("Please login to like posts");
       return;
     }
+    if (isLikeLoading) return;
 
-    if (isLiking) return;
-    setIsLiking(true);
+    setIsLikeLoading(true);
 
-    if (liked) {
-      setLiked(false);
-      setLikesCount((prev) => prev - 1);
-      await supabase
-        .from("likes")
-        .delete()
-        .eq("user_id", user.id)
-        .eq("post_id", post.id);
-    } else {
-      setLiked(true);
-      setLikesCount((prev) => prev + 1);
-      await supabase.from("likes").insert({
-        user_id: user.id,
-        post_id: post.id,
-      });
-    }
+    // Optimistic update
+    const newLikedState = !isLiked;
+    setIsLiked(newLikedState);
+    setLikes(prev => newLikedState ? prev + 1 : prev - 1);
 
-    setIsLiking(false);
-  };
-
-  const handleSave = async () => {
-    if (!user) {
-      navigate("/auth");
-      return;
-    }
-
-    if (saved) {
-      setSaved(false);
-      await supabase
-        .from("bookmarks")
-        .delete()
-        .eq("user_id", user.id)
-        .eq("post_id", post.id);
-      toast.success("Removed from saved");
-    } else {
-      setSaved(true);
-      await supabase.from("bookmarks").insert({
-        user_id: user.id,
-        post_id: post.id,
-      });
-      toast.success("Saved to collection");
+    try {
+      if (newLikedState) {
+        const { error } = await supabase
+          .from("likes")
+          .insert({ post_id: id, user_id: currentUser.id });
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from("likes")
+          .delete()
+          .eq("post_id", id)
+          .eq("user_id", currentUser.id);
+        if (error) throw error;
+      }
+    } catch (error) {
+      // Revert optimism
+      setIsLiked(!newLikedState);
+      setLikes(prev => !newLikedState ? prev + 1 : prev - 1);
+      toast.error("Failed to update like");
+    } finally {
+      setIsLikeLoading(false);
     }
   };
 
-  const formatNumber = (num: number) => {
-    if (num >= 1000000) return (num / 1000000).toFixed(1) + "M";
-    if (num >= 1000) return (num / 1000).toFixed(1) + "K";
-    return num.toString();
-  };
+
+
+  // ...
 
   return (
-    <article className="bg-card rounded-2xl overflow-hidden border border-border/50 animate-fade-in">
-      {/* Header */}
-      <div className="flex items-center justify-between p-4">
-        <div 
-          className="flex items-center gap-3 cursor-pointer"
-          onClick={() => navigate(`/profile/${post.user.username}`)}
-        >
-          <div className="relative">
-            <div className="w-11 h-11 rounded-full bg-gradient-to-br from-primary to-secondary p-[2px]">
-              {post.user.avatar ? (
-                <img
-                  src={post.user.avatar}
-                  alt={post.user.name}
-                  className="w-full h-full rounded-full object-cover bg-background"
-                />
-              ) : (
-                <div className="w-full h-full rounded-full bg-muted flex items-center justify-center">
-                  <span className="text-sm font-bold">
-                    {post.user.name.charAt(0).toUpperCase()}
-                  </span>
-                </div>
-              )}
+    <>
+      <article className="mb-6 bg-card rounded-3xl border border-white/5 overflow-hidden animate-scale-in">
+        {/* Header ... */}
+        <div className="flex items-center justify-between p-4">
+          <div className="flex items-center gap-3">
+            <Link to={`/profile/${user.username}`}>
+              <Avatar className="w-10 h-10 border-2 border-primary/20 hover:border-primary transition-colors cursor-pointer">
+                <AvatarImage src={user.avatar_url || ""} className="object-cover" />
+                <AvatarFallback>{(user.display_name || user.username)[0].toUpperCase()}</AvatarFallback>
+              </Avatar>
+            </Link>
+            <div>
+              <Link to={`/profile/${user.username}`} className="hover:underline">
+                <h3 className="font-semibold text-sm">{user.display_name || user.username}</h3>
+              </Link>
+              <p className="text-xs text-muted-foreground">
+                @{user.username} • {formatDistanceToNow(new Date(created_at), { addSuffix: true })}
+              </p>
             </div>
-            {post.user.verified && (
-              <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-primary rounded-full flex items-center justify-center">
-                <svg className="w-2.5 h-2.5 text-primary-foreground" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                </svg>
-              </div>
-            )}
           </div>
-          <div>
-            <div className="flex items-center gap-1">
-              <span className="font-semibold text-sm">{post.user.name}</span>
-            </div>
-            <span className="text-xs text-muted-foreground">@{post.user.username} · {post.timeAgo}</span>
-          </div>
-        </div>
-        <Button variant="icon" size="icon-sm">
-          <MoreHorizontal className="w-5 h-5 text-muted-foreground" />
-        </Button>
-      </div>
-
-      {/* Content */}
-      {post.content && (
-        <div className="relative bg-muted aspect-square">
-          {post.content.type === "image" ? (
-            <img
-              src={post.content.url}
-              alt="Post content"
-              className="w-full h-full object-cover"
-            />
-          ) : (
-            <video
-              src={post.content.url}
-              className="w-full h-full object-cover"
-              controls
-            />
-          )}
-          {post.content.type === "video" && (
-            <div className="absolute inset-0 flex items-center justify-center bg-background/20 pointer-events-none">
-              <div className="w-16 h-16 rounded-full bg-background/80 backdrop-blur-sm flex items-center justify-center">
-                <Play className="w-8 h-8 text-foreground ml-1" fill="currentColor" />
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Actions */}
-      <div className="p-4">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-1">
-            <Button 
-              variant="icon" 
-              size="icon" 
-              onClick={handleLike}
-              className={cn(liked && "text-red-500")}
-            >
-              <Heart 
-                className={cn(
-                  "w-6 h-6 transition-all",
-                  liked && "fill-current animate-heart-beat"
-                )} 
-              />
-            </Button>
-            <Button variant="icon" size="icon">
-              <MessageCircle className="w-6 h-6" />
-            </Button>
-            <Button variant="icon" size="icon">
-              <Send className="w-6 h-6" />
-            </Button>
-          </div>
-          <Button 
-            variant="icon" 
-            size="icon"
-            onClick={handleSave}
-          >
-            <Bookmark 
-              className={cn(
-                "w-6 h-6 transition-all",
-                saved && "fill-current text-primary"
-              )} 
-            />
+          <Button variant="ghost" size="icon" className="text-muted-foreground">
+            <MoreHorizontal className="w-5 h-5" />
           </Button>
         </div>
 
-        {/* Stats */}
-        <div className="space-y-2">
-          <div className="flex items-center gap-4 text-sm">
-            <span className="font-semibold">{formatNumber(likesCount)} likes</span>
-            <span className="text-muted-foreground">{formatNumber(post.comments)} comments</span>
+        {/* Content */}
+        {caption && (
+          <div className="px-4 pb-2">
+            <p className="text-sm leading-relaxed mb-3">{caption}</p>
           </div>
-          
-          {/* Caption */}
-          {post.caption && (
-            <p className="text-sm">
-              <span 
-                className="font-semibold mr-2 cursor-pointer hover:underline"
-                onClick={() => navigate(`/profile/${post.user.username}`)}
+        )}
+
+        {media_url && (
+          <div className="relative w-full bg-muted">
+            {media_type === 'video' ? (
+              <div
+                className="w-full relative group cursor-pointer"
+                onClick={() => setShowVideoFeed(true)}
               >
-                {post.user.username}
-              </span>
-              {post.caption}
-            </p>
-          )}
+                <video
+                  src={media_url}
+                  className="w-full max-h-[500px] object-cover"
+                  muted
+                  loop
+                  playsInline
+                  onMouseOver={e => e.currentTarget.play()}
+                  onMouseOut={e => e.currentTarget.pause()}
+                />
+                <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="rounded-full bg-white/20 backdrop-blur-md p-4">
+                    <Play className="w-8 h-8 text-white fill-white" />
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <img
+                src={media_url}
+                alt="Post content"
+                className="w-full h-auto max-h-[500px] object-cover"
+                loading="lazy"
+              />
+            )}
+          </div>
+        )}
+
+        {/* Actions */}
+        <div className="p-4">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-4">
+              <Button
+                variant="ghost"
+                size="icon"
+                className={cn(
+                  "hover:text-red-500 hover:bg-red-500/10 transition-colors",
+                  isLiked && "text-red-500"
+                )}
+                onClick={handleLike}
+              >
+                <Heart className={cn("w-6 h-6", isLiked && "fill-current")} />
+              </Button>
+              <CommentDrawer
+                postId={id}
+                postOwnerUsername={user.username}
+                trigger={
+                  <Button variant="ghost" size="icon" className="hover:text-primary hover:bg-primary/10 transition-colors">
+                    <MessageCircle className="w-6 h-6" />
+                  </Button>
+                }
+              />
+              <Button variant="ghost" size="icon" className="hover:text-primary hover:bg-primary/10 transition-colors">
+                <Share2 className="w-6 h-6" />
+              </Button>
+            </div>
+            <Button variant="ghost" size="icon" className="hover:text-primary hover:bg-primary/10 transition-colors">
+              <Bookmark className="w-6 h-6" />
+            </Button>
+          </div>
+
+          <div className="space-y-1">
+            <p className="text-sm font-semibold">{likes} likes</p>
+            <p className="text-sm text-muted-foreground">View all {comments_count} comments</p>
+          </div>
         </div>
-      </div>
-    </article>
+      </article>
+
+      {showVideoFeed && (
+        <VideoFeedModal
+          initialPost={{
+            id,
+            user,
+            caption,
+            media_url,
+            media_type,
+            created_at,
+            likes: [], // Basic info passed, full details fetched inside modal if needed or handled via Supabase
+            likes_count: initialLikes,
+            comments: [{ count: comments_count }],
+            profiles: {
+              username: user.username,
+              display_name: user.display_name,
+              avatar_url: user.avatar_url
+            }
+          }}
+          onClose={() => setShowVideoFeed(false)}
+        />
+      )}
+    </>
   );
 };
-
-export default PostCard;

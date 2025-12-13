@@ -1,105 +1,75 @@
-import { Home, Search, PlusSquare, Heart, User } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { useState } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
-import { useAuth } from "@/hooks/useAuth";
-import CreatePostModal from "@/components/create/CreatePostModal";
 
-const BottomNav = () => {
-  const { user } = useAuth();
-  const navigate = useNavigate();
+import { useState } from "react";
+import { Home, Compass, Heart, User, PlusSquare } from "lucide-react";
+import { Link, useLocation } from "react-router-dom";
+import { cn } from "@/lib/utils";
+import CreatePostModal from "@/components/feed/CreatePostModal";
+
+export const BottomNav = () => {
   const location = useLocation();
   const [showCreateModal, setShowCreateModal] = useState(false);
 
-  const getActiveTab = () => {
-    if (location.pathname === "/") return "home";
-    if (location.pathname === "/discover") return "discover";
-    if (location.pathname === "/activity") return "activity";
-    if (location.pathname.startsWith("/profile")) return "profile";
-    return "home";
-  };
-
-  const active = getActiveTab();
-
   const navItems = [
-    { icon: Home, label: "Home", id: "home", path: "/" },
-    { icon: Search, label: "Discover", id: "discover", path: "/discover" },
-    { icon: PlusSquare, label: "Create", id: "create", action: () => setShowCreateModal(true) },
-    { icon: Heart, label: "Activity", id: "activity", path: "/activity" },
-    { icon: User, label: "Profile", id: "profile", path: user ? `/profile/${user.user_metadata?.username || user.id}` : "/auth" },
+    { icon: Home, label: "Home", path: "/" },
+    { icon: Compass, label: "Discover", path: "/discover" },
+    { icon: null, label: "Create", path: "#", isCreate: true },
+    { icon: Heart, label: "Activity", path: "/activity" },
+    { icon: User, label: "Profile", path: "/profile/me" },
   ];
-
-  const handleNavClick = (item: typeof navItems[0]) => {
-    if (item.action) {
-      if (!user) {
-        navigate("/auth");
-        return;
-      }
-      item.action();
-    } else if (item.path) {
-      navigate(item.path);
-    }
-  };
 
   return (
     <>
-      <nav className="fixed bottom-0 left-0 right-0 z-50 glass-strong pb-safe">
-        <div className="max-w-lg mx-auto px-2">
-          <div className="flex items-center justify-around h-16">
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = active === item.id;
-              const isCreate = item.id === "create";
-
+      <div className="fixed bottom-0 left-0 right-0 z-50 glass border-t border-white/10 pb-safe">
+        <div className="flex items-center justify-around px-2 py-3">
+          {navItems.map(({ icon: Icon, label, path, isCreate }) => {
+            if (isCreate) {
               return (
                 <button
-                  key={item.id}
-                  onClick={() => handleNavClick(item)}
-                  className={cn(
-                    "flex flex-col items-center gap-1 px-4 py-2 rounded-xl transition-all duration-300",
-                    isCreate && "relative -mt-6",
-                    isActive && !isCreate && "text-primary",
-                    !isActive && !isCreate && "text-muted-foreground hover:text-foreground"
-                  )}
+                  key="create"
+                  onClick={() => setShowCreateModal(true)}
+                  className="flex flex-col items-center justify-center p-2 -mt-6"
                 >
-                  {isCreate ? (
-                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary to-gold-glow flex items-center justify-center shadow-lg shadow-primary/30 hover:scale-110 transition-transform active:scale-95">
-                      <Icon className="w-7 h-7 text-primary-foreground" />
-                    </div>
-                  ) : (
-                    <>
-                      <Icon
-                        className={cn(
-                          "w-6 h-6 transition-all",
-                          isActive && "scale-110"
-                        )}
-                        fill={isActive ? "currentColor" : "none"}
-                      />
-                      <span className="text-[10px] font-medium">{item.label}</span>
-                    </>
-                  )}
+                  <div className="bg-gradient-to-tr from-primary to-accent p-3 rounded-full shadow-lg hover:scale-105 transition-transform">
+                    <PlusSquare className="w-6 h-6 text-white fill-white/20" />
+                  </div>
+                  <span className="text-[10px] font-medium mt-1">{label}</span>
                 </button>
               );
-            })}
-          </div>
-        </div>
-      </nav>
-
-      {showCreateModal && (
-        <CreatePostModal
-          onClose={() => setShowCreateModal(false)}
-          onPostCreated={() => {
-            setShowCreateModal(false);
-            if (location.pathname === "/") {
-              window.location.reload();
-            } else {
-              navigate("/");
             }
-          }}
-        />
-      )}
+
+            const isActive = location.pathname === path;
+            const IconComponent = Icon!; // Safe assertion as filtered out by isCreate
+
+            return (
+              <Link
+                key={path}
+                to={path}
+                className={cn(
+                  "flex flex-col items-center justify-center p-2 rounded-xl transition-all duration-300",
+                  isActive
+                    ? "text-primary scale-110"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <IconComponent
+                  className={cn("w-6 h-6 mb-1", isActive && "fill-current")}
+                  strokeWidth={isActive ? 2.5 : 2}
+                />
+                <span className="text-[10px] font-medium">{label}</span>
+              </Link>
+            );
+          })}
+        </div>
+      </div>
+
+      <CreatePostModal
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        onPostCreated={() => {
+          // You might want to trigger a refresh here if you're on the home feed
+          window.location.reload();
+        }}
+      />
     </>
   );
 };
-
-export default BottomNav;

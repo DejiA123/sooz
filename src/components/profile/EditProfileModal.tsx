@@ -14,6 +14,7 @@ interface Profile {
   bio: string | null;
   avatar_url: string | null;
   cover_url: string | null;
+  website?: string | null; // Optional to handle if missing
 }
 
 interface EditProfileModalProps {
@@ -26,9 +27,14 @@ const EditProfileModal = ({ profile, onClose, onUpdate }: EditProfileModalProps)
   const [displayName, setDisplayName] = useState(profile.display_name || "");
   const [bio, setBio] = useState(profile.bio || "");
   const [avatarUrl, setAvatarUrl] = useState(profile.avatar_url || "");
+  // @ts-ignore
+  const [website, setWebsite] = useState(profile.website || "");
+  const [coverUrl, setCoverUrl] = useState(profile.cover_url || "");
   const [isLoading, setIsLoading] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [uploadingCover, setUploadingCover] = useState(false);
   const avatarInputRef = useRef<HTMLInputElement>(null);
+  const coverInputRef = useRef<HTMLInputElement>(null);
 
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -37,7 +43,7 @@ const EditProfileModal = ({ profile, onClose, onUpdate }: EditProfileModalProps)
     setUploadingAvatar(true);
 
     const fileExt = file.name.split(".").pop();
-    const filePath = `${profile.id}/avatar.${fileExt}`;
+    const filePath = `${profile.id}/avatar_${Date.now()}.${fileExt}`;
 
     const { error: uploadError } = await supabase.storage
       .from("media")
@@ -54,6 +60,30 @@ const EditProfileModal = ({ profile, onClose, onUpdate }: EditProfileModalProps)
     setUploadingAvatar(false);
   };
 
+  const handleCoverUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingCover(true);
+
+    const fileExt = file.name.split(".").pop();
+    const filePath = `${profile.id}/cover_${Date.now()}.${fileExt}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from("media")
+      .upload(filePath, file, { upsert: true });
+
+    if (uploadError) {
+      toast.error("Failed to upload cover");
+      setUploadingCover(false);
+      return;
+    }
+
+    const { data } = supabase.storage.from("media").getPublicUrl(filePath);
+    setCoverUrl(data.publicUrl);
+    setUploadingCover(false);
+  };
+
   const handleSave = async () => {
     setIsLoading(true);
 
@@ -63,6 +93,9 @@ const EditProfileModal = ({ profile, onClose, onUpdate }: EditProfileModalProps)
         display_name: displayName || null,
         bio: bio || null,
         avatar_url: avatarUrl || null,
+        cover_url: coverUrl || null,
+        // @ts-ignore
+        website: website || null,
         updated_at: new Date().toISOString(),
       })
       .eq("id", profile.id);
@@ -80,9 +113,9 @@ const EditProfileModal = ({ profile, onClose, onUpdate }: EditProfileModalProps)
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm">
-      <div className="glass rounded-3xl w-full max-w-md p-6 animate-scale-in">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-6">
+      <div className="glass rounded-3xl w-full max-w-md p-6 animate-scale-in max-h-[85vh] flex flex-col">
+        {/* Header - Fixed Top */}
+        <div className="flex items-center justify-between mb-4 flex-shrink-0">
           <h2 className="text-xl font-semibold">Edit Profile</h2>
           <button
             onClick={onClose}
@@ -92,79 +125,119 @@ const EditProfileModal = ({ profile, onClose, onUpdate }: EditProfileModalProps)
           </button>
         </div>
 
-        {/* Avatar */}
-        <div className="flex justify-center mb-6">
-          <div className="relative">
-            <div className="w-24 h-24 rounded-full bg-muted overflow-hidden">
-              {avatarUrl ? (
-                <img
-                  src={avatarUrl}
-                  alt="Avatar"
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <div className="w-full h-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
-                  <span className="text-2xl font-bold text-primary-foreground">
-                    {(displayName || profile.username).charAt(0).toUpperCase()}
-                  </span>
-                </div>
-              )}
-              {uploadingAvatar && (
-                <div className="absolute inset-0 bg-background/50 flex items-center justify-center">
-                  <Loader2 className="w-6 h-6 animate-spin" />
-                </div>
-              )}
+        {/* Scrollable Content - Middle */}
+        <div className="flex-1 overflow-y-auto min-h-0 space-y-6 pr-2">
+
+          {/* Avatar */}
+          <div className="flex justify-center">
+            <div className="relative">
+              <div className="w-24 h-24 rounded-full bg-muted overflow-hidden">
+                {avatarUrl ? (
+                  <img
+                    src={avatarUrl}
+                    alt="Avatar"
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
+                    <span className="text-2xl font-bold text-primary-foreground">
+                      {(displayName || profile.username).charAt(0).toUpperCase()}
+                    </span>
+                  </div>
+                )}
+                {uploadingAvatar && (
+                  <div className="absolute inset-0 bg-background/50 flex items-center justify-center">
+                    <Loader2 className="w-6 h-6 animate-spin" />
+                  </div>
+                )}
+              </div>
+              <button
+                onClick={() => avatarInputRef.current?.click()}
+                className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-primary flex items-center justify-center"
+              >
+                <Camera className="w-4 h-4 text-primary-foreground" />
+              </button>
+              <input
+                ref={avatarInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleAvatarUpload}
+                className="hidden"
+              />
             </div>
-            <button
-              onClick={() => avatarInputRef.current?.click()}
-              className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-primary flex items-center justify-center"
-            >
-              <Camera className="w-4 h-4 text-primary-foreground" />
-            </button>
-            <input
-              ref={avatarInputRef}
-              type="file"
-              accept="image/*"
-              onChange={handleAvatarUpload}
-              className="hidden"
-            />
+          </div>
+
+          {/* Form Fields */}
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="displayName">Display Name</Label>
+              <Input
+                id="displayName"
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
+                placeholder="Enter your display name"
+                className="bg-muted/50 border-border/50"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="website">Website</Label>
+              <Input
+                id="website"
+                // @ts-ignore
+                value={website}
+                onChange={(e) => setWebsite(e.target.value)}
+                placeholder="https://yourwebsite.com"
+                className="bg-muted/50 border-border/50"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="bio">Bio</Label>
+              <Textarea
+                id="bio"
+                value={bio}
+                onChange={(e) => setBio(e.target.value)}
+                placeholder="Tell us about yourself..."
+                className="bg-muted/50 border-border/50 resize-none"
+                rows={3}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Cover Photo</Label>
+              <div className="h-32 rounded-lg bg-muted overflow-hidden relative group cursor-pointer border-2 border-dashed border-border/50 hover:border-primary/50 transition-colors" onClick={() => coverInputRef.current?.click()}>
+                {coverUrl ? (
+                  <img src={coverUrl} className="w-full h-full object-cover" />
+                ) : (
+                  <div className="flex items-center justify-center h-full text-muted-foreground">
+                    <span className="text-sm">Click to upload cover</span>
+                  </div>
+                )}
+                {uploadingCover && (
+                  <div className="absolute inset-0 bg-background/50 flex items-center justify-center">
+                    <Loader2 className="w-6 h-6 animate-spin" />
+                  </div>
+                )}
+              </div>
+              <input
+                ref={coverInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleCoverUpload}
+                className="hidden"
+              />
+            </div>
           </div>
         </div>
 
-        {/* Form */}
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="displayName">Display Name</Label>
-            <Input
-              id="displayName"
-              value={displayName}
-              onChange={(e) => setDisplayName(e.target.value)}
-              placeholder="Enter your display name"
-              className="bg-muted/50 border-border/50"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="bio">Bio</Label>
-            <Textarea
-              id="bio"
-              value={bio}
-              onChange={(e) => setBio(e.target.value)}
-              placeholder="Tell us about yourself..."
-              className="bg-muted/50 border-border/50 resize-none"
-              rows={3}
-            />
-          </div>
-        </div>
-
-        {/* Actions */}
-        <div className="flex gap-3 mt-6">
+        {/* Footer Actions - Fixed Bottom */}
+        <div className="flex gap-3 mt-4 pt-4 border-t border-white/5 flex-shrink-0">
           <Button variant="glass" className="flex-1" onClick={onClose}>
             Cancel
           </Button>
           <Button
-            variant="gold"
-            className="flex-1"
+            className="flex-1 bg-gradient-to-r from-amber-400 to-orange-500 text-white hover:from-amber-500 hover:to-orange-600 border-none shadow-lg"
             onClick={handleSave}
             disabled={isLoading}
           >

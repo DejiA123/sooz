@@ -1,28 +1,41 @@
 <!doctype html>
 <html lang="en" class="dark">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <title>SOOZ - Sound Out Of Zion</title>
-    <meta name="description" content="SOOZ - A faith-based social media platform. Share your journey, connect with believers worldwide. Psalms 110:3" />
-    <meta name="author" content="SOOZ" />
-    <meta name="theme-color" content="#0a0a0f" />
 
-    <meta property="og:title" content="SOOZ - Sound Out Of Zion" />
-    <meta property="og:description" content="A faith-based social media platform. Share your journey, connect with believers worldwide." />
-    <meta property="og:type" content="website" />
-    <meta property="og:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>SOOZ - Sound Out Of Zion</title>
+  <meta name="description"
+    content="SOOZ - A faith-based social media platform. Share your journey, connect with believers worldwide. Psalms 110:3" />
+  <meta name="author" content="SOOZ" />
+  <meta name="theme-color" content="#0a0a0f" />
 
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:site" content="@SOOZ" />
-    <meta name="twitter:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
-    
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  </head>
+  <meta property="og:title" content="SOOZ - Sound Out Of Zion" />
+  <meta property="og:description"
+    content="A faith-based social media platform. Share your journey, connect with believers worldwide." />
+  <meta property="og:type" content="website" />
+  <meta property="og:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
 
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:site" content="@SOOZ" />
+  <meta name="twitter:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="manifest" href="/manifest.json" />
+</head>
+
+<body>
+  <div id="root"></div>
+  <script type="module" src="/src/main.tsx"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+          .then(reg => console.log('SW registered: ', reg))
+          .catch(err => console.log('SW registration failed: ', err));
+      });
+    }
+  </script>
+</body>
+
 </html>
