@@ -45,8 +45,8 @@ export default function CreatePostModal({ isOpen, onClose, onPostCreated }: Crea
             let mediaType = null;
 
             if (mediaFile) {
-                if (mediaFile.size > 50 * 1024 * 1024) {
-                    toast.error("File size too large (max 50MB)");
+                if (mediaFile.size > 1024 * 1024 * 1024) {
+                    toast.error("File size too large (max 1GB)");
                     return;
                 }
 
