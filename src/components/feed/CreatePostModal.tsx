@@ -1,9 +1,9 @@
-
 import { useState, useRef } from "react";
-import { X, Image as ImageIcon, Loader2, Video } from "lucide-react";
+import { X, Image as ImageIcon, Loader2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
@@ -20,6 +20,7 @@ export default function CreatePostModal({ isOpen, onClose, onPostCreated }: Crea
     const [mediaFile, setMediaFile] = useState<File | null>(null);
     const [mediaPreview, setMediaPreview] = useState<string | null>(null);
     const [isUploading, setIsUploading] = useState(false);
+    const [uploadProgress, setUploadProgress] = useState(0);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -31,6 +32,41 @@ export default function CreatePostModal({ isOpen, onClose, onPostCreated }: Crea
         }
     };
 
+    const uploadWithProgress = (file: File, filePath: string): Promise<void> => {
+        return new Promise((resolve, reject) => {
+            // Get the Supabase storage URL
+            const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+            const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+            const xhr = new XMLHttpRequest();
+            const url = `${supabaseUrl}/storage/v1/object/posts/${filePath}`;
+
+            xhr.upload.addEventListener("progress", (event) => {
+                if (event.lengthComputable) {
+                    const progress = Math.round((event.loaded / event.total) * 100);
+                    setUploadProgress(progress);
+                }
+            });
+
+            xhr.addEventListener("load", () => {
+                if (xhr.status >= 200 && xhr.status < 300) {
+                    resolve();
+                } else {
+                    reject(new Error(`Upload failed with status ${xhr.status}`));
+                }
+            });
+
+            xhr.addEventListener("error", () => {
+                reject(new Error("Upload failed"));
+            });
+
+            xhr.open("POST", url);
+            xhr.setRequestHeader("Authorization", `Bearer ${supabaseAnonKey}`);
+            xhr.setRequestHeader("x-upsert", "false");
+            xhr.send(file);
+        });
+    };
+
     const handlePost = async () => {
         if (!user) return;
         if (!mediaFile && !caption.trim()) {
@@ -39,6 +75,7 @@ export default function CreatePostModal({ isOpen, onClose, onPostCreated }: Crea
         }
 
         setIsUploading(true);
+        setUploadProgress(0);
 
         try {
             let mediaUrl = null;
@@ -47,6 +84,7 @@ export default function CreatePostModal({ isOpen, onClose, onPostCreated }: Crea
             if (mediaFile) {
                 if (mediaFile.size > 1024 * 1024 * 1024) {
                     toast.error("File size too large (max 1GB)");
+                    setIsUploading(false);
                     return;
                 }
 
@@ -54,13 +92,8 @@ export default function CreatePostModal({ isOpen, onClose, onPostCreated }: Crea
                 const fileName = `${crypto.randomUUID()}.${fileExt}`;
                 const filePath = `${user.id}/${fileName}`;
 
-                const { error: uploadError } = await supabase.storage
-                    .from('posts')
-                    .upload(filePath, mediaFile, {
-                        upsert: false,
-                    });
-
-                if (uploadError) throw uploadError;
+                // Upload with progress tracking
+                await uploadWithProgress(mediaFile, filePath);
 
                 const { data } = supabase.storage
                     .from('posts')
@@ -85,6 +118,7 @@ export default function CreatePostModal({ isOpen, onClose, onPostCreated }: Crea
             setCaption("");
             setMediaFile(null);
             setMediaPreview(null);
+            setUploadProgress(0);
             onPostCreated();
             onClose();
         } catch (error) {
@@ -119,17 +153,30 @@ export default function CreatePostModal({ isOpen, onClose, onPostCreated }: Crea
                             ) : (
                                 <img src={mediaPreview} alt="Preview" className="w-full h-full object-cover" />
                             )}
-                            <Button
-                                size="icon"
-                                variant="destructive"
-                                className="absolute top-2 right-2 h-8 w-8 rounded-full opacity-80 hover:opacity-100"
-                                onClick={() => {
-                                    setMediaFile(null);
-                                    setMediaPreview(null);
-                                }}
-                            >
-                                <X className="h-4 w-4" />
-                            </Button>
+                            {!isUploading && (
+                                <Button
+                                    size="icon"
+                                    variant="destructive"
+                                    className="absolute top-2 right-2 h-8 w-8 rounded-full opacity-80 hover:opacity-100"
+                                    onClick={() => {
+                                        setMediaFile(null);
+                                        setMediaPreview(null);
+                                    }}
+                                >
+                                    <X className="h-4 w-4" />
+                                </Button>
+                            )}
+                        </div>
+                    )}
+
+                    {/* Upload Progress Bar */}
+                    {isUploading && mediaFile && (
+                        <div className="space-y-2">
+                            <div className="flex items-center justify-between text-sm">
+                                <span className="text-muted-foreground">Uploading...</span>
+                                <span className="font-medium text-primary">{uploadProgress}%</span>
+                            </div>
+                            <Progress value={uploadProgress} className="h-2" />
                         </div>
                     )}
 
@@ -139,6 +186,7 @@ export default function CreatePostModal({ isOpen, onClose, onPostCreated }: Crea
                             size="sm"
                             className="text-primary hover:text-primary hover:bg-primary/10"
                             onClick={() => fileInputRef.current?.click()}
+                            disabled={isUploading}
                         >
                             <ImageIcon className="h-5 w-5 mr-2" />
                             Photo/Video
@@ -160,7 +208,7 @@ export default function CreatePostModal({ isOpen, onClose, onPostCreated }: Crea
                         {isUploading ? (
                             <>
                                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                Posting...
+                                {uploadProgress > 0 ? `Uploading ${uploadProgress}%` : "Posting..."}
                             </>
                         ) : (
                             "Post"
@@ -171,3 +219,4 @@ export default function CreatePostModal({ isOpen, onClose, onPostCreated }: Crea
         </Dialog>
     );
 }
+

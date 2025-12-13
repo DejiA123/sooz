@@ -167,7 +167,7 @@ export const PostCard = ({
 
         {/* Media - Full bleed on mobile */}
         {media_url && (
-          <div className="relative w-full aspect-square bg-black/5 flex items-center justify-center overflow-hidden">
+          <div className="relative w-full aspect-square bg-muted flex items-center justify-center overflow-hidden">
             {media_type === 'video' ? (
               <div
                 className="w-full h-full relative group cursor-pointer"
@@ -179,6 +179,8 @@ export const PostCard = ({
                   muted
                   loop
                   playsInline
+                  preload="metadata"
+                  poster=""
                   onMouseOver={e => e.currentTarget.play()}
                   onMouseOut={e => e.currentTarget.pause()}
                 />
@@ -197,6 +199,7 @@ export const PostCard = ({
                 alt="Post"
                 className="w-full h-full object-cover"
                 loading="lazy"
+                decoding="async"
               />
             )}
           </div>
