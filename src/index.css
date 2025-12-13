@@ -182,3 +182,25 @@ div[style*="position: fixed"][style*="bottom"][style*="right"]>a[href*="lovable"
   opacity: 0 !important;
   pointer-events: none !important;
 }
+
+/* Prevent iOS zoom on input focus */
+input,
+textarea,
+select {
+  font-size: 16px !important;
+}
+
+/* Disable touch callout and user select for app-like feel */
+body {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: manipulation;
+}
+
+/* Allow text selection in input fields */
+input,
+textarea {
+  -webkit-user-select: text;
+  user-select: text;
+}
