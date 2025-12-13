@@ -84,113 +84,137 @@ export const PostCard = ({
     }
   };
 
-
-
-  // ...
-
   return (
     <>
-      <article className="mb-6 bg-card rounded-3xl border border-white/5 overflow-hidden animate-scale-in">
-        {/* Header ... */}
-        <div className="flex items-center justify-between p-4">
+      <article className="mb-4 border-b border-white/5 pb-4 last:border-0 sm:border sm:rounded-lg sm:bg-card">
+        {/* Header */}
+        <div className="flex items-center justify-between p-3">
           <div className="flex items-center gap-3">
             <Link to={`/profile/${user.username}`}>
-              <Avatar className="w-10 h-10 border-2 border-primary/20 hover:border-primary transition-colors cursor-pointer">
+              <Avatar className="w-8 h-8 cursor-pointer ring-2 ring-transparent hover:ring-primary/20 transition-all">
                 <AvatarImage src={user.avatar_url || ""} className="object-cover" />
                 <AvatarFallback>{(user.display_name || user.username)[0].toUpperCase()}</AvatarFallback>
               </Avatar>
             </Link>
             <div>
-              <Link to={`/profile/${user.username}`} className="hover:underline">
-                <h3 className="font-semibold text-sm">{user.display_name || user.username}</h3>
+              <Link to={`/profile/${user.username}`} className="hover:opacity-80 transition-opacity">
+                <h3 className="font-semibold text-sm leading-none">{user.display_name || user.username}</h3>
               </Link>
-              <p className="text-xs text-muted-foreground">
-                @{user.username} • {formatDistanceToNow(new Date(created_at), { addSuffix: true })}
-              </p>
+              {/* Optional: Location or subtext could go here */}
             </div>
           </div>
-          <Button variant="ghost" size="icon" className="text-muted-foreground">
+          <Button variant="ghost" size="icon" className="h-8 w-8 text-white/50 hover:text-white">
             <MoreHorizontal className="w-5 h-5" />
           </Button>
         </div>
 
-        {/* Content */}
-        {caption && (
-          <div className="px-4 pb-2">
-            <p className="text-sm leading-relaxed mb-3">{caption}</p>
-          </div>
-        )}
-
+        {/* Media - Full bleed on mobile */}
         {media_url && (
-          <div className="relative w-full bg-muted">
+          <div className="relative w-full aspect-square bg-black/5 flex items-center justify-center overflow-hidden">
             {media_type === 'video' ? (
               <div
-                className="w-full relative group cursor-pointer"
+                className="w-full h-full relative group cursor-pointer"
                 onClick={() => setShowVideoFeed(true)}
               >
                 <video
                   src={media_url}
-                  className="w-full max-h-[500px] object-cover"
+                  className="w-full h-full object-cover"
                   muted
                   loop
                   playsInline
                   onMouseOver={e => e.currentTarget.play()}
                   onMouseOut={e => e.currentTarget.pause()}
                 />
-                <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <div className="rounded-full bg-white/20 backdrop-blur-md p-4">
-                    <Play className="w-8 h-8 text-white fill-white" />
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <div className="bg-black/30 rounded-full p-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Play className="w-6 h-6 text-white fill-white" />
                   </div>
+                </div>
+                <div className="absolute bottom-3 right-3 bg-black/50 p-1.5 rounded-full">
+                  <Play className="w-3 h-3 text-white fill-white" />
                 </div>
               </div>
             ) : (
               <img
                 src={media_url}
-                alt="Post content"
-                className="w-full h-auto max-h-[500px] object-cover"
+                alt="Post"
+                className="w-full h-full object-cover"
                 loading="lazy"
               />
             )}
           </div>
         )}
 
-        {/* Actions */}
-        <div className="p-4">
-          <div className="flex items-center justify-between mb-4">
+        {/* Action Bar */}
+        <div className="px-3 pt-3 pb-1">
+          <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-4">
-              <Button
-                variant="ghost"
-                size="icon"
-                className={cn(
-                  "hover:text-red-500 hover:bg-red-500/10 transition-colors",
-                  isLiked && "text-red-500"
-                )}
+              <button
                 onClick={handleLike}
+                className="hover:opacity-70 transition-opacity focus:outline-none"
               >
-                <Heart className={cn("w-6 h-6", isLiked && "fill-current")} />
-              </Button>
+                <Heart
+                  className={cn("w-6 h-6 transition-all", isLiked ? "fill-red-500 text-red-500 scale-110" : "text-white")}
+                  strokeWidth={2}
+                />
+              </button>
+
               <CommentDrawer
                 postId={id}
                 postOwnerUsername={user.username}
                 trigger={
-                  <Button variant="ghost" size="icon" className="hover:text-primary hover:bg-primary/10 transition-colors">
-                    <MessageCircle className="w-6 h-6" />
-                  </Button>
+                  <button className="hover:opacity-70 transition-opacity focus:outline-none">
+                    <MessageCircle className="w-6 h-6 text-white -rotate-90" strokeWidth={2} />
+                  </button>
                 }
               />
-              <Button variant="ghost" size="icon" className="hover:text-primary hover:bg-primary/10 transition-colors">
-                <Share2 className="w-6 h-6" />
-              </Button>
+
+              <button className="hover:opacity-70 transition-opacity focus:outline-none">
+                <Share2 className="w-6 h-6 text-white" strokeWidth={2} />
+              </button>
             </div>
-            <Button variant="ghost" size="icon" className="hover:text-primary hover:bg-primary/10 transition-colors">
-              <Bookmark className="w-6 h-6" />
-            </Button>
+
+            <button className="hover:opacity-70 transition-opacity focus:outline-none">
+              <Bookmark className="w-6 h-6 text-white" strokeWidth={2} />
+            </button>
           </div>
 
-          <div className="space-y-1">
-            <p className="text-sm font-semibold">{likes} likes</p>
-            <p className="text-sm text-muted-foreground">View all {comments_count} comments</p>
+          {/* Likes */}
+          <div className="mb-2">
+            <p className="text-sm font-semibold">{likes.toLocaleString()} likes</p>
           </div>
+
+          {/* Caption */}
+          {caption && (
+            <div className="mb-1">
+              <p className="text-sm leading-normal">
+                <Link to={`/profile/${user.username}`} className="font-semibold hover:underline mr-2">
+                  {user.username}
+                </Link>
+                {caption}
+              </p>
+            </div>
+          )}
+
+          {/* Comments Link */}
+          {comments_count > 0 && (
+            <div className="mb-1">
+              <CommentDrawer
+                postId={id}
+                postOwnerUsername={user.username}
+                trigger={
+                  <button className="text-sm text-neutral-500 hover:text-neutral-300">
+                    View all {comments_count} comments
+                  </button>
+                }
+              />
+            </div>
+          )}
+
+          {/* Time */}
+          <p className="text-[10px] text-neutral-500 uppercase tracking-wide">
+            {formatDistanceToNow(new Date(created_at), { addSuffix: false })} ago
+          </p>
         </div>
       </article>
 
@@ -203,7 +227,7 @@ export const PostCard = ({
             media_url,
             media_type,
             created_at,
-            likes: [], // Basic info passed, full details fetched inside modal if needed or handled via Supabase
+            likes: [],
             likes_count: initialLikes,
             comments: [{ count: comments_count }],
             profiles: {
