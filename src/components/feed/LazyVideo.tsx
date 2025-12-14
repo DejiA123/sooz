@@ -14,7 +14,8 @@ export const LazyVideo = ({ src, id, onClick }: LazyVideoProps) => {
     const [isPlaying, setIsPlaying] = useState(false);
     const [isMuted, setIsMuted] = useState(true);
 
-    const { activeVideoId, setActiveVideo } = useVideoStore();
+    const activeVideoId = useVideoStore((state) => state.activeVideoId);
+    const setActiveVideo = useVideoStore((state) => state.setActiveVideo);
     const isActive = activeVideoId === id;
 
     const { ref, inView } = useInView({
@@ -22,39 +23,30 @@ export const LazyVideo = ({ src, id, onClick }: LazyVideoProps) => {
         triggerOnce: false,
     });
 
-    // Force play function with retries
+    // Force play function
     const forcePlay = useCallback(async () => {
         const video = videoRef.current;
         if (!video) return false;
 
         video.muted = true;
-
         try {
             await video.play();
             setIsPlaying(true);
             return true;
-        } catch (e) {
-            // Retry once after a small delay
-            await new Promise(r => setTimeout(r, 50));
-            try {
-                await video.play();
-                setIsPlaying(true);
-                return true;
-            } catch {
-                setIsPlaying(false);
-                return false;
-            }
+        } catch {
+            setIsPlaying(false);
+            return false;
         }
     }, []);
 
-    // Claim active spot when scrolling into view
+    // When scrolling into view, claim active spot
     useEffect(() => {
-        if (inView && !isActive) {
+        if (inView) {
             setActiveVideo(id);
         }
-    }, [inView, isActive, id, setActiveVideo]);
+    }, [inView, id]); // Removed setActiveVideo from deps - it's stable from zustand
 
-    // Play when this video becomes active, pause others
+    // Play when active, pause when not
     useEffect(() => {
         const video = videoRef.current;
         if (!video) return;
@@ -67,16 +59,14 @@ export const LazyVideo = ({ src, id, onClick }: LazyVideoProps) => {
         }
     }, [isActive, forcePlay]);
 
-    // Handle tap - always try to play
+    // Handle tap
     const handleTap = async (e: React.MouseEvent) => {
         e.stopPropagation();
 
         if (!isPlaying) {
-            // Not playing - try to play it
             setActiveVideo(id);
             await forcePlay();
         } else {
-            // Already playing - open modal
             onClick?.();
         }
     };
