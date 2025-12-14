@@ -16,7 +16,6 @@ export const LazyVideo = ({ src, id, onClick }: LazyVideoProps) => {
 
     const { activeVideoId, setActiveVideo } = useVideoStore();
 
-    // Simple visibility check - play when 50% visible
     const { ref, inView } = useInView({
         threshold: 0.5,
         triggerOnce: false,
@@ -29,64 +28,72 @@ export const LazyVideo = ({ src, id, onClick }: LazyVideoProps) => {
         }
     }, [inView, id, setActiveVideo]);
 
-    // Play/pause based on active state
+    // Play/pause based on active state - with retry logic
     useEffect(() => {
         const video = videoRef.current;
         if (!video) return;
 
-        if (activeVideoId === id) {
-            video.muted = true; // Always muted for autoplay
-            video.play()
-                .then(() => setIsPlaying(true))
-                .catch(() => setIsPlaying(false));
+        if (activeVideoId === id && inView) {
+            // Force muted for autoplay to work on mobile
+            video.muted = true;
+
+            // Try to play with retry
+            const attemptPlay = () => {
+                video.play()
+                    .then(() => setIsPlaying(true))
+                    .catch(() => {
+                        // Retry after a short delay
+                        setTimeout(() => {
+                            video.play()
+                                .then(() => setIsPlaying(true))
+                                .catch(() => setIsPlaying(false));
+                        }, 100);
+                    });
+            };
+
+            attemptPlay();
         } else {
             video.pause();
             setIsPlaying(false);
         }
-    }, [activeVideoId, id]);
+    }, [activeVideoId, id, inView]);
 
-    // Manual play on click (for mobile where autoplay fails)
-    const handlePlayClick = (e: React.MouseEvent) => {
+    // Handle click - try to play if not playing
+    const handleClick = (e: React.MouseEvent) => {
         e.stopPropagation();
         const video = videoRef.current;
         if (!video) return;
 
-        if (isPlaying) {
-            // If already playing, open the onClick modal
-            onClick?.();
-        } else {
-            // If not playing, try to play manually
+        if (!isPlaying) {
             video.muted = true;
             video.play()
                 .then(() => {
                     setIsPlaying(true);
                     setActiveVideo(id);
                 })
-                .catch((err) => {
-                    console.error("Manual play failed:", err);
-                    // If even manual play fails, open modal as fallback
+                .catch(() => {
                     onClick?.();
                 });
+        } else {
+            onClick?.();
         }
     };
 
     const toggleMute = (e: React.MouseEvent) => {
         e.stopPropagation();
         const video = videoRef.current;
-        if (!video) return;
-
-        const newMuted = !isMuted;
-        setIsMuted(newMuted);
-        video.muted = newMuted;
+        if (video) {
+            video.muted = !video.muted;
+            setIsMuted(video.muted);
+        }
     };
 
     return (
         <div
             ref={ref}
             className="w-full relative group cursor-pointer bg-black rounded-lg overflow-hidden"
-            onClick={handlePlayClick}
+            onClick={handleClick}
         >
-            {/* Video element */}
             <video
                 ref={videoRef}
                 src={src}
@@ -94,10 +101,12 @@ export const LazyVideo = ({ src, id, onClick }: LazyVideoProps) => {
                 loop
                 muted
                 playsInline
+                autoPlay
                 preload="auto"
+                onPlay={() => setIsPlaying(true)}
+                onPause={() => setIsPlaying(false)}
             />
 
-            {/* Play button - show when not playing */}
             {!isPlaying && (
                 <div className="absolute inset-0 flex items-center justify-center bg-black/30">
                     <div className="bg-white/20 backdrop-blur-sm rounded-full p-4">
@@ -106,7 +115,6 @@ export const LazyVideo = ({ src, id, onClick }: LazyVideoProps) => {
                 </div>
             )}
 
-            {/* Mute toggle */}
             <button
                 onClick={toggleMute}
                 className="absolute bottom-3 right-3 bg-black/60 backdrop-blur-sm p-2 rounded-full z-20"
@@ -118,7 +126,6 @@ export const LazyVideo = ({ src, id, onClick }: LazyVideoProps) => {
                 )}
             </button>
 
-            {/* Gradient */}
             <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-black/60 to-transparent pointer-events-none" />
         </div>
     );
