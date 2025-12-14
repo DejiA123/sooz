@@ -9,7 +9,7 @@ import { toast } from "sonner";
 
 const THEMES = [
     { id: "blue", name: "Deep Blue (Default)", primary: "240 100% 27%" },
-    { id: "gold", name: "Gold", primary: "45 93% 47%" },
+
     { id: "rose", name: "Neon Rose", primary: "340 75% 55%" },
     { id: "emerald", name: "Cyber Emerald", primary: "142 71% 45%" },
 ];

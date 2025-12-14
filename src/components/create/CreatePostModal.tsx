@@ -45,7 +45,7 @@ const CreatePostModal = ({ onClose, onPostCreated }: CreatePostModalProps) => {
 
   const handleSubmit = async () => {
     if (!user) return;
-    
+
     setIsLoading(true);
 
     try {
@@ -186,7 +186,7 @@ const CreatePostModal = ({ onClose, onPostCreated }: CreatePostModalProps) => {
             Cancel
           </Button>
           <Button
-            variant="gold"
+            variant="blue"
             className="flex-1"
             onClick={handleSubmit}
             disabled={isLoading || (!caption && !mediaFile)}
