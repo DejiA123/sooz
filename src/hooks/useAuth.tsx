@@ -39,8 +39,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const signUp = async (email: string, password: string, username: string, displayName: string) => {
-    const redirectUrl = `${window.location.origin}/`;
-    
+    const redirectUrl = "https://sooz.lovable.app/email-confirmation";
+
     const { error } = await supabase.auth.signUp({
       email,
       password,
