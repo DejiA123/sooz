@@ -1,7 +1,7 @@
 
 
 import { useState, useEffect, useRef } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Heart, MessageCircle, Share2, MoreHorizontal, Bookmark, Play, Trash2, Edit, Eye } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -91,9 +91,12 @@ export const PostCard = ({
     return () => observer.disconnect();
   }, [id, hasTrackedView]);
 
+  const navigate = useNavigate();
+
   const handleLike = async () => {
     if (!currentUser) {
       toast.error("Please login to like posts");
+      navigate("/auth");
       return;
     }
     if (isLikeLoading) return;

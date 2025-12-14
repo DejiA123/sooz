@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Eye, EyeOff, Loader2 } from "lucide-react";
+import { Eye, EyeOff, Loader2, ArrowLeft } from "lucide-react";
 import { z } from "zod";
 
 const emailSchema = z.string().email("Please enter a valid email address");
@@ -21,7 +21,7 @@ const Auth = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string; username?: string }>({});
-  
+
   const { signIn, signUp, user } = useAuth();
   const navigate = useNavigate();
 
@@ -33,33 +33,33 @@ const Auth = () => {
 
   const validateForm = () => {
     const newErrors: typeof errors = {};
-    
+
     const emailResult = emailSchema.safeParse(email);
     if (!emailResult.success) {
       newErrors.email = emailResult.error.errors[0].message;
     }
-    
+
     const passwordResult = passwordSchema.safeParse(password);
     if (!passwordResult.success) {
       newErrors.password = passwordResult.error.errors[0].message;
     }
-    
+
     if (!isLogin) {
       const usernameResult = usernameSchema.safeParse(username);
       if (!usernameResult.success) {
         newErrors.username = usernameResult.error.errors[0].message;
       }
     }
-    
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!validateForm()) return;
-    
+
     setIsLoading(true);
 
     try {
@@ -93,7 +93,17 @@ const Auth = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6">
+    <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6 relative">
+      {/* Back Button */}
+      <Button
+        variant="ghost"
+        size="icon"
+        className="absolute top-6 left-6 z-50 text-muted-foreground hover:text-foreground"
+        onClick={() => navigate("/")}
+      >
+        <ArrowLeft className="w-6 h-6" />
+      </Button>
+
       {/* Background decoration */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-secondary/20 rounded-full blur-3xl" />

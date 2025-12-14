@@ -30,10 +30,14 @@ export default function Activity() {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
+        if (!user && !loading) {
+            navigate("/auth");
+            return;
+        }
         if (user) {
             fetchActivity();
         }
-    }, [user]);
+    }, [user, loading, navigate]);
 
     const fetchActivity = async () => {
         try {

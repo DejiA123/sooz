@@ -81,11 +81,6 @@ export const LazyVideo = ({ src, onClick }: LazyVideoProps) => {
                 </div>
             )}
 
-            {/* Video indicator badge */}
-            <div className="absolute top-3 right-3 bg-black/60 backdrop-blur-sm px-2 py-1 rounded-full flex items-center gap-1">
-                <Play className="w-3 h-3 text-white fill-white" />
-                <span className="text-white text-xs font-medium">Video</span>
-            </div>
 
             {/* Muted indicator */}
             <div className="absolute bottom-3 right-3 bg-black/60 backdrop-blur-sm p-2 rounded-full">

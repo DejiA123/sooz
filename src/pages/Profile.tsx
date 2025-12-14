@@ -304,7 +304,12 @@ const Profile = () => {
 
         {/* Link */}
         {profile.website && (
-          <a href={profile.website} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-sm font-medium text-blue-400 hover:text-blue-300 mb-4 transition-colors">
+          <a
+            href={profile.website.match(/^https?:\/\//) ? profile.website : `https://${profile.website}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1 text-sm font-medium text-blue-400 hover:text-blue-300 mb-4 transition-colors"
+          >
             <LinkIcon className="w-3.5 h-3.5" />
             {profile.website.replace(/^https?:\/\//, '')}
           </a>

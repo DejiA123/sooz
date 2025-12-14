@@ -1,5 +1,6 @@
 
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerTrigger } from "@/components/ui/drawer";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -31,6 +32,7 @@ interface CommentDrawerProps {
 
 export const CommentDrawer = ({ postId, postOwnerUsername, trigger, open: controlledOpen, onOpenChange: setControlledOpen }: CommentDrawerProps) => {
     const { user } = useAuth();
+    const navigate = useNavigate();
     const [internalOpen, setInternalOpen] = useState(false);
 
     const isOpen = controlledOpen !== undefined ? controlledOpen : internalOpen;
@@ -70,6 +72,7 @@ export const CommentDrawer = ({ postId, postOwnerUsername, trigger, open: contro
         if (!newComment.trim()) return;
         if (!user) {
             toast.error("Please login to comment");
+            navigate("/auth");
             return;
         }
 
