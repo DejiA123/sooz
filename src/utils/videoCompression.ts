@@ -2,24 +2,46 @@ import { FFmpeg } from '@ffmpeg/ffmpeg';
 import { fetchFile, toBlobURL } from '@ffmpeg/util';
 
 let ffmpeg: FFmpeg | null = null;
+let isLoading = false;
 
 /**
- * Load FFmpeg WASM - only loads once
+ * Load FFmpeg WASM (single-threaded version - no special headers needed)
  */
-async function loadFFmpeg(onProgress?: (progress: number) => void): Promise<FFmpeg> {
+async function loadFFmpeg(): Promise<FFmpeg> {
     if (ffmpeg && ffmpeg.loaded) {
         return ffmpeg;
     }
 
+    if (isLoading) {
+        // Wait for existing load to complete
+        while (isLoading) {
+            await new Promise(r => setTimeout(r, 100));
+        }
+        if (ffmpeg && ffmpeg.loaded) {
+            return ffmpeg;
+        }
+    }
+
+    isLoading = true;
     ffmpeg = new FFmpeg();
 
-    // Load ffmpeg core from CDN
-    const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/esm';
+    try {
+        // Use single-threaded core (doesn't require SharedArrayBuffer/COOP/COEP headers)
+        const baseURL = 'https://unpkg.com/@ffmpeg/core-st@0.12.6/dist/esm';
 
-    await ffmpeg.load({
-        coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
-        wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
-    });
+        await ffmpeg.load({
+            coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
+            wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
+        });
+
+        console.log('FFmpeg loaded successfully');
+    } catch (error) {
+        console.error('Failed to load FFmpeg:', error);
+        ffmpeg = null;
+        throw error;
+    } finally {
+        isLoading = false;
+    }
 
     return ffmpeg;
 }
@@ -41,38 +63,34 @@ export async function compressVideo(
     }
 
     try {
-        onProgress?.(0, 'loading');
+        onProgress?.(5, 'loading');
+        console.log('Loading FFmpeg...');
+
         const ff = await loadFFmpeg();
 
-        onProgress?.(10, 'compressing');
+        onProgress?.(15, 'compressing');
+        console.log('FFmpeg loaded, starting compression...');
 
         // Set up progress handler
         ff.on('progress', ({ progress }) => {
-            // Progress is 0-1, convert to 10-90 range (leaving room for load/finish)
-            const percent = Math.round(10 + progress * 80);
-            onProgress?.(percent, 'compressing');
+            const percent = Math.round(15 + progress * 80);
+            onProgress?.(Math.min(percent, 95), 'compressing');
         });
 
         const inputName = 'input' + getExtension(file.name);
         const outputName = 'output.mp4';
 
         // Write input file to ffmpeg virtual filesystem
+        console.log('Writing input file...');
         await ff.writeFile(inputName, await fetchFile(file));
 
-        // Compress video:
-        // -i input: input file
-        // -vcodec libx264: Use H.264 codec (widely compatible)
-        // -crf 28: Quality (23 is default, higher = smaller file, 28-32 is good for web)
-        // -preset fast: Encoding speed (faster = larger file, but quicker)
-        // -vf scale=720:-2: Scale to 720p width, maintain aspect ratio
-        // -acodec aac: Audio codec
-        // -b:a 128k: Audio bitrate
-        // -movflags +faststart: Optimize for web streaming
+        // Compress video with simpler settings for compatibility
+        console.log('Compressing video...');
         await ff.exec([
             '-i', inputName,
             '-vcodec', 'libx264',
             '-crf', '28',
-            '-preset', 'fast',
+            '-preset', 'ultrafast', // Faster compression
             '-vf', 'scale=720:-2',
             '-acodec', 'aac',
             '-b:a', '128k',
@@ -81,6 +99,7 @@ export async function compressVideo(
         ]);
 
         onProgress?.(95, 'compressing');
+        console.log('Compression complete, reading output...');
 
         // Read the output file
         const data = await ff.readFile(outputName);
@@ -104,6 +123,7 @@ export async function compressVideo(
     } catch (error) {
         console.error('Video compression failed:', error);
         // Return original file if compression fails
+        onProgress?.(100, 'compressing');
         return file;
     }
 }
