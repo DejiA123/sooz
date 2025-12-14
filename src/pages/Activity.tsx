@@ -24,20 +24,20 @@ interface ActivityItem {
 }
 
 export default function Activity() {
-    const { user } = useAuth();
+    const { user, loading: authLoading } = useAuth();
     const navigate = useNavigate();
     const [activities, setActivities] = useState<ActivityItem[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        if (!user && !loading) {
+        if (!authLoading && !user) {
             navigate("/auth");
             return;
         }
         if (user) {
             fetchActivity();
         }
-    }, [user, loading, navigate]);
+    }, [user, authLoading, navigate]);
 
     const fetchActivity = async () => {
         try {
@@ -112,7 +112,7 @@ export default function Activity() {
         }
     };
 
-    if (loading) {
+    if (authLoading || (loading && user)) {
         return (
             <div className="h-full flex items-center justify-center pt-20">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
