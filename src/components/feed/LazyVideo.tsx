@@ -20,7 +20,7 @@ export const LazyVideo = ({ src, id, onClick }: LazyVideoProps) => {
     const isActive = activeVideoId === id;
 
     const { ref, inView } = useInView({
-        threshold: 0.3,
+        threshold: 0.3, // Trigger early for faster feel
         triggerOnce: false,
     });
 
@@ -31,16 +31,31 @@ export const LazyVideo = ({ src, id, onClick }: LazyVideoProps) => {
         }
     }, [inView, id]);
 
-    // Play/pause based on active state
+    // Robust Playback Logic
     useEffect(() => {
         const video = videoRef.current;
         if (!video) return;
 
         if (isActive) {
+            // Force muted for mobile autoplay
             video.muted = true;
-            video.play()
-                .then(() => setIsPlaying(true))
-                .catch(() => setIsPlaying(false));
+
+            const attemptPlay = async () => {
+                try {
+                    await video.play();
+                    setIsPlaying(true);
+                } catch (error) {
+                    console.log("Autoplay blocked/failed, retrying...", error);
+                    // Retry once after short delay - helps with mobile race conditions
+                    setTimeout(() => {
+                        if (isActive && video.paused) {
+                            video.play().catch(e => console.error("Retry failed", e));
+                        }
+                    }, 500);
+                }
+            };
+
+            attemptPlay();
         } else {
             video.pause();
             setIsPlaying(false);
@@ -87,21 +102,24 @@ export const LazyVideo = ({ src, id, onClick }: LazyVideoProps) => {
                 loop
                 muted
                 playsInline
+                autoPlay={isActive} // Native attribute is strongest signal for mobile
                 preload="auto"
                 onWaiting={() => setIsBuffering(true)}
                 onPlaying={() => setIsBuffering(false)}
                 onPlay={() => setIsPlaying(true)}
                 onPause={() => setIsPlaying(false)}
+                // @ts-ignore - for older iOS support
+                webkit-playsinline="true"
             />
 
-            {/* Buffering spinner - transparent overlay, doesn't hide video */}
+            {/* Buffering spinner */}
             {isBuffering && isPlaying && (
-                <div className="absolute inset-0 flex items-center justify-center z-10">
+                <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
                     <Loader2 className="w-10 h-10 text-white/80 animate-spin drop-shadow-lg" />
                 </div>
             )}
 
-            {/* Play button - only when paused */}
+            {/* Play button */}
             {!isPlaying && (
                 <div className="absolute inset-0 flex items-center justify-center bg-black/30">
                     <div className="bg-white/20 backdrop-blur-sm rounded-full p-4">
