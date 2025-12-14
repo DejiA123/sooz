@@ -7,7 +7,8 @@ import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
-import * as tus from "tus-js-client";
+import { s3Client, s3Config } from "@/integrations/s3/client";
+import { Upload } from "@aws-sdk/lib-storage";
 
 interface CreatePostModalProps {
     isOpen: boolean;
@@ -86,38 +87,33 @@ export default function CreatePostModal({ isOpen, onClose, onPostCreated }: Crea
             let mediaUrl = null;
             let mediaType = null;
 
+            // Media upload logic
             if (mediaFile) {
-                // Local Server supports 10GB
-                if (mediaFile.size > 10 * 1024 * 1024 * 1024) {
-                    toast.error("File size too large (max 10GB)");
-                    setIsUploading(false);
-                    return;
-                }
+                const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+                const fileExtension = mediaFile.name.split('.').pop();
+                const fileName = `${uniqueSuffix}.${fileExtension}`;
 
-                // Upload to Local Node.js Server
-                const formData = new FormData();
-                formData.append('file', mediaFile);
+                const upload = new Upload({
+                    client: s3Client,
+                    params: {
+                        Bucket: s3Config.bucketName,
+                        Key: fileName,
+                        Body: mediaFile,
+                        ContentType: mediaFile.type,
+                    },
+                });
 
-                try {
-                    const response = await fetch('http://localhost:3000/upload', {
-                        method: 'POST',
-                        body: formData,
-                    });
-
-                    if (!response.ok) {
-                        throw new Error(`Server error: ${response.statusText}`);
+                upload.on("httpUploadProgress", (progress) => {
+                    if (progress.loaded && progress.total) {
+                        const percent = Math.round((progress.loaded / progress.total) * 100);
+                        setUploadProgress(percent);
                     }
+                });
 
-                    const data = await response.json();
-                    mediaUrl = data.url;
-                    mediaType = mediaFile.type.startsWith('video/') ? 'video' : 'image';
+                await upload.done();
 
-                    setUploadProgress(100);
-
-                } catch (uploadErr) {
-                    console.error("Local Upload Error:", uploadErr);
-                    throw new Error("Failed to upload to local server. Make sure 'npm run dev' is running.");
-                }
+                mediaUrl = `${import.meta.env.VITE_PUBLIC_R2_URL}/${fileName}`;
+                mediaType = mediaFile.type.startsWith('video/') ? 'video' : 'image';
             }
 
             const { error: dbError } = await supabase
