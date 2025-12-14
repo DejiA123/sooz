@@ -114,11 +114,11 @@ export default function Discover() {
                     <p>No results found</p>
                 </div>
             ) : (
-                <div className="grid grid-cols-2 gap-0.5 px-0.5 pb-4">
-                    {posts.map((post, i) => (
+                <div className="grid grid-cols-3 gap-0.5 px-0.5 pb-4">
+                    {posts.map((post) => (
                         <div
                             key={post.id}
-                            className={`relative rounded-none overflow-hidden bg-muted aspect-[4/5] ${i % 3 === 0 ? 'row-span-2' : ''} group cursor-pointer`}
+                            className="relative rounded-none overflow-hidden bg-muted aspect-[3/4] group cursor-pointer"
                             onClick={() => navigate(`/post/${post.id}`)}
                         >
                             {post.media_type === 'video' ? (
