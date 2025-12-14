@@ -9,6 +9,17 @@ interface LazyVideoProps {
     onClick?: () => void;
 }
 
+// Utility to merge refs if not using a library
+function useCombinedRefs(...refs: any[]) {
+    return (target: any) => {
+        refs.forEach(ref => {
+            if (!ref) return;
+            if (typeof ref === 'function') ref(target);
+            else (ref as any).current = target;
+        });
+    };
+}
+
 export const LazyVideo = ({ src, id, onClick }: LazyVideoProps) => {
     const videoRef = useRef<HTMLVideoElement>(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -18,23 +29,35 @@ export const LazyVideo = ({ src, id, onClick }: LazyVideoProps) => {
     // Global store
     const { activeVideoId, setActiveVideo } = useVideoStore();
 
-    const { ref, inView } = useInView({
+    // 1. Playback Observer (Strict visibility)
+    const { ref: playbackRef, inView: isFocused } = useInView({
         threshold: 0.6,         // Play when 60% visible (focused)
         triggerOnce: false,
-        rootMargin: "0px",      // Only play when actually in viewport
+        rootMargin: "0px",
     });
 
-    // 1. When entering view, claim the active spot
+    // 2. Loading Observer (Proximity)
+    // Start loading when within 600px (approx 1 post away)
+    const { ref: loadingRef, inView: isNearViewport } = useInView({
+        threshold: 0,
+        rootMargin: "600px",
+        triggerOnce: true, // Keep loaded once fetched
+    });
+
+    const combinedRef = useCombinedRefs(playbackRef, loadingRef);
+
+    // 1. When entering focus (playback view), claim the active spot
     useEffect(() => {
-        if (inView) {
+        if (isFocused) {
             setActiveVideo(id);
         }
-    }, [inView, id, setActiveVideo]);
+    }, [isFocused, id, setActiveVideo]);
 
     // 2. React to global state changes with Smart Autoplay
     useEffect(() => {
         if (!videoRef.current) return;
 
+        // Only try to play if we actually have data loaded/loading
         if (activeVideoId === id) {
             // Sync mute state
             videoRef.current.muted = isMuted;
@@ -61,11 +84,10 @@ export const LazyVideo = ({ src, id, onClick }: LazyVideoProps) => {
                     });
             }
         } else {
-            // Use pause() for immediate stop, load() would reset buffer which we don't want
             videoRef.current.pause();
             setIsPlaying(false);
         }
-    }, [activeVideoId, id, isMuted]);
+    }, [activeVideoId, id, isMuted, isNearViewport]); // Added isNearViewport dependency
 
     const handleVideoClick = (e: React.MouseEvent) => {
         e.stopPropagation();
@@ -85,32 +107,32 @@ export const LazyVideo = ({ src, id, onClick }: LazyVideoProps) => {
 
     return (
         <div
-            ref={ref}
+            ref={combinedRef}
             className="w-full relative group cursor-pointer bg-gradient-to-b from-zinc-900 to-black rounded-lg overflow-hidden"
             onClick={handleVideoClick}
         >
             {/* Loading spinner */}
-            {isLoading && (
+            {isLoading && isNearViewport && (
                 <div className="absolute inset-0 flex items-center justify-center z-10">
                     <Loader2 className="w-8 h-8 text-white/50 animate-spin" />
                 </div>
             )}
 
-            {/* Video element */}
+            {/* Video element - content only loaded when near */}
             <video
                 ref={videoRef}
-                src={src}
+                src={isNearViewport ? src : undefined}
                 className="w-full aspect-[4/5] object-cover"
                 loop
                 playsInline
-                preload="auto"
+                preload="auto" // Only effective when src is present
                 onLoadedData={() => setIsLoading(false)}
                 onWaiting={() => setIsLoading(true)}
                 onPlaying={() => setIsLoading(false)}
             />
 
             {/* Play button overlay - only if NOT playing and NOT loading */}
-            {!isPlaying && !isLoading && (
+            {!isPlaying && !isLoading && isNearViewport && (
                 <div className="absolute inset-0 flex items-center justify-center bg-black/20">
                     <div className="bg-white/20 backdrop-blur-sm rounded-full p-4">
                         <Play className="w-10 h-10 text-white fill-white" />
@@ -118,17 +140,19 @@ export const LazyVideo = ({ src, id, onClick }: LazyVideoProps) => {
                 </div>
             )}
 
-            {/* Mute/Unmute Indicator/Toggle */}
-            <button
-                onClick={toggleMute}
-                className="absolute bottom-3 right-3 bg-black/60 backdrop-blur-sm p-2 rounded-full hover:bg-black/80 transition-colors z-20"
-            >
-                {isMuted ? (
-                    <VolumeX className="w-4 h-4 text-white/90" />
-                ) : (
-                    <Volume2 className="w-4 h-4 text-white/90" />
-                )}
-            </button>
+            {/* Mute/Unmute Indicator/Toggle - Only show if playing or active */}
+            {isNearViewport && (
+                <button
+                    onClick={toggleMute}
+                    className="absolute bottom-3 right-3 bg-black/60 backdrop-blur-sm p-2 rounded-full hover:bg-black/80 transition-colors z-20"
+                >
+                    {isMuted ? (
+                        <VolumeX className="w-4 h-4 text-white/90" />
+                    ) : (
+                        <Volume2 className="w-4 h-4 text-white/90" />
+                    )}
+                </button>
+            )}
 
             {/* Gradient overlay for better text readability */}
             <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-black/60 to-transparent pointer-events-none" />
