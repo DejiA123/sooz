@@ -36,14 +36,12 @@ export const LazyVideo = ({ src, id, onClick }: LazyVideoProps) => {
         rootMargin: "0px",
     });
 
-    // 2. Loading Observer (Proximity)
-    // Start loading when within 600px (approx 1 post away)
-    // 2. Loading Observer (Proximity)
-    // Start loading when within 1500px (approx 3-4 posts away)
-    // triggerOnce: false -> Stops loading if scrolled far away (bandwidth saving)
+    // 2. Loading Observer (Ultra-Aggressive for Slow Connections)
+    // Start full loading when within 3000px (approx 6-7 posts away)
+    // This gives maximum buffer time even on very slow connections
     const { ref: loadingRef, inView: isNearViewport } = useInView({
         threshold: 0,
-        rootMargin: "1500px",
+        rootMargin: "3000px",
         triggerOnce: false,
     });
 
@@ -117,7 +115,7 @@ export const LazyVideo = ({ src, id, onClick }: LazyVideoProps) => {
                 loop
                 muted={isMuted} // Ensure attribut is reflected
                 playsInline
-                preload={isNearViewport ? "auto" : "none"} // Control bandwidth via preload
+                preload={isNearViewport ? "auto" : "metadata"} // Always load metadata (first frame), full data when near
                 onLoadedData={() => setIsLoading(false)}
                 onWaiting={() => setIsLoading(true)}
                 onPlaying={() => setIsLoading(false)}
