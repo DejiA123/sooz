@@ -197,7 +197,7 @@ export default function CreatePostModal({ isOpen, onClose, onPostCreated }: Crea
 
                     <div className="flex items-center gap-2">
                         <Button
-                            variant="indigo"
+                            variant="blue"
                             size="sm"
                             className="text-primary hover:text-primary hover:bg-primary/10"
                             onClick={() => fileInputRef.current?.click()}

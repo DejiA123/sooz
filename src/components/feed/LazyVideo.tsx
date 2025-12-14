@@ -63,7 +63,6 @@ export const LazyVideo = ({ src, onClick }: LazyVideoProps) => {
                 ref={videoRef}
                 src={src}
                 className="w-full aspect-[4/5] object-cover"
-                muted
                 loop
                 playsInline
                 preload="auto"
