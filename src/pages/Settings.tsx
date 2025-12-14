@@ -1,9 +1,11 @@
 
 import { useState, useEffect } from "react";
-import { Check, Palette, Moon, ArrowLeft } from "lucide-react";
+import { Check, Palette, Moon, ArrowLeft, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 const THEMES = [
     { id: "gold", name: "Gold (Default)", primary: "45 93% 47%" },
@@ -30,6 +32,17 @@ export default function Settings() {
             // We could also adjust ring colors, accents, etc.
             localStorage.setItem("sooz-theme", themeId);
             setCurrentTheme(themeId);
+        }
+    };
+
+    const handleLogout = async () => {
+        try {
+            const { error } = await supabase.auth.signOut();
+            if (error) throw error;
+            navigate("/auth");
+        } catch (error) {
+            toast.error("Error logging out");
+            console.error(error);
         }
     };
 
@@ -95,6 +108,21 @@ export default function Settings() {
                             <div className="absolute left-1 top-1 w-4 h-4 rounded-full bg-foreground transition-transform duration-300 dark:translate-x-6" />
                         </button>
                     </div>
+                </section>
+
+                <section className="space-y-6 mt-10">
+                    <div className="flex items-center gap-2 text-primary mb-4">
+                        <LogOut className="w-5 h-5" />
+                        <h2 className="text-lg font-semibold">Account</h2>
+                    </div>
+                    <Button
+                        variant="destructive"
+                        className="w-full justify-start gap-2"
+                        onClick={handleLogout}
+                    >
+                        <LogOut className="w-4 h-4" />
+                        Log Out
+                    </Button>
                 </section>
             </div>
         </div>

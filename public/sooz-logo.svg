@@ -1,0 +1,25 @@
+<svg width="200" height="80" viewBox="0 0 200 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <style>
+      .text {
+        font-family: system-ui, -apple-system, sans-serif;
+        font-weight: 900;
+        font-size: 60px;
+        letter-spacing: -2px;
+      }
+    </style>
+  </defs>
+  <!-- Cyan/Blue Offset -->
+  <text x="50%" y="55%" text-anchor="middle" dominant-baseline="middle" fill="#00F2EA" class="text" transform="translate(-3, -3)">SOOZ</text>
+  
+  <!-- Pink/Red Offset -->
+  <text x="50%" y="55%" text-anchor="middle" dominant-baseline="middle" fill="#FF0050" class="text" transform="translate(3, 3)">SOOZ</text>
+  
+  <!-- Main Text (White/Black adapted via CSS filter or explicit styling if needed, but for now specific white usually looks best with this effect, 
+       however for light mode we might want black. Let's try a dark overlay blend or just white text with mix-blend-mode if supported.
+       For simplicity and robustness: Main text White looks safest for "TikTok style" even on light backgrounds if specific contrast is needed,
+       but usually TikTok logo is black on light.
+       Let's use a subtle trick: 'currentColor' allows the parent to set the color.
+  -->
+  <text x="50%" y="55%" text-anchor="middle" dominant-baseline="middle" fill="currentColor" class="text" transform="translate(0, 0)">SOOZ</text>
+</svg>

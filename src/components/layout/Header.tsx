@@ -8,9 +8,9 @@ const Header = () => {
         {/* Logo */}
         <div className="flex items-center gap-2">
           <img
-            src="/sooz-logo.png"
+            src="/sooz-logo.svg"
             alt="SOOZ"
-            className="h-14 w-auto object-contain"
+            className="h-14 w-auto object-contain text-foreground"
           />
         </div>
 
