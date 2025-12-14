@@ -13,8 +13,10 @@ export const LazyVideo = ({ src, id, onClick }: LazyVideoProps) => {
     const videoRef = useRef<HTMLVideoElement>(null);
     const [isPlaying, setIsPlaying] = useState(false);
     const [isMuted, setIsMuted] = useState(true);
+    const [hasInteracted, setHasInteracted] = useState(false);
 
     const { activeVideoId, setActiveVideo } = useVideoStore();
+    const isActive = activeVideoId === id;
 
     const { ref, inView } = useInView({
         threshold: 0.5,
@@ -28,41 +30,32 @@ export const LazyVideo = ({ src, id, onClick }: LazyVideoProps) => {
         }
     }, [inView, id, setActiveVideo]);
 
-    // Play/pause based on active state - with retry logic
+    // Play when active, pause when not
     useEffect(() => {
         const video = videoRef.current;
         if (!video) return;
 
-        if (activeVideoId === id && inView) {
-            // Force muted for autoplay to work on mobile
+        if (isActive && inView) {
             video.muted = true;
-
-            // Try to play with retry
-            const attemptPlay = () => {
-                video.play()
+            const playPromise = video.play();
+            if (playPromise !== undefined) {
+                playPromise
                     .then(() => setIsPlaying(true))
-                    .catch(() => {
-                        // Retry after a short delay
-                        setTimeout(() => {
-                            video.play()
-                                .then(() => setIsPlaying(true))
-                                .catch(() => setIsPlaying(false));
-                        }, 100);
-                    });
-            };
-
-            attemptPlay();
-        } else {
+                    .catch(() => setIsPlaying(false));
+            }
+        } else if (!isActive) {
             video.pause();
             setIsPlaying(false);
         }
-    }, [activeVideoId, id, inView]);
+    }, [isActive, inView]);
 
-    // Handle click - try to play if not playing
-    const handleClick = (e: React.MouseEvent) => {
+    // Handle tap to play
+    const handleTap = (e: React.MouseEvent) => {
         e.stopPropagation();
         const video = videoRef.current;
         if (!video) return;
+
+        setHasInteracted(true);
 
         if (!isPlaying) {
             video.muted = true;
@@ -71,9 +64,7 @@ export const LazyVideo = ({ src, id, onClick }: LazyVideoProps) => {
                     setIsPlaying(true);
                     setActiveVideo(id);
                 })
-                .catch(() => {
-                    onClick?.();
-                });
+                .catch(() => onClick?.());
         } else {
             onClick?.();
         }
@@ -92,8 +83,9 @@ export const LazyVideo = ({ src, id, onClick }: LazyVideoProps) => {
         <div
             ref={ref}
             className="w-full relative group cursor-pointer bg-black rounded-lg overflow-hidden"
-            onClick={handleClick}
+            onClick={handleTap}
         >
+            {/* Key fix: Only the active/in-view video gets autoPlay */}
             <video
                 ref={videoRef}
                 src={src}
@@ -101,10 +93,11 @@ export const LazyVideo = ({ src, id, onClick }: LazyVideoProps) => {
                 loop
                 muted
                 playsInline
-                autoPlay
+                autoPlay={isActive && inView}
                 preload="auto"
                 onPlay={() => setIsPlaying(true)}
                 onPause={() => setIsPlaying(false)}
+                webkit-playsinline="true"
             />
 
             {!isPlaying && (
