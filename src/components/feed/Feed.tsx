@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import PostCard from "./PostCard";
 import StoriesBar from "./StoriesBar";
+import { PostCardSkeleton } from "./PostCardSkeleton";
 import { Loader2 } from "lucide-react";
 
 interface Post {
@@ -76,8 +77,14 @@ const Feed = () => {
 
   if (loading) {
     return (
-      <div className="pt-16 pb-24 flex items-center justify-center min-h-[50vh]">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      <div className="pt-16 pb-24">
+        <StoriesBar />
+        <div className="h-px bg-border mx-4 mb-4" />
+        <div className="px-4 space-y-6">
+          {[1, 2, 3].map((i) => (
+            <PostCardSkeleton key={i} />
+          ))}
+        </div>
       </div>
     );
   }
@@ -86,10 +93,10 @@ const Feed = () => {
     <div className="pt-16 pb-24">
       {/* Stories */}
       <StoriesBar />
-      
+
       {/* Divider */}
       <div className="h-px bg-border mx-4 mb-4" />
-      
+
       {/* Posts */}
       <div className="px-4 space-y-6">
         {posts.length > 0 ? (
@@ -107,9 +114,9 @@ const Feed = () => {
                 },
                 content: post.media_url
                   ? {
-                      type: post.media_type as "image" | "video",
-                      url: post.media_url,
-                    }
+                    type: post.media_type as "image" | "video",
+                    url: post.media_url,
+                  }
                   : null,
                 caption: post.caption || "",
                 likes: post.likes?.length || 0,

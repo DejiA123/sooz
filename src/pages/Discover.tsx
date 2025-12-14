@@ -119,6 +119,7 @@ export default function Discover() {
                         <div
                             key={post.id}
                             className={`relative rounded-none overflow-hidden bg-muted aspect-[4/5] ${i % 3 === 0 ? 'row-span-2' : ''} group cursor-pointer`}
+                            onClick={() => navigate(`/post/${post.id}`)}
                         >
                             {post.media_type === 'video' ? (
                                 <video

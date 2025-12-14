@@ -100,13 +100,19 @@ export const VideoFeedModal = ({ initialPost, onClose }: VideoFeedModalProps) =>
                             <div key={post.id} className="w-full h-full snap-start relative flex items-center justify-center bg-zinc-900">
                                 {/* Video Player */}
                                 <video
+                                    ref={(el) => {
+                                        // Pause non-active videos
+                                        if (el && !isActive) {
+                                            el.pause();
+                                        }
+                                    }}
                                     src={post.media_url}
                                     className="w-full h-full object-cover"
                                     loop
                                     playsInline
-                                    // Only autoPlay if this is the active slide
                                     autoPlay={isActive}
-                                    muted={false} // Should be specific to implementation, maybe start muted unless user interaction
+                                    muted={false}
+                                    preload={index === activeIndex + 1 ? "auto" : "none"} // Preload next video
                                     onClick={(e) => {
                                         e.currentTarget.paused ? e.currentTarget.play() : e.currentTarget.pause();
                                     }}

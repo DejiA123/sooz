@@ -19,6 +19,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { EditPostDialog } from "./EditPostDialog";
+import { LazyVideo } from "./LazyVideo";
 
 interface PostCardProps {
   id: string;
@@ -201,30 +202,10 @@ export const PostCard = ({
         {media_url && (
           <div className="relative w-full aspect-square bg-muted flex items-center justify-center overflow-hidden">
             {media_type === 'video' ? (
-              <div
-                className="w-full h-full relative group cursor-pointer"
+              <LazyVideo
+                src={media_url}
                 onClick={() => setShowVideoFeed(true)}
-              >
-                <video
-                  src={media_url}
-                  className="w-full h-full object-cover"
-                  muted
-                  loop
-                  playsInline
-                  preload="metadata"
-                  poster=""
-                  onMouseOver={e => e.currentTarget.play()}
-                  onMouseOut={e => e.currentTarget.pause()}
-                />
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                  <div className="bg-black/30 rounded-full p-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Play className="w-6 h-6 text-white fill-white" />
-                  </div>
-                </div>
-                <div className="absolute bottom-3 right-3 bg-black/50 p-1.5 rounded-full">
-                  <Play className="w-3 h-3 text-white fill-white" />
-                </div>
-              </div>
+              />
             ) : (
               <img
                 src={media_url}
