@@ -23,7 +23,7 @@ const queryClient = new QueryClient();
 const App = () => {
   // Initialize theme
   if (typeof window !== "undefined") {
-    const theme = localStorage.getItem("sooz-mode") || "dark";
+    const theme = localStorage.getItem("sooz-mode") || "light";
     if (theme === "dark") {
       document.documentElement.classList.add("dark");
     } else {

@@ -196,7 +196,7 @@ const Auth = () => {
 
             <Button
               type="submit"
-              variant="gold"
+              variant="indigo"
               className="w-full h-12 text-base font-semibold"
               disabled={isLoading}
             >

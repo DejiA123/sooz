@@ -8,19 +8,19 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 const THEMES = [
-    { id: "gold", name: "Gold (Default)", primary: "45 93% 47%" },
-    { id: "indigo", name: "Electric Indigo", primary: "221 83% 53%" },
+    { id: "indigo", name: "Electric Indigo (Default)", primary: "266 100% 50%" },
+    { id: "gold", name: "Gold", primary: "45 93% 47%" },
     { id: "rose", name: "Neon Rose", primary: "340 75% 55%" },
     { id: "emerald", name: "Cyber Emerald", primary: "142 71% 45%" },
 ];
 
 export default function Settings() {
     const navigate = useNavigate();
-    const [currentTheme, setCurrentTheme] = useState("gold");
+    const [currentTheme, setCurrentTheme] = useState("indigo");
 
     useEffect(() => {
         // Check local storage or current style
-        const theme = localStorage.getItem("sooz-theme") || "gold";
+        const theme = localStorage.getItem("sooz-theme") || "indigo";
         setCurrentTheme(theme);
         applyTheme(theme);
     }, []);
