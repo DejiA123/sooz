@@ -19,34 +19,46 @@ export const LazyVideo = ({ src, id, onClick }: LazyVideoProps) => {
     const setActiveVideo = useVideoStore((state) => state.setActiveVideo);
     const isActive = activeVideoId === id;
 
-    const { ref, inView } = useInView({
-        threshold: 0.3, // Trigger early for faster feel
+    const { ref } = useInView({
+        threshold: 0.2, // Trigger extremely early
         triggerOnce: false,
+        onChange: (inView) => {
+            if (inView) {
+                // 1. Immediate Global State Update
+                setActiveVideo(id);
+
+                // 2. Optimistic Immediate Play (Don't wait for React render cycle)
+                const video = videoRef.current;
+                if (video) {
+                    video.muted = true; // Essential for mobile
+                    video.play()
+                        .then(() => setIsPlaying(true))
+                        .catch((e) => {
+                            console.log("Optimistic play failed, will retry in useEffect", e);
+                        });
+                }
+            }
+        }
     });
 
-    // Set active when in view
-    useEffect(() => {
-        if (inView) {
-            setActiveVideo(id);
-        }
-    }, [inView, id]);
-
-    // Robust Playback Logic
+    // Robust Playback Logic (Kept as backup and state sync)
     useEffect(() => {
         const video = videoRef.current;
         if (!video) return;
 
         if (isActive) {
-            // Force muted for mobile autoplay
             video.muted = true;
 
             const attemptPlay = async () => {
                 try {
-                    await video.play();
-                    setIsPlaying(true);
+                    // Only play if not already playing to avoid interruption
+                    if (video.paused) {
+                        await video.play();
+                        setIsPlaying(true);
+                    }
                 } catch (error) {
                     console.log("Autoplay blocked/failed, retrying...", error);
-                    // Retry once after short delay - helps with mobile race conditions
+                    // Retry once after short delay
                     setTimeout(() => {
                         if (isActive && video.paused) {
                             video.play().catch(e => console.error("Retry failed", e));
