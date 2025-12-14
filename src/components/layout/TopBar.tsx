@@ -8,7 +8,7 @@ export const TopBar = () => {
     <div className="fixed top-0 left-0 right-0 z-50 glass flex items-center justify-between px-4 py-3 md:px-6">
       <Link to="/" className="flex items-center">
         <img
-          src="/sooz-logo-v2.png"
+          src="/sooz-logo-v3.svg"
           alt="SOOZ"
           className="h-16 w-auto object-contain text-foreground"
         />
