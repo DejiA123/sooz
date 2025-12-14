@@ -10,7 +10,7 @@ const Header = () => {
           <img
             src="/sooz-logo-v3.svg"
             alt="SOOZ"
-            className="h-20 w-auto object-contain text-foreground"
+            className="h-16 w-auto object-contain text-foreground"
           />
         </div>
 
