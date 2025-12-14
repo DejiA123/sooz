@@ -7,13 +7,11 @@ const Header = () => {
       <div className="max-w-lg mx-auto px-4 h-16 flex items-center justify-between">
         {/* Logo */}
         <div className="flex items-center gap-2">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-gold-glow flex items-center justify-center glow-gold">
-            <span className="font-display text-lg text-primary-foreground font-bold">S</span>
-          </div>
-          <div className="flex flex-col">
-            <span className="font-display text-xl gradient-text font-bold tracking-tight">SOOZ</span>
-            <span className="text-[10px] text-muted-foreground -mt-1">Sound Out Of Zion</span>
-          </div>
+          <img
+            src="/sooz-logo.png"
+            alt="SOOZ"
+            className="h-14 w-auto object-contain"
+          />
         </div>
 
         {/* Actions */}

@@ -172,7 +172,7 @@ export const PostCard = ({
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8 text-white/50 hover:text-white">
+              <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
                 <MoreHorizontal className="w-5 h-5" />
               </Button>
             </DropdownMenuTrigger>
@@ -227,7 +227,7 @@ export const PostCard = ({
                 className="hover:opacity-70 transition-opacity focus:outline-none"
               >
                 <Heart
-                  className={cn("w-6 h-6 transition-all", isLiked ? "fill-red-500 text-red-500 scale-110" : "text-white")}
+                  className={cn("w-6 h-6 transition-all", isLiked ? "fill-red-500 text-red-500 scale-110" : "text-foreground")}
                   strokeWidth={2}
                 />
               </button>
@@ -237,18 +237,38 @@ export const PostCard = ({
                 postOwnerUsername={user.username}
                 trigger={
                   <button className="hover:opacity-70 transition-opacity focus:outline-none">
-                    <MessageCircle className="w-6 h-6 text-white -rotate-90" strokeWidth={2} />
+                    <MessageCircle className="w-6 h-6 text-foreground -rotate-90" strokeWidth={2} />
                   </button>
                 }
               />
 
-              <button className="hover:opacity-70 transition-opacity focus:outline-none">
-                <Share2 className="w-6 h-6 text-white" strokeWidth={2} />
+              <button
+                className="hover:opacity-70 transition-opacity focus:outline-none"
+                onClick={async () => {
+                  const postUrl = `${window.location.origin}/post/${id}`;
+                  try {
+                    if (navigator.share) {
+                      await navigator.share({
+                        title: `Post by ${user.username}`,
+                        text: caption || 'Check out this post on SOOZ!',
+                        url: postUrl,
+                      });
+                    } else {
+                      await navigator.clipboard.writeText(postUrl);
+                      toast.success("Link copied to clipboard!");
+                    }
+                  } catch (err) {
+                    await navigator.clipboard.writeText(postUrl);
+                    toast.success("Link copied to clipboard!");
+                  }
+                }}
+              >
+                <Share2 className="w-6 h-6 text-foreground" strokeWidth={2} />
               </button>
             </div>
 
             <button className="hover:opacity-70 transition-opacity focus:outline-none">
-              <Bookmark className="w-6 h-6 text-white" strokeWidth={2} />
+              <Bookmark className="w-6 h-6 text-foreground" strokeWidth={2} />
             </button>
           </div>
 
