@@ -21,7 +21,13 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-    // Network first strategy
+    // Skip handling for external URLs (CDN, APIs, etc.)
+    const url = new URL(event.request.url);
+    if (url.origin !== self.location.origin) {
+        return; // Let the browser handle external requests normally
+    }
+
+    // Network first strategy for same-origin requests only
     event.respondWith(
         fetch(event.request).catch(() => {
             return caches.match(event.request);

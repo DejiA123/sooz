@@ -1,11 +1,11 @@
 import { FFmpeg } from '@ffmpeg/ffmpeg';
-import { fetchFile, toBlobURL } from '@ffmpeg/util';
+import { fetchFile } from '@ffmpeg/util';
 
 let ffmpeg: FFmpeg | null = null;
 let isLoading = false;
 
 /**
- * Load FFmpeg WASM (single-threaded version - no special headers needed)
+ * Load FFmpeg WASM (single-threaded version)
  */
 async function loadFFmpeg(): Promise<FFmpeg> {
     if (ffmpeg && ffmpeg.loaded) {
@@ -13,7 +13,6 @@ async function loadFFmpeg(): Promise<FFmpeg> {
     }
 
     if (isLoading) {
-        // Wait for existing load to complete
         while (isLoading) {
             await new Promise(r => setTimeout(r, 100));
         }
@@ -26,12 +25,15 @@ async function loadFFmpeg(): Promise<FFmpeg> {
     ffmpeg = new FFmpeg();
 
     try {
-        // Use single-threaded core (doesn't require SharedArrayBuffer/COOP/COEP headers)
-        const baseURL = 'https://unpkg.com/@ffmpeg/core-st@0.12.6/dist/esm';
+        // Use jsdelivr CDN with single-threaded core
+        const coreURL = 'https://cdn.jsdelivr.net/npm/@ffmpeg/core-st@0.12.6/dist/esm/ffmpeg-core.js';
+        const wasmURL = 'https://cdn.jsdelivr.net/npm/@ffmpeg/core-st@0.12.6/dist/esm/ffmpeg-core.wasm';
+
+        console.log('Loading FFmpeg from jsdelivr...');
 
         await ffmpeg.load({
-            coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
-            wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
+            coreURL,
+            wasmURL,
         });
 
         console.log('FFmpeg loaded successfully');
@@ -48,9 +50,6 @@ async function loadFFmpeg(): Promise<FFmpeg> {
 
 /**
  * Compress a video file
- * @param file - The video file to compress
- * @param onProgress - Progress callback (0-100)
- * @returns The compressed video as a File object
  */
 export async function compressVideo(
     file: File,
@@ -71,7 +70,6 @@ export async function compressVideo(
         onProgress?.(15, 'compressing');
         console.log('FFmpeg loaded, starting compression...');
 
-        // Set up progress handler
         ff.on('progress', ({ progress }) => {
             const percent = Math.round(15 + progress * 80);
             onProgress?.(Math.min(percent, 95), 'compressing');
@@ -80,17 +78,15 @@ export async function compressVideo(
         const inputName = 'input' + getExtension(file.name);
         const outputName = 'output.mp4';
 
-        // Write input file to ffmpeg virtual filesystem
         console.log('Writing input file...');
         await ff.writeFile(inputName, await fetchFile(file));
 
-        // Compress video with simpler settings for compatibility
         console.log('Compressing video...');
         await ff.exec([
             '-i', inputName,
             '-vcodec', 'libx264',
             '-crf', '28',
-            '-preset', 'ultrafast', // Faster compression
+            '-preset', 'ultrafast',
             '-vf', 'scale=720:-2',
             '-acodec', 'aac',
             '-b:a', '128k',
@@ -101,16 +97,13 @@ export async function compressVideo(
         onProgress?.(95, 'compressing');
         console.log('Compression complete, reading output...');
 
-        // Read the output file
         const data = await ff.readFile(outputName);
 
-        // Clean up
         await ff.deleteFile(inputName);
         await ff.deleteFile(outputName);
 
         onProgress?.(100, 'compressing');
 
-        // Create new File object
         const compressedBlob = new Blob([data], { type: 'video/mp4' });
         const compressedFile = new File([compressedBlob], file.name.replace(/\.[^/.]+$/, '.mp4'), {
             type: 'video/mp4',
@@ -122,7 +115,6 @@ export async function compressVideo(
         return compressedFile;
     } catch (error) {
         console.error('Video compression failed:', error);
-        // Return original file if compression fails
         onProgress?.(100, 'compressing');
         return file;
     }
