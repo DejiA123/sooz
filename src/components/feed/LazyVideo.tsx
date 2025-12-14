@@ -24,7 +24,7 @@ export const LazyVideo = ({ src, id, onClick }: LazyVideoProps) => {
     const videoRef = useRef<HTMLVideoElement>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isPlaying, setIsPlaying] = useState(false);
-    const [isMuted, setIsMuted] = useState(false); // Start with sound allowed, fallback if needed
+    const [isMuted, setIsMuted] = useState(true); // Default to Muted for Mobile Autoplay support
 
     // Global store
     const { activeVideoId, setActiveVideo } = useVideoStore();
@@ -53,13 +53,12 @@ export const LazyVideo = ({ src, id, onClick }: LazyVideoProps) => {
         }
     }, [isFocused, id, setActiveVideo]);
 
-    // 2. React to global state changes with Smart Autoplay
+    // 2. React to global state changes
     useEffect(() => {
         if (!videoRef.current) return;
 
-        // Only try to play if we actually have data loaded/loading
         if (activeVideoId === id) {
-            // Sync mute state
+            // Apply mute state
             videoRef.current.muted = isMuted;
 
             // Attempt playback
@@ -68,26 +67,15 @@ export const LazyVideo = ({ src, id, onClick }: LazyVideoProps) => {
                 playPromise
                     .then(() => setIsPlaying(true))
                     .catch((err) => {
-                        console.log("Autoplay blocked (likely mobile), falling back to muted:", err);
-                        // Fallback: Mute and retry
-                        if (!isMuted) {
-                            setIsMuted(true);
-                            if (videoRef.current) {
-                                videoRef.current.muted = true;
-                                videoRef.current.play()
-                                    .then(() => setIsPlaying(true))
-                                    .catch(() => setIsPlaying(false));
-                            }
-                        } else {
-                            setIsPlaying(false);
-                        }
+                        console.error("Autoplay failed:", err);
+                        setIsPlaying(false);
                     });
             }
         } else {
             videoRef.current.pause();
             setIsPlaying(false);
         }
-    }, [activeVideoId, id, isMuted, isNearViewport]); // Added isNearViewport dependency
+    }, [activeVideoId, id, isMuted]);
 
     const handleVideoClick = (e: React.MouseEvent) => {
         e.stopPropagation();
@@ -118,14 +106,15 @@ export const LazyVideo = ({ src, id, onClick }: LazyVideoProps) => {
                 </div>
             )}
 
-            {/* Video element - content only loaded when near */}
+            {/* Video element */}
             <video
                 ref={videoRef}
-                src={isNearViewport ? src : undefined}
+                src={src} // Always provide src to avoid player reset issues
                 className="w-full aspect-[4/5] object-cover"
                 loop
+                muted={isMuted} // Ensure attribut is reflected
                 playsInline
-                preload="auto" // Only effective when src is present
+                preload={isNearViewport ? "auto" : "none"} // Control bandwidth via preload
                 onLoadedData={() => setIsLoading(false)}
                 onWaiting={() => setIsLoading(true)}
                 onPlaying={() => setIsLoading(false)}
@@ -140,7 +129,7 @@ export const LazyVideo = ({ src, id, onClick }: LazyVideoProps) => {
                 </div>
             )}
 
-            {/* Mute/Unmute Indicator/Toggle - Only show if playing or active */}
+            {/* Mute/Unmute Indicator/Toggle */}
             {isNearViewport && (
                 <button
                     onClick={toggleMute}
