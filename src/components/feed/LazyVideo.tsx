@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState, useEffect, useCallback } from "react";
 import { Play, Volume2, VolumeX } from "lucide-react";
 import { useInView } from "react-intersection-observer";
 import { useVideoStore } from "@/store/useVideoStore";
@@ -13,7 +13,6 @@ export const LazyVideo = ({ src, id, onClick }: LazyVideoProps) => {
     const videoRef = useRef<HTMLVideoElement>(null);
     const [isPlaying, setIsPlaying] = useState(false);
     const [isMuted, setIsMuted] = useState(true);
-    const [hasInteracted, setHasInteracted] = useState(false);
 
     const { activeVideoId, setActiveVideo } = useVideoStore();
     const isActive = activeVideoId === id;
@@ -23,49 +22,61 @@ export const LazyVideo = ({ src, id, onClick }: LazyVideoProps) => {
         triggerOnce: false,
     });
 
-    // Claim active spot when in view
+    // Force play function with retries
+    const forcePlay = useCallback(async () => {
+        const video = videoRef.current;
+        if (!video) return false;
+
+        video.muted = true;
+
+        try {
+            await video.play();
+            setIsPlaying(true);
+            return true;
+        } catch (e) {
+            // Retry once after a small delay
+            await new Promise(r => setTimeout(r, 50));
+            try {
+                await video.play();
+                setIsPlaying(true);
+                return true;
+            } catch {
+                setIsPlaying(false);
+                return false;
+            }
+        }
+    }, []);
+
+    // Claim active spot when scrolling into view
     useEffect(() => {
-        if (inView) {
+        if (inView && !isActive) {
             setActiveVideo(id);
         }
-    }, [inView, id, setActiveVideo]);
+    }, [inView, isActive, id, setActiveVideo]);
 
-    // Play when active, pause when not
+    // Play when this video becomes active, pause others
     useEffect(() => {
         const video = videoRef.current;
         if (!video) return;
 
-        if (isActive && inView) {
-            video.muted = true;
-            const playPromise = video.play();
-            if (playPromise !== undefined) {
-                playPromise
-                    .then(() => setIsPlaying(true))
-                    .catch(() => setIsPlaying(false));
-            }
-        } else if (!isActive) {
+        if (isActive) {
+            forcePlay();
+        } else {
             video.pause();
             setIsPlaying(false);
         }
-    }, [isActive, inView]);
+    }, [isActive, forcePlay]);
 
-    // Handle tap to play
-    const handleTap = (e: React.MouseEvent) => {
+    // Handle tap - always try to play
+    const handleTap = async (e: React.MouseEvent) => {
         e.stopPropagation();
-        const video = videoRef.current;
-        if (!video) return;
-
-        setHasInteracted(true);
 
         if (!isPlaying) {
-            video.muted = true;
-            video.play()
-                .then(() => {
-                    setIsPlaying(true);
-                    setActiveVideo(id);
-                })
-                .catch(() => onClick?.());
+            // Not playing - try to play it
+            setActiveVideo(id);
+            await forcePlay();
         } else {
+            // Already playing - open modal
             onClick?.();
         }
     };
@@ -85,7 +96,6 @@ export const LazyVideo = ({ src, id, onClick }: LazyVideoProps) => {
             className="w-full relative group cursor-pointer bg-black rounded-lg overflow-hidden"
             onClick={handleTap}
         >
-            {/* Key fix: Only the active/in-view video gets autoPlay */}
             <video
                 ref={videoRef}
                 src={src}
@@ -93,11 +103,9 @@ export const LazyVideo = ({ src, id, onClick }: LazyVideoProps) => {
                 loop
                 muted
                 playsInline
-                autoPlay={isActive && inView}
                 preload="auto"
                 onPlay={() => setIsPlaying(true)}
                 onPause={() => setIsPlaying(false)}
-                webkit-playsinline="true"
             />
 
             {!isPlaying && (
