@@ -1,77 +1,43 @@
 import { useRef, useState, useEffect } from "react";
-import { Play, Volume2, VolumeX, Loader2 } from "lucide-react";
+import { Play, Volume2, VolumeX } from "lucide-react";
 import { useInView } from "react-intersection-observer";
 import { useVideoStore } from "@/store/useVideoStore";
 
 interface LazyVideoProps {
     src: string;
-    id: string; // Unique ID for coordination
+    id: string;
     onClick?: () => void;
-}
-
-// Utility to merge refs if not using a library
-function useCombinedRefs(...refs: any[]) {
-    return (target: any) => {
-        refs.forEach(ref => {
-            if (!ref) return;
-            if (typeof ref === 'function') ref(target);
-            else (ref as any).current = target;
-        });
-    };
 }
 
 export const LazyVideo = ({ src, id, onClick }: LazyVideoProps) => {
     const videoRef = useRef<HTMLVideoElement>(null);
-    const [isLoading, setIsLoading] = useState(true);
     const [isPlaying, setIsPlaying] = useState(false);
-    const [isMuted, setIsMuted] = useState(true); // Default to Muted for Mobile Autoplay support
+    const [isMuted, setIsMuted] = useState(true);
 
-    // Global store
     const { activeVideoId, setActiveVideo } = useVideoStore();
 
-    // 1. Playback Observer (Strict visibility)
-    const { ref: playbackRef, inView: isFocused } = useInView({
-        threshold: 0.6,         // Play when 60% visible (focused)
-        triggerOnce: false,
-        rootMargin: "0px",
-    });
-
-    // 2. Loading Observer (Ultra-Aggressive for Slow Connections)
-    // Start full loading when within 3000px (approx 6-7 posts away)
-    // This gives maximum buffer time even on very slow connections
-    const { ref: loadingRef, inView: isNearViewport } = useInView({
-        threshold: 0,
-        rootMargin: "3000px",
+    // Simple visibility check - play when 50% visible
+    const { ref, inView } = useInView({
+        threshold: 0.5,
         triggerOnce: false,
     });
 
-    const combinedRef = useCombinedRefs(playbackRef, loadingRef);
-
-    // 1. When entering focus (playback view), claim the active spot
+    // Claim active spot when in view
     useEffect(() => {
-        if (isFocused) {
+        if (inView) {
             setActiveVideo(id);
         }
-    }, [isFocused, id, setActiveVideo]);
+    }, [inView, id, setActiveVideo]);
 
-    // 2. React to global state changes
+    // Play/pause based on active state
     useEffect(() => {
         if (!videoRef.current) return;
 
         if (activeVideoId === id) {
-            // Apply mute state
             videoRef.current.muted = isMuted;
-
-            // Attempt playback
-            const playPromise = videoRef.current.play();
-            if (playPromise !== undefined) {
-                playPromise
-                    .then(() => setIsPlaying(true))
-                    .catch((err) => {
-                        console.error("Autoplay failed:", err);
-                        setIsPlaying(false);
-                    });
-            }
+            videoRef.current.play()
+                .then(() => setIsPlaying(true))
+                .catch(() => setIsPlaying(false));
         } else {
             videoRef.current.pause();
             setIsPlaying(false);
@@ -80,9 +46,7 @@ export const LazyVideo = ({ src, id, onClick }: LazyVideoProps) => {
 
     const handleVideoClick = (e: React.MouseEvent) => {
         e.stopPropagation();
-        if (onClick) {
-            onClick();
-        }
+        onClick?.();
     };
 
     const toggleMute = (e: React.MouseEvent) => {
@@ -96,55 +60,43 @@ export const LazyVideo = ({ src, id, onClick }: LazyVideoProps) => {
 
     return (
         <div
-            ref={combinedRef}
-            className="w-full relative group cursor-pointer bg-gradient-to-b from-zinc-900 to-black rounded-lg overflow-hidden"
+            ref={ref}
+            className="w-full relative group cursor-pointer bg-black rounded-lg overflow-hidden"
             onClick={handleVideoClick}
         >
-            {/* Loading spinner */}
-            {isLoading && isNearViewport && (
-                <div className="absolute inset-0 flex items-center justify-center z-10">
-                    <Loader2 className="w-8 h-8 text-white/50 animate-spin" />
-                </div>
-            )}
-
-            {/* Video element */}
+            {/* Video - always rendered, browser handles buffering */}
             <video
                 ref={videoRef}
-                src={src} // Always provide src to avoid player reset issues
+                src={src}
                 className="w-full aspect-[4/5] object-cover"
                 loop
-                muted={isMuted} // Ensure attribut is reflected
+                muted
                 playsInline
-                preload={isNearViewport ? "auto" : "metadata"} // Always load metadata (first frame), full data when near
-                onLoadedData={() => setIsLoading(false)}
-                onWaiting={() => setIsLoading(true)}
-                onPlaying={() => setIsLoading(false)}
+                preload="auto"
             />
 
-            {/* Play button overlay - only if NOT playing and NOT loading */}
-            {!isPlaying && !isLoading && isNearViewport && (
-                <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+            {/* Play button - show when not playing */}
+            {!isPlaying && (
+                <div className="absolute inset-0 flex items-center justify-center bg-black/30">
                     <div className="bg-white/20 backdrop-blur-sm rounded-full p-4">
                         <Play className="w-10 h-10 text-white fill-white" />
                     </div>
                 </div>
             )}
 
-            {/* Mute/Unmute Indicator/Toggle */}
-            {isNearViewport && (
-                <button
-                    onClick={toggleMute}
-                    className="absolute bottom-3 right-3 bg-black/60 backdrop-blur-sm p-2 rounded-full hover:bg-black/80 transition-colors z-20"
-                >
-                    {isMuted ? (
-                        <VolumeX className="w-4 h-4 text-white/90" />
-                    ) : (
-                        <Volume2 className="w-4 h-4 text-white/90" />
-                    )}
-                </button>
-            )}
+            {/* Mute toggle */}
+            <button
+                onClick={toggleMute}
+                className="absolute bottom-3 right-3 bg-black/60 backdrop-blur-sm p-2 rounded-full z-20"
+            >
+                {isMuted ? (
+                    <VolumeX className="w-4 h-4 text-white" />
+                ) : (
+                    <Volume2 className="w-4 h-4 text-white" />
+                )}
+            </button>
 
-            {/* Gradient overlay for better text readability */}
+            {/* Gradient */}
             <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-black/60 to-transparent pointer-events-none" />
         </div>
     );
