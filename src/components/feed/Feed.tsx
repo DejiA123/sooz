@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import PostCard from "./PostCard";
+import { PostCard } from "./PostCard";
 import StoriesBar from "./StoriesBar";
 import { PostCardSkeleton } from "./PostCardSkeleton";
 import { Loader2 } from "lucide-react";
@@ -21,9 +21,14 @@ interface Post {
   comments: { id: string }[];
 }
 
+import { useVideoPreloader } from "@/hooks/useVideoPreloader";
+
 const Feed = () => {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Aggressively preload next videos
+  useVideoPreloader(posts);
 
   useEffect(() => {
     fetchPosts();

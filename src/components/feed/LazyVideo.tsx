@@ -2,6 +2,7 @@ import { useRef, useState, useEffect } from "react";
 import { Play, Volume2, VolumeX, Loader2 } from "lucide-react";
 import { useInView } from "react-intersection-observer";
 import { useVideoStore } from "@/store/useVideoStore";
+import { useVideoCache } from "@/store/useVideoCache";
 
 interface LazyVideoProps {
     src: string;
@@ -101,6 +102,10 @@ export const LazyVideo = ({ src, id, onClick }: LazyVideoProps) => {
         }
     };
 
+    const getCachedUrl = useVideoCache((state) => state.getCachedUrl);
+    const cachedSrc = getCachedUrl(src);
+    const finalSrc = cachedSrc || src;
+
     return (
         <div
             ref={ref}
@@ -109,7 +114,7 @@ export const LazyVideo = ({ src, id, onClick }: LazyVideoProps) => {
         >
             <video
                 ref={videoRef}
-                src={src}
+                src={finalSrc}
                 className="w-full aspect-[4/5] object-cover"
                 loop
                 muted
