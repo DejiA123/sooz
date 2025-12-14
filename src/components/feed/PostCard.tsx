@@ -253,8 +253,6 @@ export const PostCard = ({
                   try {
                     if (navigator.share) {
                       await navigator.share({
-                        title: `Post by ${user.username}`,
-                        text: caption || 'Check out this post on SOOZ!',
                         url: postUrl,
                       });
                     } else {
