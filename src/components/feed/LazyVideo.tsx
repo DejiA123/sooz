@@ -13,7 +13,7 @@ export const LazyVideo = ({ src, id, onClick }: LazyVideoProps) => {
     const videoRef = useRef<HTMLVideoElement>(null);
     const [isPlaying, setIsPlaying] = useState(false);
     const [isMuted, setIsMuted] = useState(true);
-    const [isLoading, setIsLoading] = useState(true);
+    const [isBuffering, setIsBuffering] = useState(false);
 
     const activeVideoId = useVideoStore((state) => state.activeVideoId);
     const setActiveVideo = useVideoStore((state) => state.setActiveVideo);
@@ -24,15 +24,6 @@ export const LazyVideo = ({ src, id, onClick }: LazyVideoProps) => {
         triggerOnce: false,
     });
 
-    // Instant play
-    const playNow = () => {
-        const video = videoRef.current;
-        if (!video) return;
-        video.muted = true;
-        video.play().catch(() => { });
-        setIsPlaying(true);
-    };
-
     // Set active when in view
     useEffect(() => {
         if (inView) {
@@ -40,28 +31,35 @@ export const LazyVideo = ({ src, id, onClick }: LazyVideoProps) => {
         }
     }, [inView, id]);
 
-    // Play immediately when active
+    // Play/pause based on active state
     useEffect(() => {
         const video = videoRef.current;
         if (!video) return;
 
         if (isActive) {
             video.muted = true;
-            video.play().catch(() => { });
-            setIsPlaying(true);
+            video.play()
+                .then(() => setIsPlaying(true))
+                .catch(() => setIsPlaying(false));
         } else {
             video.pause();
             setIsPlaying(false);
         }
     }, [isActive]);
 
-    // Click = instant play or open modal
+    // Handle click
     const handleTap = (e: React.MouseEvent) => {
         e.stopPropagation();
 
         if (!isPlaying) {
             setActiveVideo(id);
-            playNow();
+            const video = videoRef.current;
+            if (video) {
+                video.muted = true;
+                video.play()
+                    .then(() => setIsPlaying(true))
+                    .catch(() => { });
+            }
         } else {
             onClick?.();
         }
@@ -82,13 +80,6 @@ export const LazyVideo = ({ src, id, onClick }: LazyVideoProps) => {
             className="w-full relative cursor-pointer bg-black rounded-lg overflow-hidden"
             onClick={handleTap}
         >
-            {/* Loading spinner - shows while video is buffering */}
-            {isLoading && (
-                <div className="absolute inset-0 flex items-center justify-center z-10 bg-black">
-                    <Loader2 className="w-10 h-10 text-white/60 animate-spin" />
-                </div>
-            )}
-
             <video
                 ref={videoRef}
                 src={src}
@@ -97,13 +88,21 @@ export const LazyVideo = ({ src, id, onClick }: LazyVideoProps) => {
                 muted
                 playsInline
                 preload="auto"
-                onCanPlay={() => setIsLoading(false)}
-                onWaiting={() => setIsLoading(true)}
-                onPlaying={() => setIsLoading(false)}
+                onWaiting={() => setIsBuffering(true)}
+                onPlaying={() => setIsBuffering(false)}
+                onPlay={() => setIsPlaying(true)}
+                onPause={() => setIsPlaying(false)}
             />
 
-            {/* Play button - only when not playing AND not loading */}
-            {!isPlaying && !isLoading && (
+            {/* Buffering spinner - transparent overlay, doesn't hide video */}
+            {isBuffering && isPlaying && (
+                <div className="absolute inset-0 flex items-center justify-center z-10">
+                    <Loader2 className="w-10 h-10 text-white/80 animate-spin drop-shadow-lg" />
+                </div>
+            )}
+
+            {/* Play button - only when paused */}
+            {!isPlaying && (
                 <div className="absolute inset-0 flex items-center justify-center bg-black/30">
                     <div className="bg-white/20 backdrop-blur-sm rounded-full p-4">
                         <Play className="w-10 h-10 text-white fill-white" />
