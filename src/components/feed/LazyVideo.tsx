@@ -38,10 +38,13 @@ export const LazyVideo = ({ src, id, onClick }: LazyVideoProps) => {
 
     // 2. Loading Observer (Proximity)
     // Start loading when within 600px (approx 1 post away)
+    // 2. Loading Observer (Proximity)
+    // Start loading when within 1500px (approx 3-4 posts away)
+    // triggerOnce: false -> Stops loading if scrolled far away (bandwidth saving)
     const { ref: loadingRef, inView: isNearViewport } = useInView({
         threshold: 0,
-        rootMargin: "600px",
-        triggerOnce: true, // Keep loaded once fetched
+        rootMargin: "1500px",
+        triggerOnce: false,
     });
 
     const combinedRef = useCombinedRefs(playbackRef, loadingRef);
