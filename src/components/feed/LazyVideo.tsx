@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect, useCallback } from "react";
+import { useRef, useState, useEffect } from "react";
 import { Play, Volume2, VolumeX } from "lucide-react";
 import { useInView } from "react-intersection-observer";
 import { useVideoStore } from "@/store/useVideoStore";
@@ -18,54 +18,50 @@ export const LazyVideo = ({ src, id, onClick }: LazyVideoProps) => {
     const setActiveVideo = useVideoStore((state) => state.setActiveVideo);
     const isActive = activeVideoId === id;
 
+    // Lower threshold = earlier detection = faster autoplay
     const { ref, inView } = useInView({
-        threshold: 0.5,
+        threshold: 0.3,
         triggerOnce: false,
     });
 
-    // Force play function
-    const forcePlay = useCallback(async () => {
+    // Instant play - no async, no waiting
+    const playNow = () => {
         const video = videoRef.current;
-        if (!video) return false;
-
+        if (!video) return;
         video.muted = true;
-        try {
-            await video.play();
-            setIsPlaying(true);
-            return true;
-        } catch {
-            setIsPlaying(false);
-            return false;
-        }
-    }, []);
+        video.play().catch(() => { });
+        setIsPlaying(true);
+    };
 
-    // When scrolling into view, claim active spot
+    // Set active when in view
     useEffect(() => {
         if (inView) {
             setActiveVideo(id);
         }
-    }, [inView, id]); // Removed setActiveVideo from deps - it's stable from zustand
+    }, [inView, id]);
 
-    // Play when active, pause when not
+    // Play immediately when active
     useEffect(() => {
         const video = videoRef.current;
         if (!video) return;
 
         if (isActive) {
-            forcePlay();
+            video.muted = true;
+            video.play().catch(() => { });
+            setIsPlaying(true);
         } else {
             video.pause();
             setIsPlaying(false);
         }
-    }, [isActive, forcePlay]);
+    }, [isActive]);
 
-    // Handle tap
-    const handleTap = async (e: React.MouseEvent) => {
+    // Click = instant play or open modal
+    const handleTap = (e: React.MouseEvent) => {
         e.stopPropagation();
 
         if (!isPlaying) {
             setActiveVideo(id);
-            await forcePlay();
+            playNow();
         } else {
             onClick?.();
         }
@@ -83,7 +79,7 @@ export const LazyVideo = ({ src, id, onClick }: LazyVideoProps) => {
     return (
         <div
             ref={ref}
-            className="w-full relative group cursor-pointer bg-black rounded-lg overflow-hidden"
+            className="w-full relative cursor-pointer bg-black rounded-lg overflow-hidden"
             onClick={handleTap}
         >
             <video
@@ -94,8 +90,6 @@ export const LazyVideo = ({ src, id, onClick }: LazyVideoProps) => {
                 muted
                 playsInline
                 preload="auto"
-                onPlay={() => setIsPlaying(true)}
-                onPause={() => setIsPlaying(false)}
             />
 
             {!isPlaying && (
