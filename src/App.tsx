@@ -29,6 +29,14 @@ const App = () => {
     } else {
       document.documentElement.classList.remove("dark");
     }
+
+    // Migrate gold theme to blue
+    const colorTheme = localStorage.getItem("sooz-theme");
+    if (!colorTheme || colorTheme === "gold") {
+      localStorage.setItem("sooz-theme", "blue");
+      // Apply blue theme immediately
+      document.documentElement.style.setProperty("--primary", "240 100% 27%");
+    }
   }
 
   return (
