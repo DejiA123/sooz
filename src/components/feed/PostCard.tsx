@@ -207,6 +207,7 @@ export const PostCard = ({
             {media_type === 'video' ? (
               <LazyVideo
                 src={media_url}
+                id={id}
                 onClick={() => setShowVideoFeed(true)}
               />
             ) : (

@@ -1,42 +1,53 @@
 import { useRef, useState, useEffect } from "react";
 import { Play, Volume2, VolumeX, Loader2 } from "lucide-react";
 import { useInView } from "react-intersection-observer";
+import { useVideoStore } from "@/store/useVideoStore";
 
 interface LazyVideoProps {
     src: string;
+    id: string; // Unique ID for coordination
     onClick?: () => void;
 }
 
-export const LazyVideo = ({ src, onClick }: LazyVideoProps) => {
+export const LazyVideo = ({ src, id, onClick }: LazyVideoProps) => {
     const videoRef = useRef<HTMLVideoElement>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isPlaying, setIsPlaying] = useState(false);
 
+    // Global store
+    const { activeVideoId, setActiveVideo } = useVideoStore();
+
     const { ref, inView } = useInView({
-        threshold: 0.3,         // Play when 30% visible (sooner)
+        threshold: 0.6,         // Play when 60% visible (focused)
         triggerOnce: false,
-        rootMargin: "300px",    // Start loading 300px before entering viewport
+        rootMargin: "0px",      // Only play when actually in viewport
     });
 
-    // Play/pause based on visibility
+    // 1. When entering view, claim the active spot
+    useEffect(() => {
+        if (inView) {
+            setActiveVideo(id);
+        }
+    }, [inView, id, setActiveVideo]);
+
+    // 2. React to global state changes
     useEffect(() => {
         if (!videoRef.current) return;
 
-        if (inView) {
+        if (activeVideoId === id) {
+            // I am the active video -> Play
             const playPromise = videoRef.current.play();
             if (playPromise !== undefined) {
                 playPromise
                     .then(() => setIsPlaying(true))
-                    .catch(() => {
-                        // Autoplay was prevented - show play button
-                        setIsPlaying(false);
-                    });
+                    .catch(() => setIsPlaying(false));
             }
         } else {
+            // I am NOT the active video -> Pause
             videoRef.current.pause();
             setIsPlaying(false);
         }
-    }, [inView]);
+    }, [activeVideoId, id]);
 
     const handleVideoClick = (e: React.MouseEvent) => {
         e.stopPropagation();
