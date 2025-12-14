@@ -4,13 +4,13 @@ import { Button } from "@/components/ui/button";
 const Header = () => {
   return (
     <header className="fixed top-0 left-0 right-0 z-50 glass-strong">
-      <div className="max-w-lg mx-auto px-4 h-16 flex items-center justify-between">
+      <div className="max-w-lg mx-auto px-4 h-24 flex items-center justify-between">
         {/* Logo */}
         <div className="flex items-center gap-2">
           <img
             src="/sooz-logo.png"
             alt="SOOZ"
-            className="h-14 w-auto object-contain text-foreground"
+            className="h-20 w-auto object-contain text-foreground"
           />
         </div>
 
