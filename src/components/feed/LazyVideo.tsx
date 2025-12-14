@@ -31,40 +31,62 @@ export const LazyVideo = ({ src, id, onClick }: LazyVideoProps) => {
 
     // Play/pause based on active state
     useEffect(() => {
-        if (!videoRef.current) return;
+        const video = videoRef.current;
+        if (!video) return;
 
         if (activeVideoId === id) {
-            videoRef.current.muted = isMuted;
-            videoRef.current.play()
+            video.muted = true; // Always muted for autoplay
+            video.play()
                 .then(() => setIsPlaying(true))
                 .catch(() => setIsPlaying(false));
         } else {
-            videoRef.current.pause();
+            video.pause();
             setIsPlaying(false);
         }
-    }, [activeVideoId, id, isMuted]);
+    }, [activeVideoId, id]);
 
-    const handleVideoClick = (e: React.MouseEvent) => {
+    // Manual play on click (for mobile where autoplay fails)
+    const handlePlayClick = (e: React.MouseEvent) => {
         e.stopPropagation();
-        onClick?.();
+        const video = videoRef.current;
+        if (!video) return;
+
+        if (isPlaying) {
+            // If already playing, open the onClick modal
+            onClick?.();
+        } else {
+            // If not playing, try to play manually
+            video.muted = true;
+            video.play()
+                .then(() => {
+                    setIsPlaying(true);
+                    setActiveVideo(id);
+                })
+                .catch((err) => {
+                    console.error("Manual play failed:", err);
+                    // If even manual play fails, open modal as fallback
+                    onClick?.();
+                });
+        }
     };
 
     const toggleMute = (e: React.MouseEvent) => {
         e.stopPropagation();
+        const video = videoRef.current;
+        if (!video) return;
+
         const newMuted = !isMuted;
         setIsMuted(newMuted);
-        if (videoRef.current) {
-            videoRef.current.muted = newMuted;
-        }
+        video.muted = newMuted;
     };
 
     return (
         <div
             ref={ref}
             className="w-full relative group cursor-pointer bg-black rounded-lg overflow-hidden"
-            onClick={handleVideoClick}
+            onClick={handlePlayClick}
         >
-            {/* Video - always rendered, browser handles buffering */}
+            {/* Video element */}
             <video
                 ref={videoRef}
                 src={src}
