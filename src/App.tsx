@@ -1,6 +1,6 @@
 
 import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
+import { Toaster as Sonner, toast } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
@@ -36,6 +36,55 @@ const App = () => {
       localStorage.setItem("sooz-theme", "blue");
       // Apply blue theme immediately
       document.documentElement.style.setProperty("--primary", "240 100% 27%");
+    }
+
+    // Register Service Worker and handle updates
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js').then((opts) => {
+          console.log('SW registered:', opts);
+
+          // Check for updates
+          opts.onupdatefound = () => {
+            const installingWorker = opts.installing;
+            if (installingWorker) {
+              installingWorker.onstatechange = () => {
+                if (installingWorker.state === 'installed') {
+                  if (navigator.serviceWorker.controller) {
+                    // New update available
+                    toast("New version available!", {
+                      action: {
+                        label: "Update",
+                        onClick: () => window.location.reload()
+                      },
+                      duration: Infinity
+                    });
+                  }
+                }
+              };
+            }
+          };
+        }).catch(err => console.log('SW fetch fail', err));
+      });
+    }
+
+    // Request Notification Permission on load (as requested for "pop up about the app")
+    if ('Notification' in window && Notification.permission === 'default') {
+      setTimeout(() => {
+        toast("Enable notifications?", {
+          description: "Stay updated with the latest from Sooz.",
+          action: {
+            label: "Allow",
+            onClick: () => {
+              Notification.requestPermission().then(permission => {
+                if (permission === 'granted') {
+                  toast.success("Notifications enabled!");
+                }
+              });
+            }
+          }
+        });
+      }, 3000); // Delay slightly
     }
   }
 

@@ -13,9 +13,9 @@ export const LazyVideo = ({ src, onClick }: LazyVideoProps) => {
     const [isPlaying, setIsPlaying] = useState(false);
 
     const { ref, inView } = useInView({
-        threshold: 0.5,         // Play when 50% visible
+        threshold: 0.3,         // Play when 30% visible (sooner)
         triggerOnce: false,
-        rootMargin: "100px",    // Start loading 100px before entering viewport
+        rootMargin: "300px",    // Start loading 300px before entering viewport
     });
 
     // Play/pause based on visibility
