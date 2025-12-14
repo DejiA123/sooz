@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { s3Client, s3Config } from "@/integrations/s3/client";
 import { Upload } from "@aws-sdk/lib-storage";
+import { compressVideo } from "@/utils/videoCompression";
 
 interface CreatePostModalProps {
     isOpen: boolean;
@@ -23,6 +24,7 @@ export default function CreatePostModal({ isOpen, onClose, onPostCreated }: Crea
     const [mediaPreview, setMediaPreview] = useState<string | null>(null);
     const [isUploading, setIsUploading] = useState(false);
     const [uploadProgress, setUploadProgress] = useState(0);
+    const [uploadStage, setUploadStage] = useState<'idle' | 'compressing' | 'uploading'>('idle');
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -32,45 +34,6 @@ export default function CreatePostModal({ isOpen, onClose, onPostCreated }: Crea
             const url = URL.createObjectURL(file);
             setMediaPreview(url);
         }
-    };
-
-    const uploadWithProgress = async (file: File, filePath: string): Promise<void> => {
-        // Get the session token for authenticated upload
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session?.access_token) {
-            throw new Error("Not authenticated");
-        }
-
-        return new Promise((resolve, reject) => {
-            const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-
-            const xhr = new XMLHttpRequest();
-            const url = `${supabaseUrl}/storage/v1/object/posts/${filePath}`;
-
-            xhr.upload.addEventListener("progress", (event) => {
-                if (event.lengthComputable) {
-                    const progress = Math.round((event.loaded / event.total) * 100);
-                    setUploadProgress(progress);
-                }
-            });
-
-            xhr.addEventListener("load", () => {
-                if (xhr.status >= 200 && xhr.status < 300) {
-                    resolve();
-                } else {
-                    reject(new Error(`Upload failed with status ${xhr.status}`));
-                }
-            });
-
-            xhr.addEventListener("error", () => {
-                reject(new Error("Upload failed"));
-            });
-
-            xhr.open("POST", url);
-            xhr.setRequestHeader("Authorization", `Bearer ${session.access_token}`);
-            xhr.setRequestHeader("x-upsert", "false");
-            xhr.send(file);
-        });
     };
 
     const handlePost = async () => {
@@ -89,8 +52,31 @@ export default function CreatePostModal({ isOpen, onClose, onPostCreated }: Crea
 
             // Media upload logic
             if (mediaFile) {
+                let fileToUpload = mediaFile;
+
+                // Compress video before upload
+                if (mediaFile.type.startsWith('video/')) {
+                    setUploadStage('compressing');
+                    toast.info("Optimizing video for faster playback...");
+
+                    fileToUpload = await compressVideo(mediaFile, (progress, stage) => {
+                        if (stage === 'loading') {
+                            setUploadProgress(Math.min(progress, 10));
+                        } else {
+                            // Compression progress: 0-50% of total
+                            setUploadProgress(Math.round(progress * 0.5));
+                        }
+                    });
+
+                    // Update preview with compressed video
+                    const newPreviewUrl = URL.createObjectURL(fileToUpload);
+                    setMediaPreview(newPreviewUrl);
+                }
+
+                setUploadStage('uploading');
+
                 const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-                const fileExtension = mediaFile.name.split('.').pop();
+                const fileExtension = fileToUpload.name.split('.').pop();
                 const fileName = `${uniqueSuffix}.${fileExtension}`;
 
                 const upload = new Upload({
@@ -98,22 +84,24 @@ export default function CreatePostModal({ isOpen, onClose, onPostCreated }: Crea
                     params: {
                         Bucket: s3Config.bucketName,
                         Key: fileName,
-                        Body: mediaFile,
-                        ContentType: mediaFile.type,
+                        Body: fileToUpload,
+                        ContentType: fileToUpload.type,
                     },
                 });
 
                 upload.on("httpUploadProgress", (progress) => {
                     if (progress.loaded && progress.total) {
-                        const percent = Math.round((progress.loaded / progress.total) * 100);
-                        setUploadProgress(percent);
+                        // Upload progress: 50-100% of total (after compression)
+                        const uploadPercent = Math.round((progress.loaded / progress.total) * 100);
+                        const totalPercent = 50 + Math.round(uploadPercent * 0.5);
+                        setUploadProgress(totalPercent);
                     }
                 });
 
                 await upload.done();
 
                 mediaUrl = `${import.meta.env.VITE_PUBLIC_R2_URL}/${fileName}`;
-                mediaType = mediaFile.type.startsWith('video/') ? 'video' : 'image';
+                mediaType = fileToUpload.type.startsWith('video/') ? 'video' : 'image';
             }
 
             const { error: dbError } = await supabase
@@ -132,6 +120,7 @@ export default function CreatePostModal({ isOpen, onClose, onPostCreated }: Crea
             setMediaFile(null);
             setMediaPreview(null);
             setUploadProgress(0);
+            setUploadStage('idle');
             onPostCreated();
             onClose();
         } catch (error: any) {
@@ -139,9 +128,20 @@ export default function CreatePostModal({ isOpen, onClose, onPostCreated }: Crea
             const errorMsg = error?.message || "Failed to create post";
             toast.error(errorMsg);
             setUploadProgress(0);
+            setUploadStage('idle');
         } finally {
             setIsUploading(false);
         }
+    };
+
+    const getProgressLabel = () => {
+        if (uploadStage === 'compressing') {
+            return `Optimizing... ${uploadProgress}%`;
+        }
+        if (uploadStage === 'uploading') {
+            return `Uploading... ${uploadProgress}%`;
+        }
+        return "Posting...";
     };
 
     return (
@@ -188,7 +188,9 @@ export default function CreatePostModal({ isOpen, onClose, onPostCreated }: Crea
                     {isUploading && mediaFile && (
                         <div className="space-y-2">
                             <div className="flex items-center justify-between text-sm">
-                                <span className="text-muted-foreground">Uploading...</span>
+                                <span className="text-muted-foreground">
+                                    {uploadStage === 'compressing' ? '🔧 Optimizing video...' : '📤 Uploading...'}
+                                </span>
                                 <span className="font-medium text-primary">{uploadProgress}%</span>
                             </div>
                             <Progress value={uploadProgress} className="h-2" />
@@ -223,7 +225,7 @@ export default function CreatePostModal({ isOpen, onClose, onPostCreated }: Crea
                         {isUploading ? (
                             <>
                                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                {uploadProgress > 0 ? `Uploading ${uploadProgress}%` : "Posting..."}
+                                {getProgressLabel()}
                             </>
                         ) : (
                             "Post"
@@ -234,4 +236,3 @@ export default function CreatePostModal({ isOpen, onClose, onPostCreated }: Crea
         </Dialog>
     );
 }
-
