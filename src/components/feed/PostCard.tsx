@@ -200,7 +200,7 @@ export const PostCard = ({
 
         {/* Media - Full bleed on mobile */}
         {media_url && (
-          <div className="relative w-full aspect-square bg-muted flex items-center justify-center overflow-hidden">
+          <div className="relative w-full bg-black flex items-center justify-center">
             {media_type === 'video' ? (
               <LazyVideo
                 src={media_url}
@@ -210,7 +210,7 @@ export const PostCard = ({
               <img
                 src={media_url}
                 alt="Post"
-                className="w-full h-full object-cover"
+                className="w-full max-h-[600px] object-contain"
                 loading="lazy"
                 decoding="async"
               />

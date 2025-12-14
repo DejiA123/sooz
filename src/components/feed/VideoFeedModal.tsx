@@ -111,8 +111,8 @@ export const VideoFeedModal = ({ initialPost, onClose }: VideoFeedModalProps) =>
                                     loop
                                     playsInline
                                     autoPlay={isActive}
-                                    muted={false}
-                                    preload={index === activeIndex + 1 ? "auto" : "none"} // Preload next video
+                                    muted  // Muted for faster autoplay on mobile
+                                    preload={index <= activeIndex + 2 ? "auto" : "metadata"} // Preload next 2 videos
                                     onClick={(e) => {
                                         e.currentTarget.paused ? e.currentTarget.play() : e.currentTarget.pause();
                                     }}

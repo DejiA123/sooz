@@ -10,8 +10,9 @@ interface LazyVideoProps {
 export const LazyVideo = ({ src, onClick }: LazyVideoProps) => {
     const videoRef = useRef<HTMLVideoElement>(null);
     const { ref, inView } = useInView({
-        threshold: 0.5,
+        threshold: 0.1,        // Start loading when 10% visible (faster trigger)
         triggerOnce: false,
+        rootMargin: "200px",   // Start loading 200px before entering viewport
     });
 
     // Play/pause based on visibility
@@ -30,18 +31,18 @@ export const LazyVideo = ({ src, onClick }: LazyVideoProps) => {
     return (
         <div
             ref={ref}
-            className="w-full h-full relative group cursor-pointer"
+            className="w-full h-full relative group cursor-pointer bg-black"
             onClick={onClick}
         >
             <video
                 ref={videoRef}
-                src={inView ? src : undefined}
-                poster={`${src}#t=0.1`} // Use first frame as poster
-                className="w-full h-full object-cover"
+                src={src}  // Always load src (preload handles buffering)
+                poster={`${src}#t=0.1`}
+                className="w-full max-h-[600px] object-contain"
                 muted
                 loop
                 playsInline
-                preload="none"
+                preload="metadata"  // Preload metadata for faster start
             />
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                 <div className="bg-black/30 rounded-full p-2 opacity-0 group-hover:opacity-100 transition-opacity">
