@@ -42,33 +42,36 @@ export const LazyVideo = ({ src, id, onClick }: LazyVideoProps) => {
         }
     });
 
-    // Robust Playback Logic (Kept as backup and state sync)
+    // Robust Playback Logic with Sound Priority
     useEffect(() => {
         const video = videoRef.current;
         if (!video) return;
 
         if (isActive) {
-            video.muted = true;
-
-            const attemptPlay = async () => {
+            const playVideo = async () => {
                 try {
-                    // Only play if not already playing to avoid interruption
-                    if (video.paused) {
+                    // 1. Try playing UNMUTED first (User preference)
+                    video.muted = false;
+                    setIsMuted(false);
+                    await video.play();
+                    setIsPlaying(true);
+                } catch (error) {
+                    console.log("Unmuted autoplay restricted, falling back to muted...", error);
+
+                    // 2. Play failed (likely browser blocked unmuted autoplay)
+                    // Fallback to MUTED autoplay immediately
+                    try {
+                        video.muted = true;
+                        setIsMuted(true);
                         await video.play();
                         setIsPlaying(true);
+                    } catch (retryError) {
+                        console.error("Muted autoplay also failed", retryError);
                     }
-                } catch (error) {
-                    console.log("Autoplay blocked/failed, retrying...", error);
-                    // Retry once after short delay
-                    setTimeout(() => {
-                        if (isActive && video.paused) {
-                            video.play().catch(e => console.error("Retry failed", e));
-                        }
-                    }, 500);
                 }
             };
 
-            attemptPlay();
+            playVideo();
         } else {
             video.pause();
             setIsPlaying(false);
@@ -83,7 +86,9 @@ export const LazyVideo = ({ src, id, onClick }: LazyVideoProps) => {
             setActiveVideo(id);
             const video = videoRef.current;
             if (video) {
-                video.muted = true;
+                // On explicit interaction, ALWAYS enable sound
+                video.muted = false;
+                setIsMuted(false);
                 video.play()
                     .then(() => setIsPlaying(true))
                     .catch(() => { });
@@ -117,9 +122,9 @@ export const LazyVideo = ({ src, id, onClick }: LazyVideoProps) => {
                 src={finalSrc}
                 className="w-full aspect-[4/5] object-cover"
                 loop
-                muted
+                muted={isMuted} // Controlled by state now
                 playsInline
-                autoPlay={isActive} // Native attribute is strongest signal for mobile
+                autoPlay={isActive}
                 preload="auto"
                 onWaiting={() => setIsBuffering(true)}
                 onPlaying={() => setIsBuffering(false)}
