@@ -41,6 +41,12 @@ export default function Settings() {
         } catch (error) {
             console.error("Error signing out:", error);
         } finally {
+            // Manual cleanup to ensure no loop
+            Object.keys(localStorage).forEach((key) => {
+                if (key.startsWith("sb-")) {
+                    localStorage.removeItem(key);
+                }
+            });
             window.location.href = "/auth";
         }
     };
