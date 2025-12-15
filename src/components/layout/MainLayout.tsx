@@ -13,9 +13,11 @@ export const MainLayout = () => {
 
             <Sidebar />
 
-            <main className="container max-w-md md:max-w-xl lg:max-w-2xl mx-auto px-0 md:px-4 animate-fade-in md:ml-64 min-h-screen md:py-8">
-                <Outlet />
-            </main>
+            <div className="md:ml-64 min-h-screen">
+                <main className="container max-w-md md:max-w-lg lg:max-w-5xl mx-auto px-0 md:px-4 animate-fade-in md:py-8">
+                    <Outlet />
+                </main>
+            </div>
 
             <div className="md:hidden">
                 <BottomNav />

@@ -6,6 +6,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Loader2 } from "lucide-react";
 import { useInView } from "react-intersection-observer";
 import { toast } from "sonner";
+import { SuggestedAccounts } from "@/components/home/SuggestedAccounts";
 
 interface PostWithUser {
   id: string;
@@ -130,47 +131,55 @@ export default function Index() {
 
   return (
     <div className="pb-20">
-      <StoryRail />
+      <div className="flex gap-10 justify-center items-start">
+        {/* Feed Column */}
+        <div className="w-full max-w-lg">
+          <StoryRail />
 
-      {loading ? (
-        <div className="flex justify-center pt-20">
-          <Loader2 className="w-8 h-8 animate-spin text-primary" />
-        </div>
-      ) : posts.length === 0 && !hasMore ? (
-        <div className="py-12 text-center">
-          <p className="text-muted-foreground">No posts yet. Follow people to see their posts!</p>
-        </div>
-      ) : (
-        <div className="px-1 mt-2">
-          {posts.map(post => (
-            <PostCard
-              key={post.id}
-              id={post.id}
-              user={post.profiles}
-              caption={post.caption}
-              media_url={post.media_url}
-              media_type={post.media_type}
-              created_at={post.created_at}
-              // @ts-ignore
-              likes_count={post.likes_count}
-              // @ts-ignore
-              comments_count={post.comments_count}
-              // @ts-ignore
-              views_count={post.views_count || 0}
-              // @ts-ignore
-              is_liked_by_user={post.is_liked_by_user}
-            />
-          ))}
+          {loading ? (
+            <div className="flex justify-center pt-20">
+              <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            </div>
+          ) : posts.length === 0 && !hasMore ? (
+            <div className="py-12 text-center">
+              <p className="text-muted-foreground">No posts yet. Follow people to see their posts!</p>
+            </div>
+          ) : (
+            <div className="px-1 mt-2">
+              {posts.map(post => (
+                <PostCard
+                  key={post.id}
+                  id={post.id}
+                  user={post.profiles}
+                  caption={post.caption}
+                  media_url={post.media_url}
+                  media_type={post.media_type}
+                  created_at={post.created_at}
+                  // @ts-ignore
+                  likes_count={post.likes_count}
+                  // @ts-ignore
+                  comments_count={post.comments_count}
+                  // @ts-ignore
+                  views_count={post.views_count || 0}
+                  // @ts-ignore
+                  is_liked_by_user={post.is_liked_by_user}
+                />
+              ))}
 
-          {/* Loading Trigger */}
-          <div ref={ref} className="h-10 flex items-center justify-center p-4">
-            {loadingMore && <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />}
-            {!hasMore && posts.length > 0 && (
-              <span className="text-xs text-muted-foreground">You're all caught up!</span>
-            )}
-          </div>
+              {/* Loading Trigger */}
+              <div ref={ref} className="h-10 flex items-center justify-center p-4">
+                {loadingMore && <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />}
+                {!hasMore && posts.length > 0 && (
+                  <span className="text-xs text-muted-foreground">You're all caught up!</span>
+                )}
+              </div>
+            </div>
+          )}
         </div>
-      )}
+
+        {/* Suggested Accounts Sidebar (Desktop Only) */}
+        <SuggestedAccounts />
+      </div>
     </div>
   );
 }

@@ -13,6 +13,7 @@ import Discover from "./pages/Discover";
 import Activity from "./pages/Activity";
 import Chat from "./pages/Chat";
 import PostDetails from "./pages/PostDetails";
+import SuggestedPeople from "./pages/SuggestedPeople";
 import Notifications from "./pages/Notifications";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
@@ -103,6 +104,7 @@ const App = () => {
                 <Route path="/" element={<Index />} />
                 <Route path="/discover" element={<Discover />} />
                 <Route path="/activity" element={<Activity />} />
+                <Route path="/suggested-people" element={<SuggestedPeople />} />
                 <Route path="/chat" element={<Chat />} />
                 <Route path="/notifications" element={<Notifications />} />
                 <Route path="/profile/:username" element={<Profile />} />

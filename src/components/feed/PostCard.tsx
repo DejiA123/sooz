@@ -7,6 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -52,6 +53,7 @@ export const PostCard = ({
   is_liked_by_user: initialLiked
 }: PostCardProps) => {
   const { user: currentUser } = useAuth();
+  const isMobile = useIsMobile();
   const [likes, setLikes] = useState(initialLikes);
   const [isLiked, setIsLiked] = useState(initialLiked);
   const [isLikeLoading, setIsLikeLoading] = useState(false);
@@ -209,10 +211,10 @@ export const PostCard = ({
               <LazyVideo
                 src={media_url}
                 id={id}
-                onClick={(time) => {
+                onClick={isMobile ? (time) => {
                   setVideoStartTime(time);
                   setShowVideoFeed(true);
-                }}
+                } : undefined}
               />
             ) : (
               <img

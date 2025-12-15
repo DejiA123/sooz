@@ -100,7 +100,12 @@ export const LazyVideo = ({ src, id, onClick, startTime = 0 }: LazyVideoProps) =
                     .catch(() => { });
             }
         } else {
-            onClick?.(videoRef.current?.currentTime || 0);
+            if (onClick) {
+                onClick(videoRef.current?.currentTime || 0);
+            } else {
+                // If no handler provided (e.g. desktop), toggle pause by clearing active video
+                setActiveVideo(null);
+            }
         }
     };
 

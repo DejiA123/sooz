@@ -79,10 +79,10 @@ export const VideoFeedModal = ({ initialPost, onClose, startTime = 0 }: VideoFee
                 initial={{ opacity: 0, y: 100 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: 100 }}
-                className="fixed inset-0 z-50 bg-black flex flex-col"
+                className="fixed inset-0 z-50 bg-black md:bg-black/95 flex flex-col items-center justify-center text-white"
             >
                 {/* Header (Back button) */}
-                <div className="absolute top-4 left-4 z-50">
+                <div className="absolute top-4 left-4 z-[60]">
                     <Button variant="ghost" size="icon" onClick={onClose} className="rounded-full bg-black/20 text-white backdrop-blur-md hover:bg-black/40">
                         <X className="w-6 h-6" />
                     </Button>
@@ -91,7 +91,7 @@ export const VideoFeedModal = ({ initialPost, onClose, startTime = 0 }: VideoFee
                 {/* Main Feed Container */}
                 <div
                     ref={containerRef}
-                    className="flex-1 overflow-y-scroll snap-y snap-mandatory no-scrollbar h-full"
+                    className="w-full flex-1 overflow-y-scroll snap-y snap-mandatory no-scrollbar h-full md:max-w-[450px] md:h-[calc(100vh-2rem)] md:rounded-2xl md:overflow-hidden md:border md:border-white/10 bg-black"
                     onScroll={handleScroll}
                 >
                     {posts.map((post, index) => {
