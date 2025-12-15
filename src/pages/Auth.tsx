@@ -115,7 +115,7 @@ const Auth = () => {
           <img
             src="/sooz-logo-v3.svg"
             alt="SOOZ"
-            className="h-20 w-auto mb-4 object-contain"
+            className="h-20 w-auto mb-1 object-contain"
           />
           <p className="text-muted-foreground text-sm">Sound Out Of Zion</p>
         </div>
