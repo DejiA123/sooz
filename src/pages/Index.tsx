@@ -25,6 +25,7 @@ interface PostWithUser {
   likes: { count: number }[];
   comments: { count: number }[];
   user_likes: { id: string }[];
+  is_saved_by_user?: boolean;
 }
 
 const POSTS_PER_PAGE = 10;
@@ -85,6 +86,7 @@ export default function Index() {
         // Collect IDs to fetch likes
         const newPostIds = postsData.map(p => p.id);
         let likedPostIds = new Set<string>();
+        let savedPostIds = new Set<string>();
 
         if (user) {
           const { data: userLikes } = await supabase
@@ -96,6 +98,16 @@ export default function Index() {
           if (userLikes) {
             userLikes.forEach(like => likedPostIds.add(like.post_id));
           }
+
+          const { data: userBookmarks } = await supabase
+            .from("bookmarks")
+            .select("post_id")
+            .eq("user_id", user.id)
+            .in("post_id", newPostIds);
+
+          if (userBookmarks) {
+            userBookmarks.forEach(bookmark => savedPostIds.add(bookmark.post_id));
+          }
         }
 
         const transformedNewPosts = postsData.map(post => ({
@@ -104,7 +116,8 @@ export default function Index() {
           likes_count: post.likes[0]?.count || 0,
           // @ts-ignore
           comments_count: post.comments[0]?.count || 0,
-          is_liked_by_user: likedPostIds.has(post.id)
+          is_liked_by_user: likedPostIds.has(post.id),
+          is_saved_by_user: savedPostIds.has(post.id)
         }));
 
         if (isInitial) {
@@ -165,6 +178,8 @@ export default function Index() {
                     views_count={post.views_count || 0}
                     // @ts-ignore
                     is_liked_by_user={post.is_liked_by_user}
+                    // @ts-ignore
+                    is_saved_by_user={post.is_saved_by_user}
                   />
                   {index === 0 && (
                     <div className="lg:hidden -mx-4 px-4 py-2 border-y border-white/5 bg-white/5 backdrop-blur-sm">

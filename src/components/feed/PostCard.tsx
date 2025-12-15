@@ -38,6 +38,7 @@ interface PostCardProps {
   comments_count: number;
   views_count?: number;
   is_liked_by_user?: boolean;
+  is_saved_by_user?: boolean;
 }
 
 export const PostCard = ({
@@ -50,7 +51,8 @@ export const PostCard = ({
   likes_count: initialLikes,
   comments_count,
   views_count: initialViews = 0,
-  is_liked_by_user: initialLiked
+  is_liked_by_user: initialLiked,
+  is_saved_by_user: initialSaved
 }: PostCardProps) => {
   const { user: currentUser } = useAuth();
   const isMobile = useIsMobile();
@@ -58,6 +60,59 @@ export const PostCard = ({
   const [isLiked, setIsLiked] = useState(initialLiked);
   const [isLikeLoading, setIsLikeLoading] = useState(false);
   const [showVideoFeed, setShowVideoFeed] = useState(false);
+  const [isSaved, setIsSaved] = useState(false); // Prop will be added later, default false for now
+  const [isSaveLoading, setIsSaveLoading] = useState(false);
+
+  // Initialize saved state from prop if available (we will add prop next)
+  useEffect(() => {
+    if (typeof initialSaved !== 'undefined') setIsSaved(initialSaved);
+  }, [initialSaved]);
+
+  const handleSave = async () => {
+    if (!currentUser) {
+      toast.error("Please login to save posts");
+      return;
+    }
+
+    if (isSaveLoading) return;
+    setIsSaveLoading(true);
+
+    // Optimistic update
+    const previousSaved = isSaved;
+    setIsSaved(!isSaved);
+
+    try {
+      if (previousSaved) {
+        // Unsave
+        const { error } = await supabase
+          .from('bookmarks')
+          .delete()
+          .eq('user_id', currentUser.id)
+          .eq('post_id', id);
+
+        if (error) throw error;
+        toast.success("Post unsaved");
+      } else {
+        // Save
+        const { error } = await supabase
+          .from('bookmarks')
+          .insert({
+            user_id: currentUser.id,
+            post_id: id
+          });
+
+        if (error) throw error;
+        toast.success("Post saved");
+      }
+    } catch (error) {
+      // Revert on error
+      setIsSaved(previousSaved);
+      toast.error("Failed to update bookmark");
+      console.error(error);
+    } finally {
+      setIsSaveLoading(false);
+    }
+  };
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [caption, setCaption] = useState(initialCaption);
   const [videoStartTime, setVideoStartTime] = useState(0);
@@ -275,8 +330,15 @@ export const PostCard = ({
               </button>
             </div>
 
-            <button className="hover:opacity-70 transition-opacity focus:outline-none">
-              <Bookmark className="w-6 h-6 text-foreground" strokeWidth={2} />
+            <button
+              className="hover:opacity-70 transition-opacity focus:outline-none"
+              onClick={handleSave}
+              disabled={isSaveLoading}
+            >
+              <Bookmark
+                className={cn("w-6 h-6 transition-all", isSaved ? "fill-foreground text-foreground" : "text-foreground")}
+                strokeWidth={2}
+              />
             </button>
           </div>
 
