@@ -111,8 +111,12 @@ const Auth = () => {
 
       <div className="relative z-10 w-full max-w-md">
         {/* Logo */}
-        <div className="text-center mb-8">
-          <h1 className="font-display text-5xl gradient-text mb-2">SOOZ</h1>
+        <div className="flex flex-col items-center mb-8">
+          <img
+            src="/sooz-logo-v3.svg"
+            alt="SOOZ"
+            className="h-20 w-auto mb-4 object-contain"
+          />
           <p className="text-muted-foreground text-sm">Sound Out Of Zion</p>
         </div>
 
