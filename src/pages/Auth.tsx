@@ -71,20 +71,20 @@ const Auth = () => {
           } else {
             toast.error(error.message);
           }
-        }
-      } else {
-        navigate("/");
-      }
-    } else {
-      const { error } = await signUp(email, password, username, displayName || username);
-      if (error) {
-        if (error.message.includes("already registered")) {
-          toast.error("This email is already registered. Please sign in instead.");
         } else {
-          toast.error(error.message);
+          navigate("/");
         }
       } else {
-        toast.success("Account created! Please check your email to verify.");
+        const { error } = await signUp(email, password, username, displayName || username);
+        if (error) {
+          if (error.message.includes("already registered")) {
+            toast.error("This email is already registered. Please sign in instead.");
+          } else {
+            toast.error(error.message);
+          }
+        } else {
+          toast.success("Account created! Please check your email to verify.");
+        }
       }
     }
   } finally {
@@ -120,7 +120,7 @@ return (
       {/* Form Card */}
       <div className="glass rounded-3xl p-8">
         <h2 className="text-2xl font-semibold text-center mb-6">
-          {isLogin ? "Welcome Back" : "Join SOOZ"}
+          {isLogin ? "Sign In" : "Join SOOZ"}
         </h2>
 
         <form onSubmit={handleSubmit} className="space-y-5">
