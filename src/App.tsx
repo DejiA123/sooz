@@ -22,6 +22,8 @@ import Terms from "./pages/Terms";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 import EmailConfirmation from "./pages/EmailConfirmation";
+import ForgotPassword from "./pages/ForgotPassword";
+import UpdatePassword from "./pages/UpdatePassword";
 
 const queryClient = new QueryClient();
 
@@ -103,6 +105,8 @@ const App = () => {
             <Routes>
               <Route path="/auth" element={<Auth />} />
               <Route path="/email-confirmation" element={<EmailConfirmation />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route path="/update-password" element={<UpdatePassword />} />
 
               <Route element={<MainLayout />}>
                 <Route path="/" element={<Index />} />
