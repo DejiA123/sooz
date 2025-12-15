@@ -71,7 +71,7 @@ export default function Discover() {
 
     return (
         <div className="pb-20">
-            <div className="sticky top-[60px] z-40 bg-background/80 backdrop-blur-xl px-4 py-3">
+            <div className="sticky top-16 md:top-0 z-40 bg-background/80 backdrop-blur-xl px-4 py-3">
                 <div className="relative">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                     <Input
