@@ -8,6 +8,7 @@ import { toast } from "sonner";
 
 export default function UpdatePassword() {
     const [password, setPassword] = useState("");
+    const [confirmPassword, setConfirmPassword] = useState("");
     const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
 
@@ -22,6 +23,10 @@ export default function UpdatePassword() {
 
     const handleUpdate = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (password !== confirmPassword) {
+            toast.error("Passwords do not match");
+            return;
+        }
         setLoading(true);
         try {
             const { error } = await supabase.auth.updateUser({ password });
@@ -47,6 +52,18 @@ export default function UpdatePassword() {
                             type="password"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
+                            required
+                            minLength={6}
+                            className="bg-background/50 border-white/10"
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="confirmPassword">Confirm Password</Label>
+                        <Input
+                            id="confirmPassword"
+                            type="password"
+                            value={confirmPassword}
+                            onChange={(e) => setConfirmPassword(e.target.value)}
                             required
                             minLength={6}
                             className="bg-background/50 border-white/10"
