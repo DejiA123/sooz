@@ -58,6 +58,7 @@ export const PostCard = ({
   const [showVideoFeed, setShowVideoFeed] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [caption, setCaption] = useState(initialCaption);
+  const [videoStartTime, setVideoStartTime] = useState(0);
   const [isDeleted, setIsDeleted] = useState(false);
   const [views, setViews] = useState(initialViews);
   const [hasTrackedView, setHasTrackedView] = useState(false);
@@ -208,7 +209,10 @@ export const PostCard = ({
               <LazyVideo
                 src={media_url}
                 id={id}
-                onClick={() => setShowVideoFeed(true)}
+                onClick={(time) => {
+                  setVideoStartTime(time);
+                  setShowVideoFeed(true);
+                }}
               />
             ) : (
               <img
@@ -335,6 +339,7 @@ export const PostCard = ({
               avatar_url: user.avatar_url
             }
           }}
+          startTime={videoStartTime}
           onClose={() => setShowVideoFeed(false)}
         />
       )}

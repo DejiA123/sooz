@@ -8,13 +8,15 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/hooks/useAuth";
+import { LazyVideo } from "./LazyVideo";
 
 interface VideoFeedModalProps {
     initialPost: any; // The post that was clicked
     onClose: () => void;
+    startTime?: number;
 }
 
-export const VideoFeedModal = ({ initialPost, onClose }: VideoFeedModalProps) => {
+export const VideoFeedModal = ({ initialPost, onClose, startTime = 0 }: VideoFeedModalProps) => {
     const { user } = useAuth();
     const [posts, setPosts] = useState<any[]>([initialPost]);
     const [activeIndex, setActiveIndex] = useState(0);
@@ -99,24 +101,16 @@ export const VideoFeedModal = ({ initialPost, onClose }: VideoFeedModalProps) =>
                         return (
                             <div key={post.id} className="w-full h-full snap-start relative flex items-center justify-center bg-zinc-900">
                                 {/* Video Player */}
-                                <video
-                                    ref={(el) => {
-                                        // Pause non-active videos
-                                        if (el && !isActive) {
-                                            el.pause();
-                                        }
-                                    }}
-                                    src={post.media_url}
-                                    className="w-full h-full object-cover"
-                                    loop
-                                    playsInline
-                                    autoPlay={isActive}
-                                    muted  // Muted for faster autoplay on mobile
-                                    preload={index <= activeIndex + 2 ? "auto" : "metadata"} // Preload next 2 videos
-                                    onClick={(e) => {
-                                        e.currentTarget.paused ? e.currentTarget.play() : e.currentTarget.pause();
-                                    }}
-                                />
+                                <div className="absolute inset-0 bg-black">
+                                    <LazyVideo
+                                        src={post.media_url}
+                                        id={`${post.id}-modal`}
+                                        startTime={index === 0 ? startTime : 0}
+                                        onClick={() => {
+                                            // Handle tap if needed (e.g. toggle UI)
+                                        }}
+                                    />
+                                </div>
 
                                 {/* Overlay UI */}
                                 <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/60 pointer-events-none" />

@@ -7,10 +7,11 @@ import { useVideoCache } from "@/store/useVideoCache";
 interface LazyVideoProps {
     src: string;
     id: string;
-    onClick?: () => void;
+    onClick?: (currentTime: number) => void;
+    startTime?: number;
 }
 
-export const LazyVideo = ({ src, id, onClick }: LazyVideoProps) => {
+export const LazyVideo = ({ src, id, onClick, startTime = 0 }: LazyVideoProps) => {
     const videoRef = useRef<HTMLVideoElement>(null);
     const [isPlaying, setIsPlaying] = useState(false);
     const [isMuted, setIsMuted] = useState(true);
@@ -31,6 +32,11 @@ export const LazyVideo = ({ src, id, onClick }: LazyVideoProps) => {
                 // 2. Optimistic Immediate Play (Don't wait for React render cycle)
                 const video = videoRef.current;
                 if (video) {
+                    // Smart seek if start time provided
+                    if (startTime > 0 && Math.abs(video.currentTime - startTime) > 0.5) {
+                        video.currentTime = startTime;
+                    }
+
                     video.muted = true; // Essential for mobile
                     video.play()
                         .then(() => setIsPlaying(true))
@@ -94,7 +100,7 @@ export const LazyVideo = ({ src, id, onClick }: LazyVideoProps) => {
                     .catch(() => { });
             }
         } else {
-            onClick?.();
+            onClick?.(videoRef.current?.currentTime || 0);
         }
     };
 
