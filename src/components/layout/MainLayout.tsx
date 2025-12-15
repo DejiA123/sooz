@@ -14,7 +14,7 @@ export const MainLayout = () => {
             <Sidebar />
 
             <div className="md:ml-64 min-h-screen">
-                <main className="container max-w-md md:max-w-lg lg:max-w-5xl mx-auto px-0 md:px-4 animate-fade-in md:py-8">
+                <main className="w-full md:container md:max-w-lg lg:max-w-5xl mx-auto px-0 md:px-4 animate-fade-in md:py-8">
                     <Outlet />
                 </main>
             </div>
