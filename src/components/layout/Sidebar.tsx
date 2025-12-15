@@ -19,7 +19,7 @@ export const Sidebar = () => {
         { icon: Home, label: "Home", path: "/" },
         { icon: Search, label: "Search", path: "/discover" },
         { icon: Compass, label: "Explore", path: "/discover" }, // Mapping both to discover for now
-        { icon: MessageCircle, label: "Messages", path: "/messages" }, // Placeholder
+        { icon: MessageCircle, label: "Messages", path: "/chat" }, // Updated to /chat
         { icon: Heart, label: "Notifications", path: "/activity" },
         { icon: PlusSquare, label: "Create", path: "#", isCreate: true },
         { icon: User, label: "Profile", path: "/profile/me" },
