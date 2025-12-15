@@ -4,6 +4,7 @@ import { PostCard } from "./PostCard";
 import StoriesBar from "./StoriesBar";
 import { PostCardSkeleton } from "./PostCardSkeleton";
 import { Loader2 } from "lucide-react";
+import { SuggestedUsersRail } from "./SuggestedUsersRail";
 
 interface Post {
   id: string;
@@ -68,17 +69,7 @@ const Feed = () => {
     setLoading(false);
   };
 
-  const formatTimeAgo = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
 
-    if (diffInSeconds < 60) return "now";
-    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m`;
-    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h`;
-    if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)}d`;
-    return `${Math.floor(diffInSeconds / 604800)}w`;
-  };
 
   if (loading) {
     return (
@@ -105,32 +96,29 @@ const Feed = () => {
       {/* Posts */}
       <div className="px-4 space-y-6">
         {posts.length > 0 ? (
-          posts.map((post) => (
-            <PostCard
-              key={post.id}
-              post={{
-                id: post.id,
-                user: {
+          posts.map((post, index) => (
+            <div key={post.id} className="space-y-6">
+              <PostCard
+                id={post.id}
+                user={{
                   id: post.user_id,
-                  name: post.profiles.display_name || post.profiles.username,
                   username: post.profiles.username,
-                  avatar: post.profiles.avatar_url || "",
-                  verified: false,
-                },
-                content: post.media_url
-                  ? {
-                    type: post.media_type as "image" | "video",
-                    url: post.media_url,
-                  }
-                  : null,
-                caption: post.caption || "",
-                likes: post.likes?.length || 0,
-                comments: post.comments?.length || 0,
-                shares: 0,
-                timeAgo: formatTimeAgo(post.created_at),
-              }}
-              onRefresh={fetchPosts}
-            />
+                  display_name: post.profiles.display_name,
+                  avatar_url: post.profiles.avatar_url,
+                }}
+                caption={post.caption}
+                media_url={post.media_url}
+                media_type={post.media_type}
+                created_at={post.created_at}
+                likes_count={post.likes?.length || 0}
+                comments_count={post.comments?.length || 0}
+              />
+              {index === 0 && (
+                <div className="md:hidden -mx-4 px-4 py-2 border-y border-white/5 bg-white/5 backdrop-blur-sm">
+                  <SuggestedUsersRail />
+                </div>
+              )}
+            </div>
           ))
         ) : (
           <div className="py-12 text-center">
