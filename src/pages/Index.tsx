@@ -7,6 +7,7 @@ import { Loader2 } from "lucide-react";
 import { useInView } from "react-intersection-observer";
 import { toast } from "sonner";
 import { SuggestedAccounts } from "@/components/home/SuggestedAccounts";
+import { SuggestedUsersRail } from "@/components/feed/SuggestedUsersRail";
 
 interface PostWithUser {
   id: string;
@@ -146,24 +147,31 @@ export default function Index() {
             </div>
           ) : (
             <div className="px-1 mt-2">
-              {posts.map(post => (
-                <PostCard
-                  key={post.id}
-                  id={post.id}
-                  user={post.profiles}
-                  caption={post.caption}
-                  media_url={post.media_url}
-                  media_type={post.media_type}
-                  created_at={post.created_at}
-                  // @ts-ignore
-                  likes_count={post.likes_count}
-                  // @ts-ignore
-                  comments_count={post.comments_count}
-                  // @ts-ignore
-                  views_count={post.views_count || 0}
-                  // @ts-ignore
-                  is_liked_by_user={post.is_liked_by_user}
-                />
+              {posts.map((post, index) => (
+                <div key={post.id} className="space-y-6">
+                  <PostCard
+                    key={post.id}
+                    id={post.id}
+                    user={post.profiles}
+                    caption={post.caption}
+                    media_url={post.media_url}
+                    media_type={post.media_type}
+                    created_at={post.created_at}
+                    // @ts-ignore
+                    likes_count={post.likes_count}
+                    // @ts-ignore
+                    comments_count={post.comments_count}
+                    // @ts-ignore
+                    views_count={post.views_count || 0}
+                    // @ts-ignore
+                    is_liked_by_user={post.is_liked_by_user}
+                  />
+                  {index === 0 && (
+                    <div className="lg:hidden -mx-4 px-4 py-2 border-y border-white/5 bg-white/5 backdrop-blur-sm">
+                      <SuggestedUsersRail />
+                    </div>
+                  )}
+                </div>
               ))}
 
               {/* Loading Trigger */}
@@ -180,6 +188,6 @@ export default function Index() {
         {/* Suggested Accounts Sidebar (Desktop Only) */}
         <SuggestedAccounts />
       </div>
-    </div>
+    </div >
   );
 }

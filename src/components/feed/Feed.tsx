@@ -4,7 +4,6 @@ import { PostCard } from "./PostCard";
 import StoriesBar from "./StoriesBar";
 import { PostCardSkeleton } from "./PostCardSkeleton";
 import { Loader2 } from "lucide-react";
-import { SuggestedUsersRail } from "./SuggestedUsersRail";
 
 interface Post {
   id: string;
@@ -110,14 +109,11 @@ const Feed = () => {
                 media_url={post.media_url}
                 media_type={post.media_type}
                 created_at={post.created_at}
+                // @ts-ignore
                 likes_count={post.likes?.length || 0}
+                // @ts-ignore
                 comments_count={post.comments?.length || 0}
               />
-              {index === 0 && (
-                <div className="md:hidden -mx-4 px-4 py-2 border-y border-white/5 bg-white/5 backdrop-blur-sm">
-                  <SuggestedUsersRail />
-                </div>
-              )}
             </div>
           ))
         ) : (
