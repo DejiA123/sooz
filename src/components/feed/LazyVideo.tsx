@@ -125,7 +125,7 @@ export const LazyVideo = ({ src, id, onClick, startTime = 0 }: LazyVideoProps) =
     return (
         <div
             ref={ref}
-            className="w-full relative cursor-pointer bg-black rounded-lg overflow-hidden"
+            className="w-full relative cursor-pointer bg-black overflow-hidden"
             onClick={handleTap}
         >
             <video

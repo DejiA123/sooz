@@ -25,6 +25,7 @@ import EmailConfirmation from "./pages/EmailConfirmation";
 import ForgotPassword from "./pages/ForgotPassword";
 import UpdatePassword from "./pages/UpdatePassword";
 import { AuthListener } from "./components/AuthListener";
+import { NotificationManager } from "./components/NotificationManager";
 
 const queryClient = new QueryClient();
 
@@ -76,24 +77,19 @@ const App = () => {
       });
     }
 
-    // Request Notification Permission on load (as requested for "pop up about the app")
-    if ('Notification' in window && Notification.permission === 'default') {
-      setTimeout(() => {
-        toast("Enable notifications?", {
-          description: "Stay updated with the latest from Sooz.",
-          action: {
-            label: "Allow",
-            onClick: () => {
-              Notification.requestPermission().then(permission => {
-                if (permission === 'granted') {
-                  toast.success("Notifications enabled!");
-                }
-              });
-            }
-          }
-        });
-      }, 3000); // Delay slightly
-    }
+    // Request Notification Permission logic updated to use hook
+    // We need to move this INSIDE a component that is inside AuthProvider
+    // But App component is OUTSIDE AuthProvider content?
+    // Wait, App component RENTERS AuthProvider.
+    // So we can't use useAuth or usePushNotifications directly in App if they depend on context provided BY App.
+    // AuthProvider is rendered in App return.
+    // So 'usePushNotifications' (which uses useAuth) CANNOT be called in App.
+
+    // Solution: Move the notification check to AuthListener or MainLayout.
+    // MainLayout is a good place. It runs when logged in?
+    // Or AuthListener which runs always on auth change.
+    // Let's use AuthListener.
+
   }
 
   return (
@@ -104,6 +100,7 @@ const App = () => {
           <Sonner />
           <BrowserRouter>
             <AuthListener />
+            <NotificationManager />
             <Routes>
               <Route path="/auth" element={<Auth />} />
               <Route path="/email-confirmation" element={<EmailConfirmation />} />
