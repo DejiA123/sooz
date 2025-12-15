@@ -182,7 +182,7 @@ export default function Index() {
                     is_saved_by_user={post.is_saved_by_user}
                   />
                   {index === 0 && (
-                    <div className="lg:hidden -mx-4 px-4 py-2 border-y border-white/5 bg-white/5 backdrop-blur-sm">
+                    <div className="lg:hidden -mx-1 px-4 py-2 border-y border-white/5 bg-white/5 backdrop-blur-sm">
                       <SuggestedUsersRail />
                     </div>
                   )}
