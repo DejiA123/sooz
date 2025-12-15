@@ -75,10 +75,26 @@ export const SuggestedUsersRail = () => {
 
     const visibleProfiles = profiles.filter(p => !hiddenIds.has(p.id));
 
-    if (loading || visibleProfiles.length === 0) return null;
+    if (loading) {
+        return (
+            <div className="w-full space-y-4 py-3">
+                <div className="flex items-center justify-between px-1">
+                    <div className="h-4 w-32 bg-secondary animate-pulse rounded" />
+                    <div className="h-4 w-12 bg-secondary animate-pulse rounded" />
+                </div>
+                <div className="flex space-x-3 overflow-hidden">
+                    {[1, 2, 3].map(i => (
+                        <div key={i} className="w-[160px] h-[220px] rounded-xl border border-border bg-card animate-pulse" />
+                    ))}
+                </div>
+            </div>
+        );
+    }
+
+    if (visibleProfiles.length === 0) return null;
 
     return (
-        <div className="w-full space-y-4 py-2">
+        <div className="w-full space-y-4 py-3">
             <div className="flex items-center justify-between px-1">
                 <h3 className="font-semibold text-sm">Suggested for you</h3>
                 <Link to="/suggested-people" className="text-sm font-semibold text-primary hover:opacity-80">
@@ -91,33 +107,32 @@ export const SuggestedUsersRail = () => {
                     {visibleProfiles.map((profile) => (
                         <div
                             key={profile.id}
-                            className="w-[160px] h-[220px] rounded-xl border border-border bg-card relative flex flex-col items-center p-4 gap-3 shrink-0"
+                            className="w-[160px] h-[220px] rounded-xl border border-border bg-card relative flex flex-col items-center p-4 gap-3 shrink-0 shadow-sm"
                         >
                             <button
                                 onClick={() => handleDismiss(profile.id)}
-                                className="absolute top-2 right-2 text-muted-foreground hover:text-foreground p-1"
+                                className="absolute top-2 right-2 text-muted-foreground/50 hover:text-foreground p-1 transition-colors"
                             >
                                 <X className="w-4 h-4" />
                             </button>
 
-                            <Link to={`/profile/${profile.username}`} className="flex flex-col items-center gap-2 w-full mt-2">
-                                <Avatar className="w-20 h-20 border border-border">
+                            <Link to={`/profile/${profile.username}`} className="flex flex-col items-center gap-2 w-full mt-1 group">
+                                <Avatar className="w-20 h-20 border border-border group-hover:scale-105 transition-transform">
                                     <AvatarImage src={profile.avatar_url || ""} className="object-cover" />
-                                    <AvatarFallback className="text-xl">{profile.username[0].toUpperCase()}</AvatarFallback>
+                                    <AvatarFallback className="text-xl bg-secondary">{profile.username[0].toUpperCase()}</AvatarFallback>
                                 </Avatar>
-                                <div className="text-center w-full space-y-0.5">
-                                    <p className="font-semibold text-sm truncate w-full px-2 leading-tight">
+                                <div className="text-center w-full space-y-1">
+                                    <p className="font-semibold text-sm truncate w-full px-1 leading-tight">
                                         {profile.display_name || profile.username}
                                     </p>
                                     <p className="text-[10px] text-muted-foreground truncate w-full px-1">
-                                        {/* Mock mutuals for now */}
-                                        Suggested for you
+                                        Followed by sooz_user + 2 others
                                     </p>
                                 </div>
                             </Link>
 
                             <Button
-                                className="w-full mt-auto h-8 text-xs font-semibold"
+                                className="w-full mt-auto h-8 text-xs font-semibold bg-primary hover:bg-primary/90 transition-all active:scale-95"
                                 onClick={() => handleFollow(profile.id)}
                             >
                                 Follow
