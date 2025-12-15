@@ -96,12 +96,12 @@ export const SuggestedAccounts = () => {
                 {/* Footer Links (Decoration) */}
                 <div className="mt-8 pt-4 border-t border-white/5 text-xs text-muted-foreground space-y-2">
                     <div className="flex flex-wrap gap-x-2 gap-y-1">
-                        <span>About</span><span>•</span>
-                        <span>Help</span><span>•</span>
-                        <span>Privacy</span><span>•</span>
-                        <span>Terms</span>
+                        <Link to="/about" className="hover:underline">About</Link><span>•</span>
+                        <Link to="/help" className="hover:underline">Help</Link><span>•</span>
+                        <Link to="/privacy" className="hover:underline">Privacy</Link><span>•</span>
+                        <Link to="/terms" className="hover:underline">Terms</Link>
                     </div>
-                    <p>© 2024 SOOZ</p>
+                    <p>© 2026 SOOZ</p>
                 </div>
             </div>
         </div>

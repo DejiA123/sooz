@@ -15,6 +15,10 @@ import Chat from "./pages/Chat";
 import PostDetails from "./pages/PostDetails";
 import SuggestedPeople from "./pages/SuggestedPeople";
 import Notifications from "./pages/Notifications";
+import About from "./pages/About";
+import Help from "./pages/Help";
+import Privacy from "./pages/Privacy";
+import Terms from "./pages/Terms";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 import EmailConfirmation from "./pages/EmailConfirmation";
@@ -105,6 +109,10 @@ const App = () => {
                 <Route path="/discover" element={<Discover />} />
                 <Route path="/activity" element={<Activity />} />
                 <Route path="/suggested-people" element={<SuggestedPeople />} />
+                <Route path="/about" element={<About />} />
+                <Route path="/help" element={<Help />} />
+                <Route path="/privacy" element={<Privacy />} />
+                <Route path="/terms" element={<Terms />} />
                 <Route path="/chat" element={<Chat />} />
                 <Route path="/notifications" element={<Notifications />} />
                 <Route path="/profile/:username" element={<Profile />} />

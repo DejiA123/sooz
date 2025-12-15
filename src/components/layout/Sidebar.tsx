@@ -1,11 +1,19 @@
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Home, Compass, Heart, User, PlusSquare, Search, MessageCircle, Menu, MoreHorizontal } from "lucide-react";
+import { Home, Compass, Heart, User, PlusSquare, Search, MessageCircle, Menu, MoreHorizontal, Settings as SettingsIcon, ActivitySquare, Bookmark, Moon, Sun, MessageSquareWarning, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import CreatePostModal from "@/components/feed/CreatePostModal";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from "@/hooks/useAuth";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 export const Sidebar = () => {
     const location = useLocation();
@@ -76,10 +84,71 @@ export const Sidebar = () => {
 
                 {/* Bottom Actions (More) */}
                 <div className="mt-auto px-2">
-                    <button className="flex items-center gap-4 p-3 rounded-lg hover:bg-secondary/50 transition-colors w-full text-left">
-                        <Menu className="w-6 h-6" />
-                        <span className="font-medium text-base">More</span>
-                    </button>
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <button className="flex items-center gap-4 p-3 rounded-lg hover:bg-secondary/50 transition-colors w-full text-left data-[state=open]:bg-secondary/50 outline-none">
+                                <Menu className="w-6 h-6" />
+                                <span className="font-medium text-base">More</span>
+                            </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start" side="top" className="w-64 p-2 rounded-xl backdrop-blur-xl bg-background/95 border-white/10 shadow-xl mb-4 ml-4">
+                            <DropdownMenuItem asChild>
+                                <Link to="/settings" className="flex items-center gap-3 p-3 cursor-pointer rounded-lg focus:bg-secondary/50">
+                                    <SettingsIcon className="w-5 h-5" />
+                                    <span>Settings</span>
+                                </Link>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem asChild>
+                                <Link to="/activity" className="flex items-center gap-3 p-3 cursor-pointer rounded-lg focus:bg-secondary/50">
+                                    <ActivitySquare className="w-5 h-5" />
+                                    <span>Your activity</span>
+                                </Link>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => toast("Saved posts coming soon!")} className="flex items-center gap-3 p-3 cursor-pointer rounded-lg focus:bg-secondary/50">
+                                <Bookmark className="w-5 h-5" />
+                                <span>Saved</span>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                                onClick={() => {
+                                    const isDark = document.documentElement.classList.toggle("dark");
+                                    localStorage.setItem("sooz-mode", isDark ? "dark" : "light");
+                                    toast.success(isDark ? "Dark mode enabled" : "Light mode enabled");
+                                }}
+                                className="flex items-center gap-3 p-3 cursor-pointer rounded-lg focus:bg-secondary/50"
+                            >
+                                <Moon className="w-5 h-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0 hidden dark:block" />
+                                <Sun className="w-5 h-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100 block dark:hidden" />
+                                {/* Simple icon logic: Show Moon if Light mode (to switch to dark), Sun if Dark mode? 
+                                    Actually standard is icon represents current state or target?. 
+                                    Let's just use Moon for "Dark Mode" concept universally or toggle.
+                                */}
+                                <Moon className="w-5 h-5" />
+                                <span>Switch appearance</span>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => toast("Report submitted thanks!")} className="flex items-center gap-3 p-3 cursor-pointer rounded-lg focus:bg-secondary/50">
+                                <MessageSquareWarning className="w-5 h-5" />
+                                <span>Report a problem</span>
+                            </DropdownMenuItem>
+
+                            <div className="h-px bg-border my-2 mx-1" />
+
+                            <DropdownMenuItem onClick={() => toast("Switch accounts coming soon!")} className="flex items-center gap-3 p-3 cursor-pointer rounded-lg focus:bg-secondary/50">
+                                <span className="pl-8">Switch accounts</span>
+                            </DropdownMenuItem>
+
+                            <div className="h-px bg-border my-2 mx-1" />
+
+                            <DropdownMenuItem
+                                onClick={async () => {
+                                    await supabase.auth.signOut();
+                                    window.location.href = "/auth";
+                                }}
+                                className="flex items-center gap-3 p-3 cursor-pointer rounded-lg focus:bg-secondary/50 hover:text-red-500 focus:text-red-500"
+                            >
+                                <span className="pl-8">Log out</span>
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
                 </div>
             </aside>
 

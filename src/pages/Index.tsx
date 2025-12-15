@@ -47,7 +47,7 @@ export default function Index() {
     setPage(0);
     setHasMore(true);
     fetchPosts(0, true);
-  }, [user]);
+  }, [user?.id]);
 
   // Load more when scrolling
   useEffect(() => {

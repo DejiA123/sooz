@@ -8,6 +8,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { StoryViewer } from "./StoryViewer";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { s3Client, s3Config } from "@/integrations/s3/client";
+import { Upload } from "@aws-sdk/lib-storage";
 
 export const StoryRail = () => {
     const { user } = useAuth();
@@ -77,21 +79,33 @@ export const StoryRail = () => {
         const file = event.target.files?.[0];
         if (!file || !user) return;
 
-        const toastId = toast.loading("Uploading story...");
+        const toastId = toast.loading("Uploading story... 0%");
 
         try {
+            const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
             const fileExt = file.name.split('.').pop();
-            const fileName = `stories/${user.id}/${Date.now()}.${fileExt}`;
+            const fileName = `stories/${user.id}/${uniqueSuffix}.${fileExt}`;
 
-            const { error: uploadError } = await supabase.storage
-                .from('media')
-                .upload(fileName, file);
+            const upload = new Upload({
+                client: s3Client,
+                params: {
+                    Bucket: s3Config.bucketName,
+                    Key: fileName,
+                    Body: file,
+                    ContentType: file.type,
+                },
+            });
 
-            if (uploadError) throw uploadError;
+            upload.on("httpUploadProgress", (progress) => {
+                if (progress.loaded && progress.total) {
+                    const percent = Math.round((progress.loaded / progress.total) * 100);
+                    toast.loading(`Uploading story... ${percent}%`, { id: toastId });
+                }
+            });
 
-            const { data: { publicUrl } } = supabase.storage
-                .from('media')
-                .getPublicUrl(fileName);
+            await upload.done();
+
+            const publicUrl = `${import.meta.env.VITE_PUBLIC_R2_URL}/${fileName}`;
 
             const { error: dbError } = await supabase.from('stories').insert({
                 user_id: user.id,
@@ -105,7 +119,8 @@ export const StoryRail = () => {
             fetchStories();
 
         } catch (error: any) {
-            toast.error("Failed to upload: " + error.message, { id: toastId });
+            console.error("Story upload error:", error);
+            toast.error("Failed to upload: " + (error.message || "Unknown error"), { id: toastId });
         }
     };
 
