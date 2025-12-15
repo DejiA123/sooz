@@ -35,7 +35,10 @@ export default function CreatePostModal({ isOpen, onClose, onPostCreated }: Crea
     };
 
     const handlePost = async () => {
-        if (!user) return;
+        if (!user) {
+            toast.error("You must be logged in to post.");
+            return;
+        }
         if (!mediaFile && !caption.trim()) {
             toast.error("Please add a photo/video or write something");
             return;
@@ -45,6 +48,7 @@ export default function CreatePostModal({ isOpen, onClose, onPostCreated }: Crea
         setUploadProgress(0);
 
         try {
+            console.log("Starting upload...");
             let mediaUrl = null;
             let mediaType = null;
 
@@ -74,6 +78,7 @@ export default function CreatePostModal({ isOpen, onClose, onPostCreated }: Crea
 
                 mediaUrl = `${import.meta.env.VITE_PUBLIC_R2_URL}/${fileName}`;
                 mediaType = mediaFile.type.startsWith('video/') ? 'video' : 'image';
+                console.log("Upload complete:", mediaUrl);
             }
 
             const { error: dbError } = await supabase
@@ -156,7 +161,7 @@ export default function CreatePostModal({ isOpen, onClose, onPostCreated }: Crea
 
                     <div className="flex items-center gap-2">
                         <Button
-                            variant="blue"
+                            variant="secondary"
                             size="sm"
                             className="text-primary hover:text-primary hover:bg-primary/10"
                             onClick={() => fileInputRef.current?.click()}
@@ -178,6 +183,7 @@ export default function CreatePostModal({ isOpen, onClose, onPostCreated }: Crea
                         className="w-full font-bold"
                         onClick={handlePost}
                         disabled={isUploading || (!caption.trim() && !mediaFile)}
+                        type="button"
                     >
                         {isUploading ? (
                             <>
