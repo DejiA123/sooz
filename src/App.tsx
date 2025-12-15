@@ -24,6 +24,7 @@ import NotFound from "./pages/NotFound";
 import EmailConfirmation from "./pages/EmailConfirmation";
 import ForgotPassword from "./pages/ForgotPassword";
 import UpdatePassword from "./pages/UpdatePassword";
+import { AuthListener } from "./components/AuthListener";
 
 const queryClient = new QueryClient();
 
@@ -102,6 +103,7 @@ const App = () => {
           <Toaster />
           <Sonner />
           <BrowserRouter>
+            <AuthListener />
             <Routes>
               <Route path="/auth" element={<Auth />} />
               <Route path="/email-confirmation" element={<EmailConfirmation />} />
