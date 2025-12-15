@@ -39,7 +39,7 @@ export default function Settings() {
         try {
             const { error } = await supabase.auth.signOut();
             if (error) throw error;
-            navigate("/auth");
+            window.location.href = "/auth";
         } catch (error) {
             toast.error("Error logging out");
             console.error(error);
