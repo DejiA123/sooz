@@ -37,12 +37,11 @@ export default function Settings() {
 
     const handleLogout = async () => {
         try {
-            const { error } = await supabase.auth.signOut();
-            if (error) throw error;
-            window.location.href = "/auth";
+            await supabase.auth.signOut();
         } catch (error) {
-            toast.error("Error logging out");
-            console.error(error);
+            console.error("Error signing out:", error);
+        } finally {
+            window.location.href = "/auth";
         }
     };
 
