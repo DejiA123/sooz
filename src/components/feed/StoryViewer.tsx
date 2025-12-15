@@ -20,16 +20,17 @@ export const StoryViewer = ({ initialUserIndex, stories, onClose }: StoryViewerP
     const [isPaused, setIsPaused] = useState(false);
 
     // Guard against index out of bounds
-    if (currentUserIndex >= stories.length) {
-        onClose();
-        return null;
-    }
-
+    // Guard against index out of bounds or empty stories
     const currentUser = stories[currentUserIndex];
-    if (!currentUser || !currentUser.stories || currentUser.stories.length === 0) {
-        onClose();
-        return null;
-    }
+    const invalidState = !currentUser || !currentUser.stories || currentUser.stories.length === 0 || currentUserIndex >= stories.length;
+
+    useEffect(() => {
+        if (invalidState) {
+            onClose();
+        }
+    }, [invalidState, onClose]);
+
+    if (invalidState) return null;
 
     const currentStory = currentUser.stories[currentStoryIndex];
 
