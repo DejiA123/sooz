@@ -6,7 +6,7 @@ import { Sidebar } from "./Sidebar";
 
 export const MainLayout = () => {
     return (
-        <div className="min-h-screen bg-background pb-20 pt-16 md:pt-0 md:pb-0">
+        <div className="min-h-screen bg-background pb-20 pt-14 md:pt-0 md:pb-0">
             <div className="md:hidden">
                 <TopBar />
             </div>
