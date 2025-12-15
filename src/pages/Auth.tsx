@@ -71,168 +71,168 @@ const Auth = () => {
           } else {
             toast.error(error.message);
           }
-        } else {
-          toast.success("Welcome back!");
-          navigate("/");
         }
       } else {
-        const { error } = await signUp(email, password, username, displayName || username);
-        if (error) {
-          if (error.message.includes("already registered")) {
-            toast.error("This email is already registered. Please sign in instead.");
-          } else {
-            toast.error(error.message);
-          }
-        } else {
-          toast.success("Account created! Please check your email to verify.");
-        }
+        navigate("/");
       }
-    } finally {
-      setIsLoading(false);
+    } else {
+      const { error } = await signUp(email, password, username, displayName || username);
+      if (error) {
+        if (error.message.includes("already registered")) {
+          toast.error("This email is already registered. Please sign in instead.");
+        } else {
+          toast.error(error.message);
+        }
+      } else {
+        toast.success("Account created! Please check your email to verify.");
+      }
     }
-  };
+  } finally {
+    setIsLoading(false);
+  }
+};
 
-  return (
-    <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6 relative">
-      {/* Back Button */}
-      <Button
-        variant="ghost"
-        size="icon"
-        className="absolute top-6 left-6 z-50 text-muted-foreground hover:text-foreground"
-        onClick={() => navigate("/")}
-      >
-        <ArrowLeft className="w-6 h-6" />
-      </Button>
+return (
+  <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6 relative">
+    {/* Back Button */}
+    <Button
+      variant="ghost"
+      size="icon"
+      className="absolute top-6 left-6 z-50 text-muted-foreground hover:text-foreground"
+      onClick={() => navigate("/")}
+    >
+      <ArrowLeft className="w-6 h-6" />
+    </Button>
 
-      {/* Background decoration */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-secondary/20 rounded-full blur-3xl" />
-        <div className="absolute bottom-0 left-1/4 w-[400px] h-[400px] bg-primary/10 rounded-full blur-3xl" />
-      </div>
-
-      <div className="relative z-10 w-full max-w-md">
-        {/* Logo */}
-        <div className="text-center mb-8">
-          <h1 className="font-display text-5xl gradient-text mb-2">SOOZ</h1>
-          <p className="text-muted-foreground text-sm">Sound Out Of Zion</p>
-        </div>
-
-        {/* Form Card */}
-        <div className="glass rounded-3xl p-8">
-          <h2 className="text-2xl font-semibold text-center mb-6">
-            {isLogin ? "Welcome Back" : "Join SOOZ"}
-          </h2>
-
-          <form onSubmit={handleSubmit} className="space-y-5">
-            {!isLogin && (
-              <>
-                <div className="space-y-2">
-                  <Label htmlFor="username">Username</Label>
-                  <Input
-                    id="username"
-                    type="text"
-                    placeholder="Enter your username"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value.toLowerCase())}
-                    className="bg-muted/50 border-border/50 h-12"
-                  />
-                  {errors.username && (
-                    <p className="text-destructive text-xs">{errors.username}</p>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="displayName">Display Name (optional)</Label>
-                  <Input
-                    id="displayName"
-                    type="text"
-                    placeholder="How others will see you"
-                    value={displayName}
-                    onChange={(e) => setDisplayName(e.target.value)}
-                    className="bg-muted/50 border-border/50 h-12"
-                  />
-                </div>
-              </>
-            )}
-
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="Enter your email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="bg-muted/50 border-border/50 h-12"
-              />
-              {errors.email && (
-                <p className="text-destructive text-xs">{errors.email}</p>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <div className="relative">
-                <Input
-                  id="password"
-                  type={showPassword ? "text" : "password"}
-                  placeholder="Enter your password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="bg-muted/50 border-border/50 h-12 pr-12"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                </button>
-              </div>
-              {errors.password && (
-                <p className="text-destructive text-xs">{errors.password}</p>
-              )}
-            </div>
-
-            <Button
-              type="submit"
-              variant="blue"
-              className="w-full h-12 text-base font-semibold"
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                <Loader2 className="w-5 h-5 animate-spin" />
-              ) : isLogin ? (
-                "Sign In"
-              ) : (
-                "Create Account"
-              )}
-            </Button>
-          </form>
-
-          <div className="mt-6 text-center">
-            <p className="text-muted-foreground text-sm">
-              {isLogin ? "Don't have an account?" : "Already have an account?"}{" "}
-              <button
-                onClick={() => {
-                  setIsLogin(!isLogin);
-                  setErrors({});
-                }}
-                className="text-primary font-medium hover:underline"
-              >
-                {isLogin ? "Sign Up" : "Sign In"}
-              </button>
-            </p>
-          </div>
-        </div>
-
-        {/* Footer */}
-        <p className="text-center text-muted-foreground text-xs mt-8">
-          By continuing, you agree to our Terms of Service and Privacy Policy
-        </p>
-      </div>
+    {/* Background decoration */}
+    <div className="absolute inset-0 overflow-hidden pointer-events-none">
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-secondary/20 rounded-full blur-3xl" />
+      <div className="absolute bottom-0 left-1/4 w-[400px] h-[400px] bg-primary/10 rounded-full blur-3xl" />
     </div>
-  );
+
+    <div className="relative z-10 w-full max-w-md">
+      {/* Logo */}
+      <div className="text-center mb-8">
+        <h1 className="font-display text-5xl gradient-text mb-2">SOOZ</h1>
+        <p className="text-muted-foreground text-sm">Sound Out Of Zion</p>
+      </div>
+
+      {/* Form Card */}
+      <div className="glass rounded-3xl p-8">
+        <h2 className="text-2xl font-semibold text-center mb-6">
+          {isLogin ? "Welcome Back" : "Join SOOZ"}
+        </h2>
+
+        <form onSubmit={handleSubmit} className="space-y-5">
+          {!isLogin && (
+            <>
+              <div className="space-y-2">
+                <Label htmlFor="username">Username</Label>
+                <Input
+                  id="username"
+                  type="text"
+                  placeholder="Enter your username"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value.toLowerCase())}
+                  className="bg-muted/50 border-border/50 h-12"
+                />
+                {errors.username && (
+                  <p className="text-destructive text-xs">{errors.username}</p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="displayName">Display Name (optional)</Label>
+                <Input
+                  id="displayName"
+                  type="text"
+                  placeholder="How others will see you"
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                  className="bg-muted/50 border-border/50 h-12"
+                />
+              </div>
+            </>
+          )}
+
+          <div className="space-y-2">
+            <Label htmlFor="email">Email</Label>
+            <Input
+              id="email"
+              type="email"
+              placeholder="Enter your email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="bg-muted/50 border-border/50 h-12"
+            />
+            {errors.email && (
+              <p className="text-destructive text-xs">{errors.email}</p>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="password">Password</Label>
+            <div className="relative">
+              <Input
+                id="password"
+                type={showPassword ? "text" : "password"}
+                placeholder="Enter your password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="bg-muted/50 border-border/50 h-12 pr-12"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+              >
+                {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+              </button>
+            </div>
+            {errors.password && (
+              <p className="text-destructive text-xs">{errors.password}</p>
+            )}
+          </div>
+
+          <Button
+            type="submit"
+            variant="blue"
+            className="w-full h-12 text-base font-semibold"
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <Loader2 className="w-5 h-5 animate-spin" />
+            ) : isLogin ? (
+              "Sign In"
+            ) : (
+              "Create Account"
+            )}
+          </Button>
+        </form>
+
+        <div className="mt-6 text-center">
+          <p className="text-muted-foreground text-sm">
+            {isLogin ? "Don't have an account?" : "Already have an account?"}{" "}
+            <button
+              onClick={() => {
+                setIsLogin(!isLogin);
+                setErrors({});
+              }}
+              className="text-primary font-medium hover:underline"
+            >
+              {isLogin ? "Sign Up" : "Sign In"}
+            </button>
+          </p>
+        </div>
+      </div>
+
+      {/* Footer */}
+      <p className="text-center text-muted-foreground text-xs mt-8">
+        By continuing, you agree to our Terms of Service and Privacy Policy
+      </p>
+    </div>
+  </div>
+);
 };
 
 export default Auth;
