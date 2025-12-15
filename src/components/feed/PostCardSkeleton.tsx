@@ -13,7 +13,7 @@ export const PostCardSkeleton = () => {
             </div>
 
             {/* Media */}
-            <Skeleton className="w-full aspect-square" />
+            <Skeleton className="w-full aspect-[9/16]" />
 
             {/* Action Bar */}
             <div className="px-3 pt-3 pb-1">

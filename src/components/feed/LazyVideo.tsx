@@ -131,7 +131,7 @@ export const LazyVideo = ({ src, id, onClick, startTime = 0 }: LazyVideoProps) =
             <video
                 ref={videoRef}
                 src={finalSrc}
-                className="w-full aspect-[4/5] object-cover"
+                className="w-full aspect-[9/16] object-cover"
                 loop
                 muted={isMuted} // Controlled by state now
                 playsInline
