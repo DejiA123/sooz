@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { X, Camera, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { ImageCropperModal } from "@/components/ui/ImageCropperModal";
 
 interface Profile {
   id: string;
@@ -36,52 +37,57 @@ const EditProfileModal = ({ profile, onClose, onUpdate }: EditProfileModalProps)
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const coverInputRef = useRef<HTMLInputElement>(null);
 
-  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const [croppingImage, setCroppingImage] = useState<string | null>(null);
+  const [croppingType, setCroppingType] = useState<"avatar" | "cover" | null>(null);
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>, type: "avatar" | "cover") => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    setUploadingAvatar(true);
-
-    const fileExt = file.name.split(".").pop();
-    const filePath = `${profile.id}/avatar_${Date.now()}.${fileExt}`;
-
-    const { error: uploadError } = await supabase.storage
-      .from("media")
-      .upload(filePath, file, { upsert: true });
-
-    if (uploadError) {
-      toast.error("Failed to upload image");
-      setUploadingAvatar(false);
-      return;
-    }
-
-    const { data } = supabase.storage.from("media").getPublicUrl(filePath);
-    setAvatarUrl(data.publicUrl);
-    setUploadingAvatar(false);
+    const reader = new FileReader();
+    reader.onload = () => {
+      setCroppingImage(reader.result as string);
+      setCroppingType(type);
+    };
+    reader.readAsDataURL(file);
+    e.target.value = ""; // reset input
   };
 
-  const handleCoverUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const handleCropComplete = async (croppedBlob: Blob) => {
+    if (!croppingType) return;
 
-    setUploadingCover(true);
+    // Close cropper immediately and show loading state
+    const type = croppingType; // capture current type
+    setCroppingImage(null);
+    setCroppingType(null);
 
-    const fileExt = file.name.split(".").pop();
-    const filePath = `${profile.id}/cover_${Date.now()}.${fileExt}`;
+    if (type === 'avatar') setUploadingAvatar(true);
+    else setUploadingCover(true);
 
-    const { error: uploadError } = await supabase.storage
-      .from("media")
-      .upload(filePath, file, { upsert: true });
+    try {
+      const fileExt = "jpg";
+      const filePath = `${profile.id}/${type}_${Date.now()}.${fileExt}`;
 
-    if (uploadError) {
-      toast.error("Failed to upload cover");
-      setUploadingCover(false);
-      return;
+      const { error: uploadError } = await supabase.storage
+        .from("media")
+        .upload(filePath, croppedBlob, { upsert: true, contentType: 'image/jpeg' });
+
+      if (uploadError) throw uploadError;
+
+      const { data } = supabase.storage.from("media").getPublicUrl(filePath);
+
+      if (type === 'avatar') {
+        setAvatarUrl(data.publicUrl);
+      } else {
+        setCoverUrl(data.publicUrl);
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error(`Failed to upload ${type}`);
+    } finally {
+      if (type === 'avatar') setUploadingAvatar(false);
+      else setUploadingCover(false);
     }
-
-    const { data } = supabase.storage.from("media").getPublicUrl(filePath);
-    setCoverUrl(data.publicUrl);
-    setUploadingCover(false);
   };
 
   const handleSave = async () => {
@@ -161,7 +167,7 @@ const EditProfileModal = ({ profile, onClose, onUpdate }: EditProfileModalProps)
                 ref={avatarInputRef}
                 type="file"
                 accept="image/*"
-                onChange={handleAvatarUpload}
+                onChange={(e) => handleFileSelect(e, 'avatar')}
                 className="hidden"
               />
             </div>
@@ -224,7 +230,7 @@ const EditProfileModal = ({ profile, onClose, onUpdate }: EditProfileModalProps)
                 ref={coverInputRef}
                 type="file"
                 accept="image/*"
-                onChange={handleCoverUpload}
+                onChange={(e) => handleFileSelect(e, 'cover')}
                 className="hidden"
               />
             </div>
@@ -245,6 +251,17 @@ const EditProfileModal = ({ profile, onClose, onUpdate }: EditProfileModalProps)
           </Button>
         </div>
       </div>
+
+      <ImageCropperModal
+        open={!!croppingImage}
+        imageSrc={croppingImage}
+        aspect={croppingType === 'cover' ? 16 / 5 : 1} // Cover usually wider (User can zoom)
+        onCancel={() => {
+          setCroppingImage(null);
+          setCroppingType(null);
+        }}
+        onCropComplete={handleCropComplete}
+      />
     </div>
   );
 };
