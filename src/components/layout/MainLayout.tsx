@@ -13,7 +13,7 @@ export const MainLayout = () => {
 
             <Sidebar />
 
-            <main className="container max-w-md md:max-w-2xl lg:max-w-4xl mx-auto px-0 md:px-4 animate-fade-in md:ml-64 min-h-screen md:py-8">
+            <main className="container max-w-md md:max-w-xl lg:max-w-2xl mx-auto px-0 md:px-4 animate-fade-in md:ml-64 min-h-screen md:py-8">
                 <Outlet />
             </main>
 
