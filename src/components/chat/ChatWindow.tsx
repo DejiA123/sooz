@@ -33,7 +33,7 @@ export const ChatWindow = ({ chatId, onBack }: ChatWindowProps) => {
     const { user } = useAuth();
     const [messages, setMessages] = useState<Message[]>([]);
     const [inputValue, setInputValue] = useState("");
-    const [chatInfo, setChatInfo] = useState<{ name: string; avatar: string | null; online?: boolean }>({ name: "Chat", avatar: null });
+    const [chatInfo, setChatInfo] = useState<{ id?: string; name: string; avatar: string | null; online?: boolean }>({ name: "Chat", avatar: null });
     const [participants, setParticipants] = useState<Record<string, { username: string; avatar: string | null }>>({});
     const scrollRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -70,6 +70,7 @@ export const ChatWindow = ({ chatId, onBack }: ChatWindowProps) => {
                     const other = conv.conversation_participants.find((p: any) => p.user_id !== user.id);
                     if (other && other.profiles) {
                         setChatInfo({
+                            id: other.user_id,
                             name: other.profiles.display_name || other.profiles.username,
                             avatar: other.profiles.avatar_url,
                             online: true // Mock online status for now
@@ -226,14 +227,24 @@ export const ChatWindow = ({ chatId, onBack }: ChatWindowProps) => {
                         <p className="text-xs text-muted-foreground">{chatInfo.online ? 'Active now' : ''}</p>
                     </div>
                 </div>
-                <div className="flex gap-1">
-                    <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary" onClick={() => startCall(chatId, chatInfo.name, chatInfo.avatar)}>
-                        <Phone className="w-5 h-5" />
-                    </Button>
-                    <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary" onClick={() => startCall(chatId, chatInfo.name, chatInfo.avatar)}>
-                        <Video className="w-5 h-5" />
-                    </Button>
-                </div>
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-muted-foreground hover:text-primary"
+                    onClick={() => chatInfo.id && startCall(chatInfo.id, chatInfo.name, chatInfo.avatar)}
+                    disabled={!chatInfo.id}
+                >
+                    <Phone className="w-5 h-5" />
+                </Button>
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-muted-foreground hover:text-primary"
+                    onClick={() => chatInfo.id && startCall(chatInfo.id, chatInfo.name, chatInfo.avatar)}
+                    disabled={!chatInfo.id}
+                >
+                    <Video className="w-5 h-5" />
+                </Button>
             </div>
 
             {/* Messages */}
