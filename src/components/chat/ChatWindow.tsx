@@ -154,6 +154,21 @@ export const ChatWindow = ({ chatId, onBack }: ChatWindowProps) => {
                 });
 
             if (error) throw error;
+
+            if (chatInfo.id) {
+                // Send push notification to recipient (Fire and forget)
+                supabase.functions.invoke('push-notifications', {
+                    body: {
+                        type: 'chat_message',
+                        toUserId: chatInfo.id,
+                        title: user.user_metadata?.username || 'New Message',
+                        body: content,
+                        url: '/chat'
+                    }
+                }).then(({ error }) => {
+                    if (error) console.error("Error sending push:", error);
+                });
+            }
         } catch (error) {
             console.error("Failed to send:", error);
             toast.error("Failed to send message");
