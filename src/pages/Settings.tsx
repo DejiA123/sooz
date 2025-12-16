@@ -120,6 +120,33 @@ export default function Settings() {
 
                 <section className="space-y-6 mt-10">
                     <div className="flex items-center gap-2 text-primary mb-4">
+                        <Bell className="w-5 h-5" />
+                        <h2 className="text-lg font-semibold">Notifications</h2>
+                    </div>
+                    <div className="bg-card border border-border rounded-xl p-4 space-y-3">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="font-medium">Push Notifications</p>
+                                <p className="text-sm text-muted-foreground">Receive notifications for messages and calls</p>
+                            </div>
+                            <button
+                                onClick={() => isSubscribed ? unsubscribeFromPush() : subscribeToPush()}
+                                className={cn(
+                                    "w-12 h-6 rounded-full relative transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-primary/50",
+                                    isSubscribed ? "bg-primary" : "bg-muted"
+                                )}
+                            >
+                                <div className={cn(
+                                    "absolute left-1 top-1 w-4 h-4 rounded-full bg-white transition-transform duration-300",
+                                    isSubscribed && "translate-x-6"
+                                )} />
+                            </button>
+                        </div>
+                    </div>
+                </section>
+
+                <section className="space-y-6 mt-10">
+                    <div className="flex items-center gap-2 text-primary mb-4">
                         <LogOut className="w-5 h-5" />
                         <h2 className="text-lg font-semibold">Account</h2>
                     </div>
