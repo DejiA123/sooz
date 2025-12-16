@@ -1,33 +1,44 @@
 
+import { Suspense, lazy } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner, toast } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { Loader2 } from "lucide-react";
 import { AuthProvider } from "@/hooks/useAuth";
 import { MainLayout } from "@/components/layout/MainLayout";
-import Index from "./pages/Index";
-import Auth from "./pages/Auth";
-import Profile from "./pages/Profile";
-import Discover from "./pages/Discover";
-import Activity from "./pages/Activity";
-import Chat from "./pages/Chat";
-import PostDetails from "./pages/PostDetails";
-import SuggestedPeople from "./pages/SuggestedPeople";
-import Notifications from "./pages/Notifications";
-import About from "./pages/About";
-import Help from "./pages/Help";
-import Privacy from "./pages/Privacy";
-import Terms from "./pages/Terms";
-import Settings from "./pages/Settings";
-import NotFound from "./pages/NotFound";
-import EmailConfirmation from "./pages/EmailConfirmation";
-import ForgotPassword from "./pages/ForgotPassword";
-import UpdatePassword from "./pages/UpdatePassword";
+// Lazy load pages for performance
+const Index = lazy(() => import("./pages/Index"));
+const Auth = lazy(() => import("./pages/Auth"));
+const Profile = lazy(() => import("./pages/Profile"));
+const Discover = lazy(() => import("./pages/Discover"));
+const Activity = lazy(() => import("./pages/Activity"));
+const Chat = lazy(() => import("./pages/Chat"));
+const PostDetails = lazy(() => import("./pages/PostDetails"));
+const SuggestedPeople = lazy(() => import("./pages/SuggestedPeople"));
+const Notifications = lazy(() => import("./pages/Notifications"));
+const About = lazy(() => import("./pages/About"));
+const Help = lazy(() => import("./pages/Help"));
+const Privacy = lazy(() => import("./pages/Privacy"));
+const Terms = lazy(() => import("./pages/Terms"));
+const Settings = lazy(() => import("./pages/Settings"));
+const NotFound = lazy(() => import("./pages/NotFound"));
+const EmailConfirmation = lazy(() => import("./pages/EmailConfirmation"));
+const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
+const UpdatePassword = lazy(() => import("./pages/UpdatePassword"));
 import { AuthListener } from "./components/AuthListener";
 import { NotificationManager } from "./components/NotificationManager";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60 * 5, // 5 minutes
+      gcTime: 1000 * 60 * 30, // 30 minutes
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 
 const App = () => {
   // Initialize theme
@@ -101,30 +112,36 @@ const App = () => {
           <BrowserRouter>
             <AuthListener />
             <NotificationManager />
-            <Routes>
-              <Route path="/auth" element={<Auth />} />
-              <Route path="/email-confirmation" element={<EmailConfirmation />} />
-              <Route path="/forgot-password" element={<ForgotPassword />} />
-              <Route path="/update-password" element={<UpdatePassword />} />
+            <Suspense fallback={
+              <div className="flex items-center justify-center min-h-screen text-primary">
+                <Loader2 className="h-8 w-8 animate-spin" />
+              </div>
+            }>
+              <Routes>
+                <Route path="/auth" element={<Auth />} />
+                <Route path="/email-confirmation" element={<EmailConfirmation />} />
+                <Route path="/forgot-password" element={<ForgotPassword />} />
+                <Route path="/update-password" element={<UpdatePassword />} />
 
-              <Route element={<MainLayout />}>
-                <Route path="/" element={<Index />} />
-                <Route path="/discover" element={<Discover />} />
-                <Route path="/activity" element={<Activity />} />
-                <Route path="/suggested-people" element={<SuggestedPeople />} />
-                <Route path="/about" element={<About />} />
-                <Route path="/help" element={<Help />} />
-                <Route path="/privacy" element={<Privacy />} />
-                <Route path="/terms" element={<Terms />} />
-                <Route path="/chat" element={<Chat />} />
-                <Route path="/notifications" element={<Notifications />} />
-                <Route path="/profile/:username" element={<Profile />} />
-                <Route path="/post/:id" element={<PostDetails />} />
-                <Route path="/settings" element={<Settings />} />
-              </Route>
+                <Route element={<MainLayout />}>
+                  <Route path="/" element={<Index />} />
+                  <Route path="/discover" element={<Discover />} />
+                  <Route path="/activity" element={<Activity />} />
+                  <Route path="/suggested-people" element={<SuggestedPeople />} />
+                  <Route path="/about" element={<About />} />
+                  <Route path="/help" element={<Help />} />
+                  <Route path="/privacy" element={<Privacy />} />
+                  <Route path="/terms" element={<Terms />} />
+                  <Route path="/chat" element={<Chat />} />
+                  <Route path="/notifications" element={<Notifications />} />
+                  <Route path="/profile/:username" element={<Profile />} />
+                  <Route path="/post/:id" element={<PostDetails />} />
+                  <Route path="/settings" element={<Settings />} />
+                </Route>
 
-              <Route path="*" element={<NotFound />} />
-            </Routes>
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </Suspense>
           </BrowserRouter>
         </TooltipProvider>
       </AuthProvider>

@@ -21,18 +21,45 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-    // Skip handling for external URLs (CDN, APIs, etc.)
     const url = new URL(event.request.url);
-    if (url.origin !== self.location.origin) {
-        return; // Let the browser handle external requests normally
-    }
 
-    // Network first strategy for same-origin requests only
-    event.respondWith(
-        fetch(event.request).catch(() => {
-            return caches.match(event.request);
-        })
-    );
+    // Skip cross-origin (except maybe common CDNs if needed)
+    if (url.origin !== self.location.origin) return;
+
+    // Cache First for hashed assets (Vite output .hash.js)
+    // Stale-While-Revalidate for others
+    const isAsset = /\.(js|css|png|jpg|jpeg|svg|woff2|ico)$/.test(url.pathname);
+
+    if (isAsset) {
+        event.respondWith(
+            caches.open(CACHE_NAME).then((cache) => {
+                return cache.match(event.request).then((cachedResponse) => {
+                    // Return cached response immediately if found
+                    if (cachedResponse) return cachedResponse;
+
+                    // Otherwise fetch and cache
+                    return fetch(event.request).then((networkResponse) => {
+                        cache.put(event.request, networkResponse.clone());
+                        return networkResponse;
+                    });
+                });
+            })
+        );
+    } else {
+        // Network First for HTML and others (Navigation)
+        event.respondWith(
+            fetch(event.request)
+                .then((response) => {
+                    return caches.open(CACHE_NAME).then((cache) => {
+                        cache.put(event.request, response.clone());
+                        return response;
+                    });
+                })
+                .catch(() => {
+                    return caches.match(event.request);
+                })
+        );
+    }
 });
 
 // Push notification listener
