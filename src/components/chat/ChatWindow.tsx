@@ -227,24 +227,18 @@ export const ChatWindow = ({ chatId, onBack }: ChatWindowProps) => {
                         <p className="text-xs text-muted-foreground">{chatInfo.online ? 'Active now' : ''}</p>
                     </div>
                 </div>
-                <Button
-                    variant="ghost"
-                    size="icon"
-                    className="text-muted-foreground hover:text-primary"
-                    onClick={() => chatInfo.id && startCall(chatInfo.id, chatInfo.name, chatInfo.avatar)}
-                    disabled={!chatInfo.id}
-                >
-                    <Phone className="w-5 h-5" />
-                </Button>
-                <Button
-                    variant="ghost"
-                    size="icon"
-                    className="text-muted-foreground hover:text-primary"
-                    onClick={() => chatInfo.id && startCall(chatInfo.id, chatInfo.name, chatInfo.avatar)}
-                    disabled={!chatInfo.id}
-                >
-                    <Video className="w-5 h-5" />
-                </Button>
+                <div>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-muted-foreground hover:text-primary"
+                        onClick={() => chatInfo.id && startCall(chatInfo.id, chatInfo.name, chatInfo.avatar)}
+                        disabled={!chatInfo.id}
+                        title="Start Video Call"
+                    >
+                        <Video className="w-5 h-5" />
+                    </Button>
+                </div>
             </div>
 
             {/* Messages */}
