@@ -181,6 +181,19 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
                     isCameraOff: !isVideo // Initial state depending on start mode
                 }
             });
+
+            // Send push notification for incoming call
+            supabase.functions.invoke('push-notifications', {
+                body: {
+                    type: 'chat_message',
+                    toUserId: id,
+                    title: `Incoming ${isVideo ? 'Video' : 'Audio'} Call`,
+                    body: `${user.user_metadata?.username || 'Someone'} is calling you`,
+                    url: '/chat'
+                }
+            }).then(({ error }) => {
+                if (error) console.error("Error sending call notification:", error);
+            });
         }
     };
 
