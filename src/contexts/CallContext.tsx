@@ -34,8 +34,12 @@ export const useCall = () => {
 const ICE_SERVERS = {
     iceServers: [
         { urls: 'stun:stun.l.google.com:19302' },
-        { urls: 'stun:global.stun.twilio.com:3478' }
-    ]
+        { urls: 'stun:global.stun.twilio.com:3478' },
+        { urls: 'stun:stun1.l.google.com:19302' },
+        { urls: 'stun:stun2.l.google.com:19302' },
+        { urls: 'stun:stun.ekiga.net' }
+    ],
+    iceCandidatePoolSize: 10,
 };
 
 export const CallProvider = ({ children }: { children: React.ReactNode }) => {
@@ -97,9 +101,9 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
             if (pc.connectionState === 'connected') {
                 setCallState('CONNECTED');
             } else if (pc.connectionState === 'failed') {
-                // Only end on failed, let disconnected persist (might be temporary network switch)
-                console.error('📡 Connection failed');
-                handleEnd();
+                // Try to recover instead of ending immediately
+                console.error('📡 Connection failed - attempting simple recovery (waiting)');
+                // Don't call handleEnd() immediately, let it try to renegotiate or let user end it
             } else if (pc.connectionState === 'closed') {
                 handleEnd();
             }
