@@ -18,7 +18,8 @@ export const CallOverlay = () => {
         toggleMute,
         toggleCamera,
         isMuted,
-        isCameraOff
+        isCameraOff,
+        isVideoCall
     } = useCall();
 
     const localVideoRef = useRef<HTMLVideoElement>(null);
@@ -53,7 +54,7 @@ export const CallOverlay = () => {
 
                     <div className="text-center">
                         <h2 className="text-2xl font-bold">{callerInfo?.name}</h2>
-                        <p className="text-muted-foreground">Incoming video call...</p>
+                        <p className="text-muted-foreground">Incoming {isVideoCall ? 'video' : 'audio'} call...</p>
                     </div>
 
                     <div className="flex items-center gap-4 mt-4">
@@ -96,7 +97,7 @@ export const CallOverlay = () => {
                             <AvatarImage src={callerInfo?.avatar || undefined} />
                             <AvatarFallback>{callerInfo?.name?.[0]}</AvatarFallback>
                         </Avatar>
-                        <p className="text-xl animate-pulse">Calling...</p>
+                        <p className="text-xl animate-pulse">{isVideoCall ? 'Calling...' : 'Audio Calling...'}</p>
                     </div>
                 )}
 

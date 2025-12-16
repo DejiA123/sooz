@@ -19,6 +19,7 @@ interface CallContextType {
     toggleCamera: () => void;
     isMuted: boolean;
     isCameraOff: boolean;
+    isVideoCall: boolean;
 }
 
 const CallContext = createContext<CallContextType | undefined>(undefined);
@@ -42,6 +43,7 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
     const [localStream, setLocalStream] = useState<MediaStream | null>(null);
     const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
     const [callerInfo, setCallerInfo] = useState<{ id: string; name: string; avatar: string | null } | null>(null);
+    const [isVideoCall, setIsVideoCall] = useState(true); // Track if current/incoming call is video
 
     // For outgoing calls
     const [recipientId, setRecipientId] = useState<string | null>(null);
@@ -172,7 +174,8 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
                     offer,
                     from: user.id,
                     callerName: user.user_metadata?.username || 'User',
-                    callerAvatar: user.user_metadata?.avatar_url
+                    callerAvatar: user.user_metadata?.avatar_url,
+                    isVideo
                 }
             });
         }
@@ -222,6 +225,7 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
                     name: payload.callerName,
                     avatar: payload.callerAvatar
                 });
+                setIsVideoCall(payload.isVideo !== false); // Default to true if missing
                 setCallState('RINGING');
                 pendingOffer.current = payload.offer;
 
@@ -261,6 +265,14 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
 
         const stream = await getMedia();
         if (!stream) return;
+
+        // Respect the incoming call type
+        if (!isVideoCall) {
+            stream.getVideoTracks().forEach(track => track.enabled = false);
+            setIsCameraOff(true);
+        } else {
+            setIsCameraOff(false);
+        }
 
         const pc = createPeerConnection(); // Should ensure PC exists
         if (!pc) return;
@@ -308,7 +320,8 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
             toggleMute,
             toggleCamera,
             isMuted,
-            isCameraOff
+            isCameraOff,
+            isVideoCall
         }}>
             {children}
         </CallContext.Provider>
