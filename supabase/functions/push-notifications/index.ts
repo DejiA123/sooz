@@ -60,8 +60,7 @@ serve(async (req) => {
             });
 
         } else if (record) {
-            // Existing Post Logic
-            // Fetch author details
+            // New Post Logic - Notify followers only
             const { data: author } = await supabase
                 .from('profiles')
                 .select('username')
@@ -70,17 +69,30 @@ serve(async (req) => {
 
             const authorName = author?.username || "Someone";
 
-            // Demo: Fetch ALL subscriptions (Warning: Broad)
-            const { data: subs, error: subError } = await supabase
-                .from("push_subscriptions")
-                .select("*");
+            // Fetch followers of the post author
+            const { data: followers, error: followerError } = await supabase
+                .from('follows')
+                .select('follower_id')
+                .eq('following_id', record.user_id);
 
-            if (subError) throw subError;
-            subscriptions = subs || [];
+            if (followerError) throw followerError;
+
+            // Get push subscriptions for all followers
+            const followerIds = followers?.map(f => f.follower_id) || [];
+
+            if (followerIds.length > 0) {
+                const { data: subs, error: subError } = await supabase
+                    .from("push_subscriptions")
+                    .select("*")
+                    .in('user_id', followerIds);
+
+                if (subError) throw subError;
+                subscriptions = subs || [];
+            }
 
             notificationPayload = JSON.stringify({
                 title: "New Post on SOOZ",
-                body: `${authorName} just posted a new video!`,
+                body: `${authorName} just posted something new!`,
                 url: `/post/${record.id}`,
             });
         } else {

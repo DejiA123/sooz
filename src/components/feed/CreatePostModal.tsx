@@ -92,6 +92,21 @@ export default function CreatePostModal({ isOpen, onClose, onPostCreated }: Crea
 
             if (dbError) throw dbError;
 
+            // Send push notification to followers (fire and forget)
+            if (dbData && dbData.length > 0) {
+                const postId = dbData[0].id;
+                supabase.functions.invoke('push-notifications', {
+                    body: {
+                        record: {
+                            id: postId,
+                            user_id: user.id
+                        }
+                    }
+                }).then(({ error }) => {
+                    if (error) console.error("Error sending post notification:", error);
+                });
+            }
+
             toast.success("Post created successfully!");
             setCaption("");
             setMediaFile(null);
