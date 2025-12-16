@@ -78,17 +78,18 @@ export default function CreatePostModal({ isOpen, onClose, onPostCreated }: Crea
 
                 mediaUrl = `${import.meta.env.VITE_PUBLIC_R2_URL}/${fileName}`;
                 mediaType = mediaFile.type.startsWith('video/') ? 'video' : 'image';
-                console.log("Upload complete:", mediaUrl);
+                console.log("Inserting post into database...");
             }
 
-            const { error: dbError } = await supabase
+            const { data: dbData, error: dbError } = await supabase
                 .from('posts')
                 .insert({
                     user_id: user.id,
                     caption: caption,
                     media_url: mediaUrl,
                     media_type: mediaType
-                });
+                })
+                .select();
 
             if (dbError) throw dbError;
 
