@@ -94,13 +94,14 @@ const Auth = () => {
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6 relative">
       {/* Back Button */}
+      {/* Back Button */}
       <Button
-        variant="ghost"
+        variant="outline"
         size="icon"
-        className="absolute top-6 left-6 z-50 text-muted-foreground hover:text-foreground"
+        className="absolute top-6 left-6 z-50 bg-background/80 backdrop-blur border-border/50 shadow-sm hover:bg-background hover:scale-105 transition-all text-primary"
         onClick={() => navigate("/")}
       >
-        <ArrowLeft className="w-6 h-6" />
+        <ArrowLeft className="w-5 h-5" />
       </Button>
 
       {/* Background decoration */}
