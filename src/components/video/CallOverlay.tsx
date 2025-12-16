@@ -25,6 +25,7 @@ export const CallOverlay = () => {
 
     const localVideoRef = useRef<HTMLVideoElement>(null);
     const remoteVideoRef = useRef<HTMLVideoElement>(null);
+    const remoteAudioRef = useRef<HTMLAudioElement>(null);
 
     useEffect(() => {
         if (localVideoRef.current && localStream) {
@@ -51,6 +52,19 @@ export const CallOverlay = () => {
             });
         } else {
             console.log('🎥 No remote stream or ref:', { hasRef: !!remoteVideoRef.current, hasStream: !!remoteStream });
+        }
+    }, [remoteStream, callState]);
+
+    // Separate audio handling for reliability
+    useEffect(() => {
+        if (remoteAudioRef.current && remoteStream) {
+            console.log('🔊 Attaching audio stream to audio element');
+            remoteAudioRef.current.srcObject = remoteStream;
+            remoteAudioRef.current.volume = 1.0;
+
+            remoteAudioRef.current.play().catch(err => {
+                console.error('🔊 Error playing audio:', err);
+            });
         }
     }, [remoteStream, callState]);
 
@@ -108,24 +122,30 @@ export const CallOverlay = () => {
                             ref={remoteVideoRef}
                             autoPlay
                             playsInline
-                            muted={false}
-                            volume={1.0}
+                            muted={true}
                             onLoadedMetadata={() => console.log('🎥 Remote video metadata loaded')}
                             onPlay={() => console.log('🎥 Remote video started playing')}
                             onError={(e) => console.error('🎥 Remote video error:', e)}
                             className="w-full h-full object-cover"
                         />
+                        {/* Separate audio element for reliable audio playback */ }
+                    <audio
+                        ref={remoteAudioRef}
+                        autoPlay
+                        playsInline
+                        className="hidden"
+                    />
                     ) : (
-                        <div className="w-full h-full flex flex-col items-center justify-center text-white/50 gap-4">
-                            <Avatar className="w-32 h-32 border-4 border-white/5 animate-pulse">
-                                <AvatarImage src={callerInfo?.avatar || undefined} />
-                                <AvatarFallback className="text-4xl">{callerInfo?.name?.[0]}</AvatarFallback>
-                            </Avatar>
-                            <p className="text-xl animate-pulse">
-                                {remoteStream ? (isVideoCall ? 'Camera Off' : 'Audio Call') : (isVideoCall ? 'Calling...' : 'Audio Calling...')}
-                            </p>
-                        </div>
-                    );
+                <div className="w-full h-full flex flex-col items-center justify-center text-white/50 gap-4">
+                    <Avatar className="w-32 h-32 border-4 border-white/5 animate-pulse">
+                        <AvatarImage src={callerInfo?.avatar || undefined} />
+                        <AvatarFallback className="text-4xl">{callerInfo?.name?.[0]}</AvatarFallback>
+                    </Avatar>
+                    <p className="text-xl animate-pulse">
+                        {remoteStream ? (isVideoCall ? 'Camera Off' : 'Audio Call') : (isVideoCall ? 'Calling...' : 'Audio Calling...')}
+                    </p>
+                </div>
+                );
                 })()}
 
                 {/* Local Video (PiP) */}
