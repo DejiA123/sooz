@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Home, Compass, Heart, User, PlusSquare, Search, MessageCircle, Menu, MoreHorizontal, Settings as SettingsIcon, ActivitySquare, Bookmark, Moon, Sun, MessageSquareWarning, LogOut } from "lucide-react";
+import { Home, Heart, User, PlusSquare, Search, Menu, MoreHorizontal, Settings as SettingsIcon, ActivitySquare, Bookmark, Moon, Sun, MessageSquareWarning, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import CreatePostModal from "@/components/feed/CreatePostModal";
@@ -25,8 +25,6 @@ export const Sidebar = () => {
 
     const navItems = [
         { icon: Home, label: "Home", path: "/" },
-        { icon: Compass, label: "Discover", path: "/discover" },
-        { icon: MessageCircle, label: "Messages", path: "/chat" },
         { icon: Heart, label: "Notifications", path: "/activity" },
         { icon: PlusSquare, label: "Create", path: "#", isCreate: true },
         { icon: User, label: "Profile", path: "/profile/me" },
