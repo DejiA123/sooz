@@ -200,10 +200,11 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
         const pc = createPeerConnection();
         if (!pc) return;
 
-        console.log('📹 Adding local tracks to peer connection:', stream.getTracks().map(t => `${t.kind}: ${t.enabled}`));
+        console.log('📹 Adding local tracks to peer connection:', stream.getTracks().map(t => `${t.kind}: ${t.enabled} (id: ${t.id})`));
         stream.getTracks().forEach(track => pc.addTrack(track, stream));
 
         const offer = await pc.createOffer();
+        console.log('📝 Created Offer:', offer.sdp); // Log SDP to check m=video
         await pc.setLocalDescription(offer);
 
         // Send Offer
@@ -213,11 +214,11 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
                 event: 'call-offer',
                 payload: {
                     offer,
-                    from: user.id,
-                    callerName: user.user_metadata?.username || 'User',
-                    callerAvatar: user.user_metadata?.avatar_url,
-                    isVideo,
-                    isCameraOff: !isVideo // Initial state depending on start mode
+                    from: user?.id,
+                    callerName: user?.user_metadata?.first_name || 'Unknown',
+                    callerAvatar: user?.user_metadata?.avatar_url,
+                    isVideo: isVideo,
+                    isCameraOff: !isVideo // Initial state
                 }
             });
 

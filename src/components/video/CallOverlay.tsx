@@ -65,15 +65,30 @@ export const CallOverlay = () => {
             // Attempt to play
             const playAudio = async () => {
                 try {
+                    // Try setting sink ID if available (Chrome/Android)
+                    // @ts-ignore
+                    if (typeof remoteAudioRef.current.setSinkId === 'function') {
+                        // @ts-ignore
+                        await remoteAudioRef.current.setSinkId('default');
+                    }
+
                     await remoteAudioRef.current?.play();
                     console.log('🔊 Audio playback started successfully');
                 } catch (err) {
                     console.error('🔊 Error playing audio:', err);
                     // If failed (likely autoplay policy), try again on next interaction
-                    toast.error("Audio blocked. Tap anywhere to unmute.");
-                    document.addEventListener('click', () => {
-                        remoteAudioRef.current?.play().catch(console.error);
-                    }, { once: true });
+                    toast.error("Audio blocked. Tap screen to unmute.");
+
+                    const resumeAudio = () => {
+                        if (remoteAudioRef.current) {
+                            remoteAudioRef.current.play()
+                                .then(() => console.log('🔊 Audio resumed by user interaction'))
+                                .catch(e => console.error('🔊 Resume failed:', e));
+                        }
+                    };
+
+                    document.addEventListener('click', resumeAudio, { once: true });
+                    document.addEventListener('touchstart', resumeAudio, { once: true });
                 }
             };
             playAudio();
