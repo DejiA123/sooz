@@ -38,6 +38,13 @@ export const CallOverlay = () => {
             console.log('🎥 Attaching remote stream to video element, tracks:', remoteStream.getTracks().map(t => `${t.kind}: ${t.enabled}`));
             remoteVideoRef.current.srcObject = remoteStream;
 
+            // Set volume to maximum
+            remoteVideoRef.current.volume = 1.0;
+
+            // Check audio tracks
+            const audioTracks = remoteStream.getAudioTracks();
+            console.log('🔊 Audio tracks:', audioTracks.map(t => `enabled: ${t.enabled}, muted: ${t.muted}`));
+
             // Explicitly call play() to ensure video starts
             remoteVideoRef.current.play().catch(err => {
                 console.error('🎥 Error playing remote video:', err);
@@ -102,6 +109,7 @@ export const CallOverlay = () => {
                             autoPlay
                             playsInline
                             muted={false}
+                            volume={1.0}
                             onLoadedMetadata={() => console.log('🎥 Remote video metadata loaded')}
                             onPlay={() => console.log('🎥 Remote video started playing')}
                             onError={(e) => console.error('🎥 Remote video error:', e)}
