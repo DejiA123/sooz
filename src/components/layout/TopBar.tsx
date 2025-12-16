@@ -1,7 +1,4 @@
-import { MessageCircle } from "lucide-react";
 import { Link } from "react-router-dom";
-import { NotificationBell } from "@/components/notifications/NotificationBell";
-import { Button } from "@/components/ui/button";
 
 export const TopBar = () => {
   return (
@@ -13,12 +10,6 @@ export const TopBar = () => {
           className="h-9 w-auto object-contain text-foreground"
         />
       </Link>
-      <div className="flex items-center gap-2">
-        <NotificationBell />
-        <Link to="/chat" className="p-2 rounded-full hover:bg-white/5 transition-colors">
-          <MessageCircle className="w-6 h-6 text-foreground" />
-        </Link>
-      </div>
     </div>
   );
 };
