@@ -29,6 +29,8 @@ const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
 const UpdatePassword = lazy(() => import("./pages/UpdatePassword"));
 import { AuthListener } from "./components/AuthListener";
 import { NotificationManager } from "./components/NotificationManager";
+import { CallProvider } from "@/contexts/CallContext";
+import { CallOverlay } from "@/components/video/CallOverlay";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -106,46 +108,49 @@ const App = () => {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <AuthListener />
-            <NotificationManager />
-            <Suspense fallback={
-              <div className="flex items-center justify-center min-h-screen text-primary">
-                <Loader2 className="h-8 w-8 animate-spin" />
-              </div>
-            }>
-              <Routes>
-                <Route path="/auth" element={<Auth />} />
-                <Route path="/email-confirmation" element={<EmailConfirmation />} />
-                <Route path="/forgot-password" element={<ForgotPassword />} />
-                <Route path="/update-password" element={<UpdatePassword />} />
+        <CallProvider>
+          <CallOverlay />
+          <TooltipProvider>
+            <Toaster />
+            <Sonner />
+            <BrowserRouter>
+              <AuthListener />
+              <NotificationManager />
+              <Suspense fallback={
+                <div className="flex items-center justify-center min-h-screen text-primary">
+                  <Loader2 className="h-8 w-8 animate-spin" />
+                </div>
+              }>
+                <Routes>
+                  <Route path="/auth" element={<Auth />} />
+                  <Route path="/email-confirmation" element={<EmailConfirmation />} />
+                  <Route path="/forgot-password" element={<ForgotPassword />} />
+                  <Route path="/update-password" element={<UpdatePassword />} />
 
-                <Route element={<MainLayout />}>
-                  <Route path="/" element={<Index />} />
-                  <Route path="/discover" element={<Discover />} />
-                  <Route path="/activity" element={<Activity />} />
-                  <Route path="/suggested-people" element={<SuggestedPeople />} />
-                  <Route path="/about" element={<About />} />
-                  <Route path="/help" element={<Help />} />
-                  <Route path="/privacy" element={<Privacy />} />
-                  <Route path="/terms" element={<Terms />} />
-                  <Route path="/chat" element={<Chat />} />
-                  <Route path="/notifications" element={<Notifications />} />
-                  <Route path="/profile/:username" element={<Profile />} />
-                  <Route path="/post/:id" element={<PostDetails />} />
-                  <Route path="/settings" element={<Settings />} />
-                </Route>
+                  <Route element={<MainLayout />}>
+                    <Route path="/" element={<Index />} />
+                    <Route path="/discover" element={<Discover />} />
+                    <Route path="/activity" element={<Activity />} />
+                    <Route path="/suggested-people" element={<SuggestedPeople />} />
+                    <Route path="/about" element={<About />} />
+                    <Route path="/help" element={<Help />} />
+                    <Route path="/privacy" element={<Privacy />} />
+                    <Route path="/terms" element={<Terms />} />
+                    <Route path="/chat" element={<Chat />} />
+                    <Route path="/notifications" element={<Notifications />} />
+                    <Route path="/profile/:username" element={<Profile />} />
+                    <Route path="/post/:id" element={<PostDetails />} />
+                    <Route path="/settings" element={<Settings />} />
+                  </Route>
 
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </Suspense>
-          </BrowserRouter>
-        </TooltipProvider>
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </Suspense>
+            </BrowserRouter>
+          </TooltipProvider>
+        </CallProvider>
       </AuthProvider>
-    </QueryClientProvider>
+    </QueryClientProvider >
   );
 };
 

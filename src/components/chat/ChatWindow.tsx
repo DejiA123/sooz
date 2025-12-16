@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { useCall } from "@/contexts/CallContext";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,6 +38,7 @@ export const ChatWindow = ({ chatId, onBack }: ChatWindowProps) => {
     const scrollRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [uploading, setUploading] = useState(false);
+    const { startCall } = useCall();
 
     // Fetch Chat Info & Messages
     useEffect(() => {
@@ -225,10 +227,10 @@ export const ChatWindow = ({ chatId, onBack }: ChatWindowProps) => {
                     </div>
                 </div>
                 <div className="flex gap-1">
-                    <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary">
+                    <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary" onClick={() => startCall(chatId, chatInfo.name, chatInfo.avatar)}>
                         <Phone className="w-5 h-5" />
                     </Button>
-                    <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary">
+                    <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary" onClick={() => startCall(chatId, chatInfo.name, chatInfo.avatar)}>
                         <Video className="w-5 h-5" />
                     </Button>
                 </div>
