@@ -20,6 +20,7 @@ interface CallContextType {
     isMuted: boolean;
     isCameraOff: boolean;
     isVideoCall: boolean;
+    isRemoteCameraOff: boolean;
 }
 
 const CallContext = createContext<CallContextType | undefined>(undefined);
@@ -44,6 +45,7 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
     const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
     const [callerInfo, setCallerInfo] = useState<{ id: string; name: string; avatar: string | null } | null>(null);
     const [isVideoCall, setIsVideoCall] = useState(true); // Track if current/incoming call is video
+    const [isRemoteCameraOff, setIsRemoteCameraOff] = useState(false);
 
     // For outgoing calls
     const [recipientId, setRecipientId] = useState<string | null>(null);
@@ -175,7 +177,8 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
                     from: user.id,
                     callerName: user.user_metadata?.username || 'User',
                     callerAvatar: user.user_metadata?.avatar_url,
-                    isVideo
+                    isVideo,
+                    isCameraOff: !isVideo // Initial state depending on start mode
                 }
             });
         }
@@ -226,6 +229,7 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
                     avatar: payload.callerAvatar
                 });
                 setIsVideoCall(payload.isVideo !== false); // Default to true if missing
+                setIsRemoteCameraOff(payload.isCameraOff || !payload.isVideo);
                 setCallState('RINGING');
                 pendingOffer.current = payload.offer;
 
@@ -235,6 +239,7 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
             .on('broadcast', { event: 'call-answer' }, async ({ payload }) => {
                 if (callState === 'CALLING' && peerConnection.current) {
                     await peerConnection.current.setRemoteDescription(new RTCSessionDescription(payload.answer));
+                    setIsRemoteCameraOff(payload.isCameraOff || false);
                     setCallState('CONNECTED');
                 }
             })
@@ -250,6 +255,9 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
             .on('broadcast', { event: 'end-call' }, () => {
                 handleEnd();
                 toast.info("Call ended");
+            })
+            .on('broadcast', { event: 'camera-toggle' }, ({ payload }) => {
+                setIsRemoteCameraOff(payload.isCameraOff);
             })
             .subscribe();
 
@@ -289,7 +297,11 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
         supabase.channel(`user:${callerInfo.id}`).send({
             type: 'broadcast',
             event: 'call-answer',
-            payload: { answer, from: user?.id }
+            payload: {
+                answer,
+                from: user?.id,
+                isCameraOff: !isVideoCall // Matches local decision
+            }
         });
     };
 
@@ -303,7 +315,18 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
     const toggleCamera = () => {
         if (localStream) {
             localStream.getVideoTracks().forEach(track => track.enabled = !track.enabled);
-            setIsCameraOff(!isCameraOff);
+            const newState = !isCameraOff;
+            setIsCameraOff(newState);
+
+            // Signal change
+            const targetId = recipientId || callerInfo?.id;
+            if (targetId) {
+                supabase.channel(`user:${targetId}`).send({
+                    type: 'broadcast',
+                    event: 'camera-toggle',
+                    payload: { isCameraOff: newState, from: user?.id }
+                });
+            }
         }
     };
 
@@ -321,7 +344,8 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
             toggleCamera,
             isMuted,
             isCameraOff,
-            isVideoCall
+            isVideoCall,
+            isRemoteCameraOff
         }}>
             {children}
         </CallContext.Provider>

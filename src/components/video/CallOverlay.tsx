@@ -19,7 +19,8 @@ export const CallOverlay = () => {
         toggleCamera,
         isMuted,
         isCameraOff,
-        isVideoCall
+        isVideoCall,
+        isRemoteCameraOff
     } = useCall();
 
     const localVideoRef = useRef<HTMLVideoElement>(null);
@@ -84,7 +85,7 @@ export const CallOverlay = () => {
         <div className="fixed inset-0 z-[100] bg-zinc-950 flex flex-col">
             {/* Main Video Area (Remote or Self if just calling) */}
             <div className="relative flex-1 bg-black">
-                {remoteStream ? (
+                {remoteStream && !isRemoteCameraOff ? (
                     <video
                         ref={remoteVideoRef}
                         autoPlay
@@ -95,9 +96,11 @@ export const CallOverlay = () => {
                     <div className="w-full h-full flex flex-col items-center justify-center text-white/50 gap-4">
                         <Avatar className="w-32 h-32 border-4 border-white/5 animate-pulse">
                             <AvatarImage src={callerInfo?.avatar || undefined} />
-                            <AvatarFallback>{callerInfo?.name?.[0]}</AvatarFallback>
+                            <AvatarFallback className="text-4xl">{callerInfo?.name?.[0]}</AvatarFallback>
                         </Avatar>
-                        <p className="text-xl animate-pulse">{isVideoCall ? 'Calling...' : 'Audio Calling...'}</p>
+                        <p className="text-xl animate-pulse">
+                            {remoteStream ? (isVideoCall ? 'Camera Off' : 'Audio Call') : (isVideoCall ? 'Calling...' : 'Audio Calling...')}
+                        </p>
                     </div>
                 )}
 
