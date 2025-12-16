@@ -1,6 +1,6 @@
 
 import { useState } from "react";
-import { Home, Compass, Heart, User, PlusSquare } from "lucide-react";
+import { Home, MessageCircle, Heart, User, PlusSquare } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import CreatePostModal from "@/components/feed/CreatePostModal";
@@ -11,7 +11,7 @@ export const BottomNav = () => {
 
   const navItems = [
     { icon: Home, label: "Home", path: "/" },
-    { icon: Compass, label: "Discover", path: "/discover" },
+    { icon: MessageCircle, label: "Chat", path: "/chat" },
     { icon: null, label: "Create", path: "#", isCreate: true },
     { icon: Heart, label: "Activity", path: "/activity" },
     { icon: User, label: "Profile", path: "/profile/me" },
