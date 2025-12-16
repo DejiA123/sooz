@@ -28,13 +28,17 @@ export const CallOverlay = () => {
 
     useEffect(() => {
         if (localVideoRef.current && localStream) {
+            console.log('🎥 Attaching local stream to video element');
             localVideoRef.current.srcObject = localStream;
         }
     }, [localStream, callState]);
 
     useEffect(() => {
         if (remoteVideoRef.current && remoteStream) {
+            console.log('🎥 Attaching remote stream to video element, tracks:', remoteStream.getTracks().map(t => `${t.kind}: ${t.enabled}`));
             remoteVideoRef.current.srcObject = remoteStream;
+        } else {
+            console.log('🎥 No remote stream or ref:', { hasRef: !!remoteVideoRef.current, hasStream: !!remoteStream });
         }
     }, [remoteStream, callState]);
 
@@ -85,24 +89,27 @@ export const CallOverlay = () => {
         <div className="fixed inset-0 z-[100] bg-zinc-950 flex flex-col">
             {/* Main Video Area (Remote or Self if just calling) */}
             <div className="relative flex-1 bg-black">
-                {remoteStream && !isRemoteCameraOff ? (
-                    <video
-                        ref={remoteVideoRef}
-                        autoPlay
-                        playsInline
-                        className="w-full h-full object-cover"
-                    />
-                ) : (
-                    <div className="w-full h-full flex flex-col items-center justify-center text-white/50 gap-4">
-                        <Avatar className="w-32 h-32 border-4 border-white/5 animate-pulse">
-                            <AvatarImage src={callerInfo?.avatar || undefined} />
-                            <AvatarFallback className="text-4xl">{callerInfo?.name?.[0]}</AvatarFallback>
-                        </Avatar>
-                        <p className="text-xl animate-pulse">
-                            {remoteStream ? (isVideoCall ? 'Camera Off' : 'Audio Call') : (isVideoCall ? 'Calling...' : 'Audio Calling...')}
-                        </p>
-                    </div>
-                )}
+                {(() => {
+                    console.log('🎥 Render decision:', { hasRemoteStream: !!remoteStream, isRemoteCameraOff, isVideoCall });
+                    return remoteStream && !isRemoteCameraOff ? (
+                        <video
+                            ref={remoteVideoRef}
+                            autoPlay
+                            playsInline
+                            className="w-full h-full object-cover"
+                        />
+                    ) : (
+                        <div className="w-full h-full flex flex-col items-center justify-center text-white/50 gap-4">
+                            <Avatar className="w-32 h-32 border-4 border-white/5 animate-pulse">
+                                <AvatarImage src={callerInfo?.avatar || undefined} />
+                                <AvatarFallback className="text-4xl">{callerInfo?.name?.[0]}</AvatarFallback>
+                            </Avatar>
+                            <p className="text-xl animate-pulse">
+                                {remoteStream ? (isVideoCall ? 'Camera Off' : 'Audio Call') : (isVideoCall ? 'Calling...' : 'Audio Calling...')}
+                            </p>
+                        </div>
+                    );
+                })()}
 
                 {/* Local Video (PiP) */}
                 <div className={cn(

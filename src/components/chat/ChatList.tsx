@@ -129,7 +129,7 @@ export const ChatList = ({ selectedId, onSelect }: ChatListProps) => {
             {/* Header with Search and Create */}
             <div className="p-4 space-y-4 border-b border-white/5 bg-background/50">
                 <div className="flex items-center justify-between">
-                    <h2 className="text-xl font-bold font-display">Messages</h2>
+                    <h2 className="text-xl font-bold">Messages</h2>
                     <Button variant="ghost" size="icon" onClick={() => setShowCreateModal(true)} className="hover:bg-primary/20 hover:text-primary">
                         <Plus className="w-5 h-5" />
                     </Button>
