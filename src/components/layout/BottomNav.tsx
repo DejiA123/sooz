@@ -5,9 +5,33 @@ import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import CreatePostModal from "@/components/feed/CreatePostModal";
 
+import { queryClient } from "@/lib/react-query";
+import { supabase } from "@/integrations/supabase/client";
+
 export const BottomNav = () => {
   const location = useLocation();
   const [showCreateModal, setShowCreateModal] = useState(false);
+
+  const prefetchData = (path: string) => {
+    if (path === '/chat') {
+      queryClient.prefetchQuery({
+        queryKey: ['conversations'],
+        queryFn: async () => {
+          const { data } = await supabase.from('conversations').select('*').limit(20);
+          return data;
+        }
+      });
+    }
+    if (path === '/activity') {
+      // Prefetch notifications (simulated by fetching recent likes/follows)
+      queryClient.prefetchQuery({
+        queryKey: ['notifications'],
+        queryFn: async () => {
+          return []; // Placeholder until notification query is formalized
+        }
+      });
+    }
+  };
 
   const navItems = [
     { icon: Home, label: "Home", path: "/" },
@@ -49,11 +73,17 @@ export const BottomNav = () => {
                   if (path === '/chat') import('../../pages/Chat');
                   if (path === '/activity') import('../../pages/Notifications');
                   if (path === '/profile/me') import('../../pages/Profile');
+
+                  // Prefetch Data
+                  prefetchData(path);
                 }}
                 onTouchStart={() => {
                   if (path === '/chat') import('../../pages/Chat');
                   if (path === '/activity') import('../../pages/Notifications');
                   if (path === '/profile/me') import('../../pages/Profile');
+
+                  // Prefetch Data
+                  prefetchData(path);
                 }}
                 className={cn(
                   "flex flex-col items-center justify-center p-2 rounded-xl transition-all duration-300",
