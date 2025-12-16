@@ -9,7 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
-import EmojiPicker from 'emoji-picker-react';
+import EmojiPicker, { Theme } from 'emoji-picker-react';
 import {
     Popover,
     PopoverContent,
@@ -227,12 +227,22 @@ export const ChatWindow = ({ chatId, onBack }: ChatWindowProps) => {
                         <p className="text-xs text-muted-foreground">{chatInfo.online ? 'Active now' : ''}</p>
                     </div>
                 </div>
-                <div>
+                <div className="flex gap-2">
                     <Button
                         variant="ghost"
                         size="icon"
                         className="text-muted-foreground hover:text-primary"
-                        onClick={() => chatInfo.id && startCall(chatInfo.id, chatInfo.name, chatInfo.avatar)}
+                        onClick={() => chatInfo.id && startCall(chatInfo.id, chatInfo.name, chatInfo.avatar, false)}
+                        disabled={!chatInfo.id}
+                        title="Start Audio Call"
+                    >
+                        <Phone className="w-5 h-5" />
+                    </Button>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-muted-foreground hover:text-primary"
+                        onClick={() => chatInfo.id && startCall(chatInfo.id, chatInfo.name, chatInfo.avatar, true)}
                         disabled={!chatInfo.id}
                         title="Start Video Call"
                     >
@@ -340,7 +350,7 @@ export const ChatWindow = ({ chatId, onBack }: ChatWindowProps) => {
                                 </Button>
                             </PopoverTrigger>
                             <PopoverContent side="top" align="end" className="w-auto p-0 border-none bg-transparent shadow-none">
-                                <EmojiPicker onEmojiClick={onEmojiClick} theme="dark" width={300} height={400} />
+                                <EmojiPicker onEmojiClick={onEmojiClick} theme={Theme.DARK} width={300} height={400} />
                             </PopoverContent>
                         </Popover>
                     </div>

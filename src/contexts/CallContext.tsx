@@ -11,7 +11,7 @@ interface CallContextType {
     localStream: MediaStream | null;
     remoteStream: MediaStream | null;
     callerInfo: { id: string; name: string; avatar: string | null } | null;
-    startCall: (recipientId: string, recipientName: string, recipientAvatar: string | null) => Promise<void>;
+    startCall: (recipientId: string, recipientName: string, recipientAvatar: string | null, isVideo?: boolean) => Promise<void>;
     acceptCall: () => Promise<void>;
     rejectCall: () => void;
     endCall: () => void;
@@ -139,10 +139,18 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
         }
     };
 
-    const startCall = async (id: string, name: string, avatar: string | null) => {
+    const startCall = async (id: string, name: string, avatar: string | null, isVideo: boolean = true) => {
         setRecipientId(id);
         const stream = await getMedia();
         if (!stream) return;
+
+        // If audio-only, disable video track immediately
+        if (!isVideo) {
+            stream.getVideoTracks().forEach(track => track.enabled = false);
+            setIsCameraOff(true);
+        } else {
+            setIsCameraOff(false);
+        }
 
         setCallState('CALLING');
         setCallerInfo({ id, name, avatar }); // Re-using callerInfo for outgoing call display info too for simplicity, or just use separate
