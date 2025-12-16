@@ -215,7 +215,7 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
                 payload: {
                     offer,
                     from: user?.id,
-                    callerName: user?.user_metadata?.first_name || 'Unknown',
+                    callerName: user?.user_metadata?.display_name || user?.user_metadata?.full_name || user?.user_metadata?.username || user?.email?.split('@')[0] || 'User',
                     callerAvatar: user?.user_metadata?.avatar_url,
                     isVideo: isVideo,
                     isCameraOff: !isVideo // Initial state
@@ -228,7 +228,7 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
                     type: 'chat_message',
                     toUserId: id,
                     title: `Incoming ${isVideo ? 'Video' : 'Audio'} Call`,
-                    body: `${user.user_metadata?.username || 'Someone'} is calling you`,
+                    body: `${user?.user_metadata?.display_name || user?.user_metadata?.full_name || user?.user_metadata?.username || 'Someone'} is calling you`,
                     url: '/chat'
                 }
             }).then(({ error }) => {
