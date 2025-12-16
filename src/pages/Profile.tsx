@@ -47,6 +47,7 @@ const Profile = () => {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"posts" | "saved" | "liked">("posts");
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showAvatarModal, setShowAvatarModal] = useState(false);
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
 
   const isOwnProfile = user?.id === profile?.id;
@@ -244,21 +245,28 @@ const Profile = () => {
       <div className="px-1">
         {/* Avatar */}
         <div className="relative -mt-12 mb-4">
-          <div className="w-24 h-24 rounded-full border-4 border-background bg-muted overflow-hidden">
-            {profile.avatar_url ? (
-              <img
-                src={profile.avatar_url}
-                alt={profile.display_name || profile.username}
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <div className="w-full h-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
-                <span className="text-2xl font-bold text-primary-foreground">
-                  {(profile.display_name || profile.username).charAt(0).toUpperCase()}
-                </span>
+          <button
+            onClick={() => setShowAvatarModal(true)}
+            className="group relative"
+          >
+            <div className="w-24 h-24 md:w-32 md:h-32 rounded-full border-4 border-background bg-secondary overflow-hidden">
+              {profile.avatar_url ? (
+                <img
+                  src={profile.avatar_url}
+                  alt={profile.username}
+                  className="w-full h-full object-cover transition-transform group-hover:scale-105"
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center bg-muted text-muted-foreground text-4xl">
+                  {profile.username[0].toUpperCase()}
+                </div>
+              )}
+              {/* Overlay hint */}
+              <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-full">
+                <Grid3X3 className="w-6 h-6 text-white drop-shadow-md" />
               </div>
-            )}
-          </div>
+            </div>
+          </button>
         </div>
 
         {/* Name and Actions */}
@@ -448,15 +456,37 @@ const Profile = () => {
         </DialogContent>
       </Dialog>
 
-      {showEditModal && (
-        <EditProfileModal
-          profile={profile}
-          onClose={() => setShowEditModal(false)}
-          onUpdate={fetchProfile}
-        />
-      )}
-    </div>
+      {
+        showEditModal && (
+          <EditProfileModal
+            profile={profile}
+            onClose={() => setShowEditModal(false)}
+            onUpdate={fetchProfile}
+          />
+        )
+      }
+
+      {/* Avatar Lightbox */}
+      <Dialog open={showAvatarModal} onOpenChange={setShowAvatarModal}>
+        <DialogContent className="p-0 border-none bg-transparent max-w-lg w-full overflow-hidden shadow-none flex items-center justify-center outline-none">
+          <div className="relative w-full aspect-square max-h-[80vh] rounded-full overflow-hidden border-4 border-white/20 shadow-2xl">
+            {profile.avatar_url ? (
+              <img
+                src={profile.avatar_url}
+                alt={profile.username}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center bg-muted text-muted-foreground text-9xl">
+                {profile.username[0].toUpperCase()}
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div >
   );
 };
 
 export default Profile;
+```
