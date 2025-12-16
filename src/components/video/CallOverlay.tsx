@@ -62,9 +62,21 @@ export const CallOverlay = () => {
             remoteAudioRef.current.srcObject = remoteStream;
             remoteAudioRef.current.volume = 1.0;
 
-            remoteAudioRef.current.play().catch(err => {
-                console.error('🔊 Error playing audio:', err);
-            });
+            // Attempt to play
+            const playAudio = async () => {
+                try {
+                    await remoteAudioRef.current?.play();
+                    console.log('🔊 Audio playback started successfully');
+                } catch (err) {
+                    console.error('🔊 Error playing audio:', err);
+                    // If failed (likely autoplay policy), try again on next interaction
+                    toast.error("Audio blocked. Tap anywhere to unmute.");
+                    document.addEventListener('click', () => {
+                        remoteAudioRef.current?.play().catch(console.error);
+                    }, { once: true });
+                }
+            };
+            playAudio();
         }
     }, [remoteStream, callState]);
 
@@ -129,12 +141,13 @@ export const CallOverlay = () => {
                                 onError={(e) => console.error('🎥 Remote video error:', e)}
                                 className="w-full h-full object-cover"
                             />
-                            {/* Separate audio element for reliable audio playback */}
+                            {/* Separate audio element for reliable audio playback - using opacity-0 instead of hidden to prevent throttling */}
                             <audio
                                 ref={remoteAudioRef}
                                 autoPlay
                                 playsInline
-                                className="hidden"
+                                controls={false}
+                                className="absolute pointer-events-none opacity-0 w-1 h-1"
                             />
                         </>
                     ) : (
