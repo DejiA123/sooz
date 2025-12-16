@@ -36,8 +36,19 @@ export const usePushNotifications = () => {
 
         try {
             const registration = await navigator.serviceWorker.ready;
+            console.log('Service Worker ready:', registration);
+
+            // Check if permission is granted
+            const permission = await Notification.requestPermission();
+            console.log('Notification permission:', permission);
+
+            if (permission !== 'granted') {
+                toast.error("Please allow notifications in your browser settings");
+                return;
+            }
 
             // 1. Subscribe to Browser Push Manager
+            console.log('Attempting to subscribe with VAPID key:', VAPID_PUBLIC_KEY);
             const sub = await registration.pushManager.subscribe({
                 userVisibleOnly: true,
                 applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
@@ -73,9 +84,11 @@ export const usePushNotifications = () => {
                 description: "You will now receive updates when the app is closed."
             });
 
-        } catch (error) {
+        } catch (error: any) {
             console.error("Failed to subscribe:", error);
-            toast.error("Failed to enable notifications");
+            console.error("Error name:", error.name);
+            console.error("Error message:", error.message);
+            toast.error(`Failed to enable notifications: ${error.name}`);
         }
     };
 
