@@ -93,9 +93,14 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
 
         // Handle connection state changes
         pc.onconnectionstatechange = () => {
+            console.log('📡 Connection state changed:', pc.connectionState);
             if (pc.connectionState === 'connected') {
                 setCallState('CONNECTED');
-            } else if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed' || pc.connectionState === 'closed') {
+            } else if (pc.connectionState === 'failed') {
+                // Only end on failed, let disconnected persist (might be temporary network switch)
+                console.error('📡 Connection failed');
+                handleEnd();
+            } else if (pc.connectionState === 'closed') {
                 handleEnd();
             }
         };
@@ -147,12 +152,27 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
 
     const getMedia = async () => {
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-            setLocalStream(stream);
-            return stream;
+            console.log("🎥 Requesting media access...");
+            // Try with ideal constraints first
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: 'user' },
+                    audio: { echoCancellation: true, noiseSuppression: true }
+                });
+                console.log("🎥 Media access granted (ideal)");
+                setLocalStream(stream);
+                return stream;
+            } catch (e) {
+                console.log("🎥 Initial media request failed, trying fallback...", e);
+                // Fallback to basic constraints
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                console.log("🎥 Media access granted (fallback)");
+                setLocalStream(stream);
+                return stream;
+            }
         } catch (err) {
             console.error("Error accessing media devices", err);
-            toast.error("Could not access camera/microphone");
+            toast.error("Could not access camera/microphone. Please check permissions.");
             return null;
         }
     };
