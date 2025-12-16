@@ -73,11 +73,21 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
             }
         };
 
+        let remoteStreamTemp: MediaStream | null = null;
+
         pc.ontrack = (event) => {
             console.log('📹 Received remote track:', event.track.kind, event.streams);
+
             if (event.streams && event.streams[0]) {
-                console.log('📹 Setting remote stream with tracks:', event.streams[0].getTracks().map(t => `${t.kind}: ${t.enabled}`));
-                setRemoteStream(event.streams[0]);
+                // Use the first stream from the event
+                if (!remoteStreamTemp) {
+                    remoteStreamTemp = event.streams[0];
+                    console.log('📹 Setting remote stream (first time) with tracks:', remoteStreamTemp.getTracks().map(t => `${t.kind}: ${t.enabled}`));
+                    setRemoteStream(remoteStreamTemp);
+                } else {
+                    // Just log subsequent tracks, don't re-set the stream
+                    console.log('📹 Additional track received, not updating stream');
+                }
             }
         };
 
