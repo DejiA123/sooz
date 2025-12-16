@@ -122,7 +122,7 @@ export default function Activity() {
 
     return (
         <div className="pb-20">
-            <h1 className="text-xl font-bold px-4 py-4 font-display">Notifications</h1>
+            <h1 className="text-xl font-bold px-4 py-4">Notifications</h1>
             <ScrollArea className="h-[calc(100vh-140px)]">
                 <div className="space-y-1 px-2">
                     {activities.length === 0 ? (

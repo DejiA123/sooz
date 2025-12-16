@@ -60,7 +60,7 @@ export default function Settings() {
                     <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
                         <ArrowLeft className="w-5 h-5" />
                     </Button>
-                    <h1 className="text-2xl font-bold font-display">Settings</h1>
+                    <h1 className="text-2xl font-bold">Settings</h1>
                 </div>
 
                 <section className="space-y-6">

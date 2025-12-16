@@ -342,13 +342,9 @@ export const PostCard = ({
             </button>
           </div>
 
-          {/* Likes & Views */}
-          <div className="mb-2 flex items-center gap-4">
+          {/* Likes */}
+          <div className="mb-2">
             <p className="text-sm font-semibold">{likes.toLocaleString()} likes</p>
-            <p className="text-sm text-muted-foreground flex items-center gap-1">
-              <Eye className="w-4 h-4" />
-              {views.toLocaleString()} views
-            </p>
           </div>
 
           {/* Caption */}
