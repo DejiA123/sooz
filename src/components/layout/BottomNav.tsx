@@ -44,6 +44,17 @@ export const BottomNav = () => {
               <Link
                 key={path}
                 to={path}
+                onMouseEnter={() => {
+                  // Prefetch the route chunk
+                  if (path === '/chat') import('../../pages/Chat');
+                  if (path === '/activity') import('../../pages/Notifications');
+                  if (path === '/profile/me') import('../../pages/Profile');
+                }}
+                onTouchStart={() => {
+                  if (path === '/chat') import('../../pages/Chat');
+                  if (path === '/activity') import('../../pages/Notifications');
+                  if (path === '/profile/me') import('../../pages/Profile');
+                }}
                 className={cn(
                   "flex flex-col items-center justify-center p-2 rounded-xl transition-all duration-300",
                   isActive
