@@ -74,7 +74,11 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
         };
 
         pc.ontrack = (event) => {
-            setRemoteStream(event.streams[0]);
+            console.log('📹 Received remote track:', event.track.kind, event.streams);
+            if (event.streams && event.streams[0]) {
+                console.log('📹 Setting remote stream with tracks:', event.streams[0].getTracks().map(t => `${t.kind}: ${t.enabled}`));
+                setRemoteStream(event.streams[0]);
+            }
         };
 
         // Handle connection state changes
@@ -162,6 +166,7 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
         const pc = createPeerConnection();
         if (!pc) return;
 
+        console.log('📹 Adding local tracks to peer connection:', stream.getTracks().map(t => `${t.kind}: ${t.enabled}`));
         stream.getTracks().forEach(track => pc.addTrack(track, stream));
 
         const offer = await pc.createOffer();
@@ -298,6 +303,7 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
         const pc = createPeerConnection(); // Should ensure PC exists
         if (!pc) return;
 
+        console.log('📹 Adding local tracks (answering side):', stream.getTracks().map(t => `${t.kind}: ${t.enabled}`));
         stream.getTracks().forEach(track => pc.addTrack(track, stream));
 
         await pc.setRemoteDescription(new RTCSessionDescription(pendingOffer.current));
