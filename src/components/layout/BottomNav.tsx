@@ -56,7 +56,7 @@ export const BottomNav = () => {
                   <div className="bg-gradient-to-tr from-primary to-accent p-3 rounded-full shadow-lg hover:scale-105 transition-transform">
                     <PlusSquare className="w-6 h-6 text-white fill-white/20" />
                   </div>
-                  <span className="text-[10px] font-medium mt-1">{label}</span>
+                  <span className="text-xs font-medium mt-1">{label}</span>
                 </button>
               );
             }
@@ -96,7 +96,7 @@ export const BottomNav = () => {
                   className={cn("w-6 h-6 mb-1", isActive && "fill-current")}
                   strokeWidth={isActive ? 2.5 : 2}
                 />
-                <span className="text-[10px] font-medium">{label}</span>
+                <span className="text-xs font-medium">{label}</span>
               </Link>
             );
           })}

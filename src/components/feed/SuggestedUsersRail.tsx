@@ -96,8 +96,8 @@ export const SuggestedUsersRail = () => {
     return (
         <div className="w-full space-y-4 py-3">
             <div className="flex items-center justify-between px-1">
-                <h3 className="font-semibold text-sm">Suggested for you</h3>
-                <Link to="/suggested-people" className="text-sm font-semibold text-primary hover:opacity-80">
+                <h3 className="font-semibold text-base">Suggested for you</h3>
+                <Link to="/suggested-people" className="text-base font-semibold text-primary hover:opacity-80">
                     See all
                 </Link>
             </div>
@@ -122,17 +122,17 @@ export const SuggestedUsersRail = () => {
                                     <AvatarFallback className="text-xl bg-secondary">{profile.username[0].toUpperCase()}</AvatarFallback>
                                 </Avatar>
                                 <div className="text-center w-full space-y-1">
-                                    <p className="font-semibold text-sm truncate w-full px-1 leading-tight">
+                                    <p className="font-semibold text-base truncate w-full px-1 leading-tight">
                                         {profile.display_name || profile.username}
                                     </p>
-                                    <p className="text-[10px] text-muted-foreground truncate w-full px-1">
+                                    <p className="text-xs text-muted-foreground truncate w-full px-1">
                                         Followed by sooz_user + 2 others
                                     </p>
                                 </div>
                             </Link>
 
                             <Button
-                                className="w-full mt-auto h-8 text-xs font-semibold bg-primary hover:bg-primary/90 transition-all active:scale-95"
+                                className="w-full mt-auto h-8 text-sm font-semibold bg-primary hover:bg-primary/90 transition-all active:scale-95"
                                 onClick={() => handleFollow(profile.id)}
                             >
                                 Follow

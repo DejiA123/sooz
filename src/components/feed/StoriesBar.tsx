@@ -16,13 +16,12 @@ const StoriesBar = () => {
         {stories.map((story) => (
           <div key={story.id} className="flex flex-col items-center gap-1.5 min-w-fit">
             <div
-              className={`relative w-16 h-16 rounded-full p-[2.5px] ${
-                story.isAdd
+              className={`relative w-16 h-16 rounded-full p-[2.5px] ${story.isAdd
                   ? "bg-muted"
                   : story.hasNew
-                  ? "bg-gradient-to-br from-primary via-secondary to-primary"
-                  : "bg-muted"
-              }`}
+                    ? "bg-gradient-to-br from-primary via-secondary to-primary"
+                    : "bg-muted"
+                }`}
             >
               {story.isAdd ? (
                 <div className="w-full h-full rounded-full bg-card flex items-center justify-center border-2 border-dashed border-muted-foreground/30">
@@ -36,7 +35,7 @@ const StoriesBar = () => {
                 />
               )}
             </div>
-            <span className="text-xs text-center w-16 truncate text-muted-foreground">
+            <span className="text-sm text-center w-16 truncate text-muted-foreground">
               {story.name}
             </span>
           </div>

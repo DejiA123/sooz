@@ -225,7 +225,7 @@ export const PostCard = ({
             </Link>
             <div>
               <Link to={`/profile/${user.username}`} className="hover:opacity-80 transition-opacity">
-                <h3 className="font-semibold text-sm leading-none">{user.display_name || user.username}</h3>
+                <h3 className="font-semibold text-lg leading-none">{user.display_name || user.username}</h3>
               </Link>
               {/* Optional: Location or subtext could go here */}
             </div>
@@ -344,13 +344,13 @@ export const PostCard = ({
 
           {/* Likes */}
           <div className="mb-2">
-            <p className="text-sm font-semibold">{likes.toLocaleString()} likes</p>
+            <p className="text-lg font-semibold">{likes.toLocaleString()} likes</p>
           </div>
 
           {/* Caption */}
           {caption && (
             <div className="mb-1">
-              <p className="text-sm leading-normal">
+              <p className="text-lg leading-normal">
                 <Link to={`/profile/${user.username}`} className="font-semibold hover:underline mr-2">
                   {user.username}
                 </Link>
@@ -366,7 +366,7 @@ export const PostCard = ({
                 postId={id}
                 postOwnerUsername={user.username}
                 trigger={
-                  <button className="text-sm text-neutral-500 hover:text-neutral-300">
+                  <button className="text-lg text-neutral-500 hover:text-neutral-300">
                     View all {comments_count} comments
                   </button>
                 }
@@ -375,7 +375,7 @@ export const PostCard = ({
           )}
 
           {/* Time */}
-          <p className="text-[10px] text-neutral-500 uppercase tracking-wide">
+          <p className="text-sm text-neutral-500 uppercase tracking-wide">
             {formatDistanceToNow(new Date(created_at), { addSuffix: false })} ago
           </p>
         </div>
