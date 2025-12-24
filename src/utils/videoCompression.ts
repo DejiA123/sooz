@@ -104,7 +104,16 @@ export async function compressVideo(
 
         onProgress?.(100, 'compressing');
 
-        const compressedBlob = new Blob([data], { type: 'video/mp4' });
+        // Convert FileData to a proper format for Blob
+        // ffmpeg readFile returns Uint8Array | string, we need to handle both
+        let blobData: BlobPart;
+        if (typeof data === 'string') {
+            blobData = data;
+        } else {
+            // Create a new Uint8Array with its own ArrayBuffer to avoid SharedArrayBuffer issues
+            blobData = new Uint8Array(data).buffer;
+        }
+        const compressedBlob = new Blob([blobData], { type: 'video/mp4' });
         const compressedFile = new File([compressedBlob], file.name.replace(/\.[^/.]+$/, '.mp4'), {
             type: 'video/mp4',
         });
