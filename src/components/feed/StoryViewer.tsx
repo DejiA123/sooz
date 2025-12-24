@@ -116,10 +116,10 @@ export const StoryViewer = ({ initialUserIndex, stories, onClose }: StoryViewerP
                                 <AvatarImage src={currentUser.avatar} />
                                 <AvatarFallback>{currentUser.username[0]}</AvatarFallback>
                             </Avatar>
-                            <span className="text-white font-semibold text-base drop-shadow-md">
+                            <span className="text-white font-semibold text-sm drop-shadow-md">
                                 {currentUser.username}
                             </span>
-                            <span className="text-white/60 text-sm drop-shadow-md">
+                            <span className="text-white/60 text-xs drop-shadow-md">
                                 {new Date(currentStory.created_at).getHours()}h
                             </span>
                         </div>

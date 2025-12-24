@@ -128,11 +128,11 @@ export const CommentDrawer = ({ postId, postOwnerUsername, trigger, open: contro
                                         <AvatarFallback>{comment.user.username[0].toUpperCase()}</AvatarFallback>
                                     </Avatar>
                                     <div className="flex-1">
-                                        <p className="text-lg">
+                                        <p className="text-sm">
                                             <span className="font-semibold mr-2">{comment.user.username}</span>
                                             {comment.content}
                                         </p>
-                                        <p className="text-sm text-muted-foreground mt-1">
+                                        <p className="text-xs text-muted-foreground mt-1">
                                             {formatDistanceToNow(new Date(comment.created_at), { addSuffix: true })}
                                         </p>
                                     </div>
