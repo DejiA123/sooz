@@ -4,13 +4,23 @@ import { Home, MessageCircle, Heart, User, PlusSquare } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { CreateModal } from "@/components/create/CreateModal";
+import { useAuth } from "@/hooks/useAuth";
 
 import { queryClient } from "@/lib/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
 export const BottomNav = () => {
   const location = useLocation();
+  const { user } = useAuth();
   const [showCreateModal, setShowCreateModal] = useState(false);
+
+  const handleCreateClick = () => {
+    if (!user) {
+      window.location.href = "/auth";
+      return;
+    }
+    setShowCreateModal(true);
+  };
 
   const prefetchData = (path: string) => {
     if (path === '/chat') {
@@ -50,7 +60,7 @@ export const BottomNav = () => {
               return (
                 <button
                   key="create"
-                  onClick={() => setShowCreateModal(true)}
+                  onClick={handleCreateClick}
                   className="flex flex-col items-center justify-center p-2 -mt-6"
                 >
                   <div className="bg-gradient-to-tr from-primary to-accent p-3 rounded-full shadow-lg hover:scale-105 transition-transform">

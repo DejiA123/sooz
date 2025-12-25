@@ -3,7 +3,7 @@ import { Link, useLocation } from "react-router-dom";
 import { Home, Heart, User, PlusSquare, Search, Menu, MoreHorizontal, Settings as SettingsIcon, ActivitySquare, Bookmark, Moon, Sun, MessageSquareWarning, LogOut, MessageCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import CreatePostModal from "@/components/feed/CreatePostModal";
+import { CreateModal } from "@/components/create/CreateModal";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from "@/hooks/useAuth";
 import {
@@ -31,6 +31,14 @@ export const Sidebar = () => {
         { icon: User, label: "Profile", path: "/profile/me" },
     ];
 
+    const handleCreateClick = () => {
+        if (!user) {
+            window.location.href = "/auth";
+            return;
+        }
+        setShowCreateModal(true);
+    };
+
     return (
         <>
             <aside className="hidden md:flex flex-col fixed left-0 top-0 z-50 h-screen w-64 bg-background border-r border-border px-4 py-6">
@@ -50,7 +58,7 @@ export const Sidebar = () => {
                             return (
                                 <button
                                     key={item.label}
-                                    onClick={() => setShowCreateModal(true)}
+                                    onClick={handleCreateClick}
                                     className="flex items-center gap-4 p-3 rounded-lg hover:bg-secondary/50 transition-colors group text-foreground"
                                 >
                                     <item.icon className="w-6 h-6 group-hover:scale-105 transition-transform" />
@@ -151,7 +159,7 @@ export const Sidebar = () => {
                 </div>
             </aside>
 
-            <CreatePostModal
+            <CreateModal
                 isOpen={showCreateModal}
                 onClose={() => setShowCreateModal(false)}
                 onPostCreated={() => window.location.reload()}
