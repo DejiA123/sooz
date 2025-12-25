@@ -1,0 +1,273 @@
+import { useState, useRef } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { X, Image, Film, Loader2, Upload, Plus } from "lucide-react";
+import { toast } from "sonner";
+import { cn } from "@/lib/utils";
+import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+
+interface CreateModalProps {
+    isOpen: boolean;
+    onClose: () => void;
+    onPostCreated?: () => void;
+}
+
+export const CreateModal = ({ isOpen, onClose, onPostCreated }: CreateModalProps) => {
+    const { user } = useAuth();
+    const [caption, setCaption] = useState("");
+    const [mediaFile, setMediaFile] = useState<File | null>(null);
+    const [mediaPreview, setMediaPreview] = useState<string | null>(null);
+    const [mediaType, setMediaType] = useState<"image" | "video" | null>(null);
+    const [isLoading, setIsLoading] = useState(false);
+    const [isDragging, setIsDragging] = useState(false);
+    const [activeTab, setActiveTab] = useState<"post" | "story">("post");
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const resetForm = () => {
+        setCaption("");
+        setMediaFile(null);
+        setMediaPreview(null);
+        setMediaType(null);
+        setIsLoading(false);
+    };
+
+    const handleFileSelect = (file: File) => {
+        const isImage = file.type.startsWith("image/");
+        const isVideo = file.type.startsWith("video/");
+
+        if (!isImage && !isVideo) {
+            toast.error("Please select an image or video file");
+            return;
+        }
+
+        setMediaFile(file);
+        setMediaType(isImage ? "image" : "video");
+        setMediaPreview(URL.createObjectURL(file));
+    };
+
+    const handleDrop = (e: React.DragEvent) => {
+        e.preventDefault();
+        setIsDragging(false);
+        const file = e.dataTransfer.files[0];
+        if (file) handleFileSelect(file);
+    };
+
+    const handleSubmit = async () => {
+        if (!user) return;
+        if (!mediaFile && activeTab === "story") {
+            toast.error("Story must have media");
+            return;
+        }
+
+        setIsLoading(true);
+
+        try {
+            let mediaUrl = null;
+
+            // Upload media if present
+            if (mediaFile) {
+                const fileExt = mediaFile.name.split(".").pop();
+                const fileName = `${user.id}/${Date.now()}.${fileExt}`;
+
+                const { error: uploadError } = await supabase.storage
+                    .from("media")
+                    .upload(fileName, mediaFile);
+
+                if (uploadError) {
+                    toast.error("Failed to upload media");
+                    setIsLoading(false);
+                    return;
+                }
+
+                const { data } = supabase.storage.from("media").getPublicUrl(fileName);
+                mediaUrl = data.publicUrl;
+            }
+
+            const commonData = {
+                user_id: user.id,
+                media_url: mediaUrl,
+                media_type: mediaType || "image", // Default to image if text-only post, but text-only is handled below
+            };
+
+            if (activeTab === "post") {
+                const { error: postError } = await supabase.from("posts").insert({
+                    ...commonData,
+                    caption: caption || null,
+                    media_type: mediaType // If null (text only), it stays null
+                });
+
+                if (postError) throw postError;
+                toast.success("Post created!");
+            } else {
+                // Story
+                // Expires in 24 hours
+                const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+
+                const { error: storyError } = await supabase.from("stories").insert({
+                    ...commonData,
+                    media_url: mediaUrl!, // Enforced check above
+                    expires_at: expiresAt
+                });
+
+                if (storyError) throw storyError;
+                toast.success("Story added!");
+            }
+
+            onPostCreated?.();
+            resetForm();
+            onClose();
+        } catch (error) {
+            console.error(error);
+            toast.error("Failed to create " + activeTab);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/60 backdrop-blur-md animate-in fade-in duration-200">
+            <div className="relative w-full max-w-lg bg-background/40 backdrop-blur-xl border border-white/10 rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+
+                {/* Close Button */}
+                <button
+                    onClick={onClose}
+                    className="absolute top-4 right-4 p-2 rounded-full bg-black/5 hover:bg-black/10 dark:bg-white/5 dark:hover:bg-white/10 transition-colors z-10"
+                >
+                    <X className="w-5 h-5" />
+                </button>
+
+                <div className="p-6">
+                    <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "post" | "story")} className="w-full">
+                        <TabsList className="grid w-full grid-cols-2 mb-6 bg-black/5 dark:bg-white/5 rounded-2xl p-1 h-auto">
+                            <TabsTrigger
+                                value="post"
+                                className="rounded-xl py-3 data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm transition-all text-base font-medium"
+                            >
+                                Create Post
+                            </TabsTrigger>
+                            <TabsTrigger
+                                value="story"
+                                className="rounded-xl py-3 data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm transition-all text-base font-medium"
+                            >
+                                Add to Story
+                            </TabsTrigger>
+                        </TabsList>
+
+                        <div className="space-y-6">
+                            {/* Media Upload Area */}
+                            {!mediaPreview ? (
+                                <div
+                                    className={cn(
+                                        "border-2 border-dashed rounded-3xl h-[300px] flex flex-col items-center justify-center text-center transition-all duration-300 cursor-pointer group",
+                                        isDragging
+                                            ? "border-primary bg-primary/10 scale-[0.98]"
+                                            : "border-muted-foreground/20 hover:border-primary/50 hover:bg-muted/30"
+                                    )}
+                                    onDragOver={(e) => {
+                                        e.preventDefault();
+                                        setIsDragging(true);
+                                    }}
+                                    onDragLeave={() => setIsDragging(false)}
+                                    onDrop={handleDrop}
+                                    onClick={() => fileInputRef.current?.click()}
+                                >
+                                    <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
+                                        <Upload className="w-10 h-10 text-primary" />
+                                    </div>
+                                    <p className="text-lg font-semibold mb-2">
+                                        {activeTab === 'story' ? 'Upload Story' : 'Upload Request'}
+                                    </p>
+                                    <p className="text-sm text-muted-foreground max-w-[200px] mx-auto mb-6">
+                                        Drag and drop or click to upload
+                                    </p>
+                                    <div className="flex items-center gap-4 text-xs font-medium text-muted-foreground bg-black/5 dark:bg-white/5 px-4 py-2 rounded-full">
+                                        <span className="flex items-center gap-1.5">
+                                            <Image className="w-3.5 h-3.5" /> Photos
+                                        </span>
+                                        <span className="w-1 h-1 rounded-full bg-current opacity-30" />
+                                        <span className="flex items-center gap-1.5">
+                                            <Film className="w-3.5 h-3.5" /> Videos
+                                        </span>
+                                    </div>
+                                    <input
+                                        ref={fileInputRef}
+                                        type="file"
+                                        accept="image/*,video/*"
+                                        onChange={(e) => {
+                                            const file = e.target.files?.[0];
+                                            if (file) handleFileSelect(file);
+                                        }}
+                                        className="hidden"
+                                    />
+                                </div>
+                            ) : (
+                                <div className="relative rounded-3xl overflow-hidden bg-black aspect-[4/5] shadow-inner group">
+                                    {mediaType === "image" ? (
+                                        <img
+                                            src={mediaPreview}
+                                            alt="Preview"
+                                            className="w-full h-full object-contain"
+                                        />
+                                    ) : (
+                                        <video
+                                            src={mediaPreview}
+                                            controls
+                                            className="w-full h-full object-contain"
+                                        />
+                                    )}
+                                    <button
+                                        onClick={() => {
+                                            setMediaFile(null);
+                                            setMediaPreview(null);
+                                            setMediaType(null);
+                                        }}
+                                        className="absolute top-4 right-4 p-2 rounded-full bg-black/50 text-white backdrop-blur-md hover:bg-black/70 transition-all opacity-0 group-hover:opacity-100"
+                                    >
+                                        <X className="w-5 h-5" />
+                                    </button>
+                                </div>
+                            )}
+
+                            {/* Caption Input (Only for Post) */}
+                            {activeTab === "post" && (
+                                <div className="relative">
+                                    <Textarea
+                                        value={caption}
+                                        onChange={(e) => setCaption(e.target.value)}
+                                        placeholder="Write a caption..."
+                                        className="min-h-[100px] p-4 rounded-2xl bg-muted/30 border-none focus:ring-1 focus:ring-primary/50 resize-none text-base transition-all placeholder:text-muted-foreground/50"
+                                    />
+                                    <div className="absolute bottom-3 right-3 text-xs text-muted-foreground/50 font-medium">
+                                        {caption.length}/2200
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Submit Button */}
+                            <Button
+                                size="lg"
+                                className="w-full h-14 rounded-2xl text-lg font-semibold bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/20 transition-all active:scale-[0.98]"
+                                onClick={handleSubmit}
+                                disabled={isLoading || (activeTab === "story" && !mediaFile) || (activeTab === "post" && !caption && !mediaFile)}
+                            >
+                                {isLoading ? (
+                                    <div className="flex items-center gap-2">
+                                        <Loader2 className="w-5 h-5 animate-spin" />
+                                        <span>Uploading...</span>
+                                    </div>
+                                ) : (
+                                    <span>{activeTab === "story" ? "Share to Story" : "Share Post"}</span>
+                                )}
+                            </Button>
+                        </div>
+                    </Tabs>
+                </div>
+            </div>
+        </div>
+    );
+};

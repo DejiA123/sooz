@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Home, MessageCircle, Heart, User, PlusSquare } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
-import CreatePostModal from "@/components/feed/CreatePostModal";
+import { CreateModal } from "@/components/create/CreateModal";
 
 import { queryClient } from "@/lib/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -103,7 +103,7 @@ export const BottomNav = () => {
         </div>
       </div>
 
-      <CreatePostModal
+      <CreateModal
         isOpen={showCreateModal}
         onClose={() => setShowCreateModal(false)}
         onPostCreated={() => {
