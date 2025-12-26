@@ -55,6 +55,7 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
     const [recipientId, setRecipientId] = useState<string | null>(null);
 
     const peerConnection = useRef<RTCPeerConnection | null>(null);
+    const iceCandidatesQueue = useRef<RTCIceCandidate[]>([]); // Queue for early candidates
     const [isMuted, setIsMuted] = useState(false);
     const [isCameraOff, setIsCameraOff] = useState(false);
 
@@ -82,16 +83,27 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
         pc.ontrack = (event) => {
             console.log('📹 Received remote track:', event.track.kind, event.streams);
 
-            if (event.streams && event.streams[0]) {
-                // Use the first stream from the event
-                if (!remoteStreamTemp) {
-                    remoteStreamTemp = event.streams[0];
-                    console.log('📹 Setting remote stream (first time) with tracks:', remoteStreamTemp.getTracks().map(t => `${t.kind}: ${t.enabled}`));
-                    setRemoteStream(remoteStreamTemp);
+            // Always create a new stream if one doesn't exist, or add to existing
+            setRemoteStream((prevStream) => {
+                if (prevStream) {
+                    // Check if track already exists
+                    if (!prevStream.getTracks().find(t => t.id === event.track.id)) {
+                        prevStream.addTrack(event.track);
+                        return prevStream; // Re-render triggers might need new reference? usually strictly react needs new ref.
+                        // But MediaStream is mutable. Let's try forcing new reference if needed, but usually works if efficient.
+                        // Better: cloning stream? No, keep same stream object ID if possible for video element srcObject.
+                        // Actually, common pattern is:
+                        return prevStream;
+                    }
+                    return prevStream;
                 } else {
-                    // Just log subsequent tracks, don't re-set the stream
-                    console.log('📹 Additional track received, not updating stream');
+                    return event.streams[0] || new MediaStream([event.track]);
                 }
+            });
+
+            // Fallback: If event.streams[0] is provided, use it directly?
+            if (event.streams && event.streams[0]) {
+                // event.streams[0] is the remote stream
             }
         };
 
@@ -128,6 +140,23 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
         if (peerConnection.current) {
             peerConnection.current.close();
             peerConnection.current = null;
+        }
+    };
+
+    // Helper to process queued candidates
+    const processIceQueue = async () => {
+        if (!peerConnection.current || !peerConnection.current.remoteDescription) return;
+
+        while (iceCandidatesQueue.current.length > 0) {
+            const candidate = iceCandidatesQueue.current.shift();
+            if (candidate) {
+                try {
+                    await peerConnection.current.addIceCandidate(candidate);
+                    console.log("❄️ Added queued ICE candidate");
+                } catch (e) {
+                    console.error("Error adding queued ICE candidate", e);
+                }
+            }
         }
     };
 
@@ -318,16 +347,23 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
             .on('broadcast', { event: 'call-answer' }, async ({ payload }) => {
                 if (callState === 'CALLING' && peerConnection.current) {
                     await peerConnection.current.setRemoteDescription(new RTCSessionDescription(payload.answer));
+                    await processIceQueue(); // Process any queued candidates
                     setIsRemoteCameraOff(payload.isCameraOff || false);
                     setCallState('CONNECTED');
                 }
             })
             .on('broadcast', { event: 'ice-candidate' }, async ({ payload }) => {
-                if (peerConnection.current && peerConnection.current.remoteDescription) {
-                    try {
-                        await peerConnection.current.addIceCandidate(new RTCIceCandidate(payload.candidate));
-                    } catch (e) {
-                        console.error("Error adding Ice Candidate", e);
+                if (peerConnection.current) {
+                    if (peerConnection.current.remoteDescription) {
+                        try {
+                            await peerConnection.current.addIceCandidate(new RTCIceCandidate(payload.candidate));
+                        } catch (e) {
+                            console.error("Error adding Ice Candidate", e);
+                        }
+                    } else {
+                        // Queue it
+                        console.log("❄️ Queueing ICE candidate (remote desc not ready)");
+                        iceCandidatesQueue.current.push(new RTCIceCandidate(payload.candidate));
                     }
                 }
             })
@@ -368,6 +404,7 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
         stream.getTracks().forEach(track => pc.addTrack(track, stream));
 
         await pc.setRemoteDescription(new RTCSessionDescription(pendingOffer.current));
+        await processIceQueue(); // Process any queued candidates
         const answer = await pc.createAnswer();
         await pc.setLocalDescription(answer);
 
