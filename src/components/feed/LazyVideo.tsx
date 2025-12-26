@@ -56,24 +56,16 @@ export const LazyVideo = ({ src, id, onClick, startTime = 0 }: LazyVideoProps) =
         if (isActive) {
             const playVideo = async () => {
                 try {
-                    // 1. Try playing UNMUTED first (User preference)
-                    video.muted = false;
-                    setIsMuted(false);
-                    await video.play();
-                    setIsPlaying(true);
-                } catch (error) {
-                    console.log("Unmuted autoplay restricted, falling back to muted...", error);
-
-                    // 2. Play failed (likely browser blocked unmuted autoplay)
-                    // Fallback to MUTED autoplay immediately
-                    try {
+                    // Always start MUTED for reliable mobile autoplay
+                    if (video.paused) {
                         video.muted = true;
                         setIsMuted(true);
                         await video.play();
                         setIsPlaying(true);
-                    } catch (retryError) {
-                        console.error("Muted autoplay also failed", retryError);
                     }
+                } catch (error) {
+                    console.log("Autoplay failed", error);
+                    setIsPlaying(false);
                 }
             };
 
