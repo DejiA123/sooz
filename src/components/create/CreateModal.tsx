@@ -3,11 +3,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { X, Image, Film, Loader2, Upload, Plus } from "lucide-react";
+import { X, Image, Film, Loader2, Upload as UploadIcon, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Progress } from "@/components/ui/progress";
+import { s3Client, s3Config } from "@/integrations/s3/client";
+import { Upload } from "@aws-sdk/lib-storage";
 
 interface CreateModalProps {
     isOpen: boolean;
@@ -22,6 +25,7 @@ export const CreateModal = ({ isOpen, onClose, onPostCreated }: CreateModalProps
     const [mediaPreview, setMediaPreview] = useState<string | null>(null);
     const [mediaType, setMediaType] = useState<"image" | "video" | null>(null);
     const [isLoading, setIsLoading] = useState(false);
+    const [uploadProgress, setUploadProgress] = useState(0);
     const [isDragging, setIsDragging] = useState(false);
     const [activeTab, setActiveTab] = useState<"post" | "story">("post");
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -32,6 +36,7 @@ export const CreateModal = ({ isOpen, onClose, onPostCreated }: CreateModalProps
         setMediaPreview(null);
         setMediaType(null);
         setIsLoading(false);
+        setUploadProgress(0);
     };
 
     const handleFileSelect = (file: File) => {
@@ -63,6 +68,7 @@ export const CreateModal = ({ isOpen, onClose, onPostCreated }: CreateModalProps
         }
 
         setIsLoading(true);
+        setUploadProgress(0);
 
         try {
             let mediaUrl = null;
@@ -70,20 +76,28 @@ export const CreateModal = ({ isOpen, onClose, onPostCreated }: CreateModalProps
             // Upload media if present
             if (mediaFile) {
                 const fileExt = mediaFile.name.split(".").pop();
-                const fileName = `${user.id}/${Date.now()}.${fileExt}`;
+                const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+                const fileName = `${uniqueSuffix}.${fileExt}`;
 
-                const { error: uploadError } = await supabase.storage
-                    .from("media")
-                    .upload(fileName, mediaFile);
+                const upload = new Upload({
+                    client: s3Client,
+                    params: {
+                        Bucket: s3Config.bucketName,
+                        Key: fileName,
+                        Body: mediaFile,
+                        ContentType: mediaFile.type,
+                    },
+                });
 
-                if (uploadError) {
-                    toast.error("Failed to upload media");
-                    setIsLoading(false);
-                    return;
-                }
+                upload.on("httpUploadProgress", (progress) => {
+                    if (progress.loaded && progress.total) {
+                        const percent = Math.round((progress.loaded / progress.total) * 100);
+                        setUploadProgress(percent);
+                    }
+                });
 
-                const { data } = supabase.storage.from("media").getPublicUrl(fileName);
-                mediaUrl = data.publicUrl;
+                await upload.done();
+                mediaUrl = `${import.meta.env.VITE_PUBLIC_R2_URL}/${fileName}`;
             }
 
             const commonData = {
@@ -124,6 +138,7 @@ export const CreateModal = ({ isOpen, onClose, onPostCreated }: CreateModalProps
             toast.error("Failed to create " + activeTab);
         } finally {
             setIsLoading(false);
+            setUploadProgress(0); // Reset progress on completion/error
         }
     };
 
@@ -177,7 +192,7 @@ export const CreateModal = ({ isOpen, onClose, onPostCreated }: CreateModalProps
                                     onClick={() => fileInputRef.current?.click()}
                                 >
                                     <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
-                                        <Upload className="w-10 h-10 text-primary" />
+                                        <UploadIcon className="w-10 h-10 text-primary" />
                                     </div>
                                     <p className="text-lg font-semibold mb-2">
                                         {activeTab === 'story' ? 'Upload Story' : 'Upload Request'}
@@ -248,6 +263,17 @@ export const CreateModal = ({ isOpen, onClose, onPostCreated }: CreateModalProps
                                 </div>
                             )}
 
+                            {/* Progress Bar Area */}
+                            {isLoading && mediaFile && (
+                                <div className="space-y-1.5 animate-in fade-in slide-in-from-bottom-2">
+                                    <div className="flex items-center justify-between text-xs font-medium text-muted-foreground">
+                                        <span>Uploading...</span>
+                                        <span>{uploadProgress}%</span>
+                                    </div>
+                                    <Progress value={uploadProgress} className="h-2 w-full" />
+                                </div>
+                            )}
+
                             {/* Submit Button */}
                             <Button
                                 size="lg"
@@ -258,7 +284,9 @@ export const CreateModal = ({ isOpen, onClose, onPostCreated }: CreateModalProps
                                 {isLoading ? (
                                     <div className="flex items-center gap-2">
                                         <Loader2 className="w-5 h-5 animate-spin" />
-                                        <span>Uploading...</span>
+                                        <span>
+                                            {uploadProgress < 100 ? `Uploading ${uploadProgress}%` : 'Finalizing...'}
+                                        </span>
                                     </div>
                                 ) : (
                                     <span>{activeTab === "story" ? "Share to Story" : "Share Post"}</span>
@@ -271,3 +299,4 @@ export const CreateModal = ({ isOpen, onClose, onPostCreated }: CreateModalProps
         </div>
     );
 };
+
