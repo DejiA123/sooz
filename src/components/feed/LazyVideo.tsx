@@ -3,19 +3,22 @@ import { Play, Volume2, VolumeX, Loader2 } from "lucide-react";
 import { useInView } from "react-intersection-observer";
 import { useVideoStore } from "@/store/useVideoStore";
 import { useVideoCache } from "@/store/useVideoCache";
+import { useAutoplayUnlock } from "@/hooks/useAutoplayUnlock";
 
 interface LazyVideoProps {
     src: string;
     id: string;
     onClick?: (currentTime: number) => void;
     startTime?: number;
+    isFirstVideo?: boolean; // Flag to identify first video in feed
 }
 
-export const LazyVideo = ({ src, id, onClick, startTime = 0 }: LazyVideoProps) => {
+export const LazyVideo = ({ src, id, onClick, startTime = 0, isFirstVideo = false }: LazyVideoProps) => {
     const videoRef = useRef<HTMLVideoElement>(null);
     const [isPlaying, setIsPlaying] = useState(false);
     const [isMuted, setIsMuted] = useState(true);
     const [isBuffering, setIsBuffering] = useState(false);
+    const { isUnlocked, unlock } = useAutoplayUnlock();
 
     const activeVideoId = useVideoStore((state) => state.activeVideoId);
     const setActiveVideo = useVideoStore((state) => state.setActiveVideo);
@@ -79,6 +82,11 @@ export const LazyVideo = ({ src, id, onClick, startTime = 0 }: LazyVideoProps) =
     // Handle click
     const handleTap = (e: React.MouseEvent) => {
         e.stopPropagation();
+
+        // Unlock autoplay on first interaction
+        if (!isUnlocked) {
+            unlock();
+        }
 
         if (!isPlaying) {
             setActiveVideo(id);
@@ -144,12 +152,17 @@ export const LazyVideo = ({ src, id, onClick, startTime = 0 }: LazyVideoProps) =
                 </div>
             )}
 
-            {/* Play button */}
+            {/* Play button or unlock prompt */}
             {!isPlaying && (
-                <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/30">
                     <div className="bg-white/20 backdrop-blur-sm rounded-full p-4">
                         <Play className="w-10 h-10 text-white fill-white" />
                     </div>
+                    {isFirstVideo && !isUnlocked && (
+                        <div className="mt-4 bg-white/90 backdrop-blur-md px-6 py-3 rounded-full shadow-lg">
+                            <p className="text-sm font-semibold text-gray-900">Tap to start</p>
+                        </div>
+                    )}
                 </div>
             )}
 

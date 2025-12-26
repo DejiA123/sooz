@@ -180,6 +180,8 @@ export default function Index() {
                     is_liked_by_user={post.is_liked_by_user}
                     // @ts-ignore
                     is_saved_by_user={post.is_saved_by_user}
+                    // Mark first video as needing unlock prompt
+                    isFirstVideo={index === 0 && post.media_type === 'video'}
                   />
                   {index === 0 && (
                     <div className="lg:hidden -mx-1 px-4 py-2 border-y border-white/5 bg-white/5 backdrop-blur-sm">
