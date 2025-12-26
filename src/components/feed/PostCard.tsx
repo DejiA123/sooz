@@ -219,7 +219,7 @@ export const PostCard = ({
     <>
       <article ref={postRef} className="mb-4 border-b border-white/5 pb-4 last:border-0 sm:border sm:rounded-lg sm:bg-card">
         {/* Header */}
-        <div className="flex items-center justify-between p-3">
+        <div className="flex items-center justify-between p-0 md:p-3">
           <div className="flex items-center gap-3">
             <Link to={`/profile/${user.username}`}>
               <Avatar className="w-8 h-8 cursor-pointer ring-2 ring-transparent hover:ring-primary/20 transition-all">
@@ -288,7 +288,7 @@ export const PostCard = ({
         )}
 
         {/* Action Bar */}
-        <div className="px-3 pt-3 pb-1">
+        <div className="px-0 md:px-3 pt-3 pb-1">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-4">
               <button

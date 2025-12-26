@@ -58,7 +58,11 @@ export default function Index() {
     });
   }, []);
 
-  useGlobalInteractionUnlock(handleInteractionUnlock);
+  // Attempt to unlock autoplay on initial mount
+  useEffect(() => {
+    handleInteractionUnlock();
+  }, []);
+
 
   const { ref, inView } = useInView({
     threshold: 0,
@@ -186,7 +190,7 @@ export default function Index() {
               <p className="text-muted-foreground">No posts yet. Follow people to see their posts!</p>
             </div>
           ) : (
-            <div className="px-1 mt-2">
+            <div className="mt-2">
               {posts.map((post, index) => (
                 <div key={post.id} className="space-y-6">
                   <PostCard

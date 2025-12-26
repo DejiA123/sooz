@@ -74,8 +74,8 @@ const Feed = () => {
     return (
       <div className="pt-16 pb-24">
         <StoriesBar />
-        <div className="h-px bg-border mx-4 mb-4" />
-        <div className="px-4 space-y-6">
+        <div className="h-px bg-border mx-0 md:mx-4 mb-4" />
+        <div className="px-0 md:px-4 space-y-6">
           {[1, 2, 3].map((i) => (
             <PostCardSkeleton key={i} />
           ))}
@@ -93,7 +93,7 @@ const Feed = () => {
       <div className="h-px bg-border mx-4 mb-4" />
 
       {/* Posts */}
-      <div className="px-4 space-y-6">
+      <div className="px-0 md:px-4 space-y-6">
         {posts.length > 0 ? (
           posts.map((post, index) => (
             <div key={post.id} className="space-y-6">
