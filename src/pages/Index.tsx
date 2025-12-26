@@ -61,6 +61,7 @@ export default function Index() {
   // Attempt to unlock autoplay on initial mount
   useEffect(() => {
     handleInteractionUnlock();
+    window.scrollTo(0, 0); // Scroll to top on mount
   }, []);
 
 

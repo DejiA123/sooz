@@ -3,7 +3,7 @@ import { useCall } from "@/contexts/CallContext";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Send, Image as ImageIcon, Smile, ArrowLeft, Phone, Video, X } from "lucide-react";
+import { Send, Image as ImageIcon, Smile, ArrowLeft, Phone, Video, X, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -15,6 +15,13 @@ import {
     PopoverContent,
     PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from "@/components/ui/dialog";
 import { usePresence } from "@/hooks/usePresence";
 
 interface Message {
@@ -34,7 +41,7 @@ export const ChatWindow = ({ chatId, onBack }: ChatWindowProps) => {
     const { user } = useAuth();
     const [messages, setMessages] = useState<Message[]>([]);
     const [inputValue, setInputValue] = useState("");
-    const [chatInfo, setChatInfo] = useState<{ id?: string; name: string; avatar: string | null; lastSeen?: string | null }>({ name: "Chat", avatar: null });
+    const [chatInfo, setChatInfo] = useState<{ id?: string; name: string; avatar: string | null; lastSeen?: string | null; isGroup?: boolean }>({ name: "Chat", avatar: null });
     const { onlineUsers } = usePresence();
     const [participants, setParticipants] = useState<Record<string, { username: string; avatar: string | null }>>({});
     const scrollRef = useRef<HTMLDivElement>(null);
@@ -65,7 +72,7 @@ export const ChatWindow = ({ chatId, onBack }: ChatWindowProps) => {
                 setParticipants(parts);
 
                 if (conv.type === 'group') {
-                    setChatInfo({ name: conv.name || "Group Chat", avatar: null });
+                    setChatInfo({ name: conv.name || "Group Chat", avatar: null, isGroup: true });
                 } else {
                     // Direct: Find other participant
                     // @ts-ignore
@@ -271,6 +278,32 @@ export const ChatWindow = ({ chatId, onBack }: ChatWindowProps) => {
                     >
                         <Video className="w-5 h-5" />
                     </Button>
+
+                    {chatInfo.isGroup && (
+                        <Dialog>
+                            <DialogTrigger asChild>
+                                <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary" title="Group Info">
+                                    <Info className="w-5 h-5" />
+                                </Button>
+                            </DialogTrigger>
+                            <DialogContent className="max-w-sm bg-background/95 backdrop-blur-xl border-white/10 text-foreground">
+                                <DialogHeader>
+                                    <DialogTitle>Group Members</DialogTitle>
+                                </DialogHeader>
+                                <div className="space-y-4 max-h-[60vh] overflow-y-auto mt-2">
+                                    {Object.entries(participants).map(([id, p]) => (
+                                        <div key={id} className="flex items-center gap-3 p-2 hover:bg-white/5 rounded-lg transition-colors">
+                                            <Avatar className="h-9 w-9 border border-white/10">
+                                                <AvatarImage src={p.avatar || undefined} />
+                                                <AvatarFallback>{p.username[0]}</AvatarFallback>
+                                            </Avatar>
+                                            <span className="text-sm font-medium">{p.username}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </DialogContent>
+                        </Dialog>
+                    )}
                 </div>
             </div>
 
