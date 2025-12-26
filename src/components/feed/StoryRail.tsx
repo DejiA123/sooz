@@ -144,7 +144,7 @@ export const StoryRail = () => {
     return (
         <div className="w-full pb-4 pt-2">
             <ScrollArea className="w-full whitespace-nowrap">
-                <div className="flex w-max space-x-4 px-4 pb-2">
+                <div className="flex w-max space-x-4 px-0 md:px-4 pb-2">
                     <input
                         type="file"
                         ref={fileInputRef}

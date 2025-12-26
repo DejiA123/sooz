@@ -176,7 +176,7 @@ export default function Index() {
 
   return (
     <div className="pb-20">
-      <div className="flex gap-10 justify-center items-start">
+      <div className="flex justify-center items-start">
         {/* Feed Column */}
         <div className="w-full md:max-w-md">
           <StoryRail />
