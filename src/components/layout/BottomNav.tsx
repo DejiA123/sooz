@@ -61,12 +61,10 @@ export const BottomNav = () => {
                 <button
                   key="create"
                   onClick={handleCreateClick}
-                  className="flex flex-col items-center justify-center p-2 -mt-6"
+                  className="flex flex-col items-center justify-center p-2 rounded-xl transition-all duration-300 text-muted-foreground hover:text-foreground"
                 >
-                  <div className="bg-gradient-to-tr from-primary to-accent p-3 rounded-full shadow-lg hover:scale-105 transition-transform">
-                    <PlusSquare className="w-6 h-6 text-white fill-white/20" />
-                  </div>
-                  <span className="text-[10px] font-medium mt-1">{label}</span>
+                  <PlusSquare className="w-6 h-6 mb-1" strokeWidth={2} />
+                  <span className="text-[10px] font-medium">{label}</span>
                 </button>
               );
             }
