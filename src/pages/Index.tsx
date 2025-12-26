@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { StoryRail } from "@/components/feed/StoryRail";
 import { PostCard } from "@/components/feed/PostCard";
 import { supabase } from "@/integrations/supabase/client";
@@ -8,6 +8,8 @@ import { useInView } from "react-intersection-observer";
 import { toast } from "sonner";
 import { SuggestedAccounts } from "@/components/home/SuggestedAccounts";
 import { SuggestedUsersRail } from "@/components/feed/SuggestedUsersRail";
+import { useGlobalInteractionUnlock } from "@/hooks/useGlobalInteractionUnlock";
+import { useVideoStore } from "@/store/useVideoStore";
 
 interface PostWithUser {
   id: string;
@@ -37,6 +39,24 @@ export default function Index() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [page, setPage] = useState(0);
+
+  const activeVideoId = useVideoStore((state) => state.activeVideoId);
+
+  // Global interaction unlock - triggers video play on any user gesture
+  const handleInteractionUnlock = useCallback(() => {
+    // Find the first video element on the page and try to play it
+    const videos = document.querySelectorAll("video");
+    videos.forEach((video) => {
+      if (video.paused) {
+        video.muted = true;
+        video.play().catch(() => {
+          // Silently fail - this is just a best-effort attempt
+        });
+      }
+    });
+  }, []);
+
+  useGlobalInteractionUnlock(handleInteractionUnlock);
 
   const { ref, inView } = useInView({
     threshold: 0,
