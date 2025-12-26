@@ -62,12 +62,13 @@ export const ChatList = ({ selectedId, onSelect }: ChatListProps) => {
                 let chatAvatar = null;
                 let isGroup = conv.type === 'group';
                 let chatUserId = null;
+                let chatLastSeen = null;
 
                 // 2. If direct, find the other user
                 if (!isGroup) {
                     const { data: otherPart } = await supabase
                         .from('conversation_participants')
-                        .select('profiles(id, username, display_name, avatar_url)')
+                        .select('profiles(id, username, display_name, avatar_url, updated_at)')
                         .eq('conversation_id', conv.id)
                         .neq('user_id', user?.id)
                         .maybeSingle();
@@ -77,6 +78,8 @@ export const ChatList = ({ selectedId, onSelect }: ChatListProps) => {
                         chatAvatar = otherPart.profiles.avatar_url;
                         // @ts-ignore
                         chatUserId = otherPart.profiles.id;
+                        // @ts-ignore
+                        chatLastSeen = otherPart.profiles.updated_at;
                     }
                 }
 
@@ -95,7 +98,8 @@ export const ChatList = ({ selectedId, onSelect }: ChatListProps) => {
                         id: chatUserId,
                         name: chatName || "Unknown",
                         avatar: chatAvatar,
-                        username: "user"
+                        username: "user",
+                        lastSeen: chatLastSeen
                     },
                     isGroup,
                     lastMessage: lastMsg?.content || "No messages yet",
@@ -212,6 +216,10 @@ export const ChatList = ({ selectedId, onSelect }: ChatListProps) => {
                                         <span className="font-semibold text-sm truncate">{chat.user.name}</span>
                                         {isOnline && !chat.isGroup ? (
                                             <span className="text-[10px] text-green-500 font-medium whitespace-nowrap ml-2">Active Now</span>
+                                        ) : !chat.isGroup && chat.user.lastSeen ? (
+                                            <span className="text-[10px] text-muted-foreground whitespace-nowrap ml-2">
+                                                Offline • {formatDistanceToNow(new Date(chat.user.lastSeen), { addSuffix: true })}
+                                            </span>
                                         ) : (
                                             <span className="text-[10px] text-muted-foreground whitespace-nowrap ml-2">
                                                 {formatDistanceToNow(new Date(chat.timestamp), { addSuffix: false })}

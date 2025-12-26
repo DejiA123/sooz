@@ -3,8 +3,29 @@ import { Outlet } from "react-router-dom";
 import { BottomNav } from "./BottomNav";
 import { TopBar } from "./TopBar";
 import { Sidebar } from "./Sidebar";
+import { useEffect } from "react";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 
 export const MainLayout = () => {
+    const { user } = useAuth();
+
+    useEffect(() => {
+        if (!user) return;
+
+        const updateLastSeen = async () => {
+            try {
+                await supabase.from('profiles').update({
+                    updated_at: new Date().toISOString()
+                }).eq('id', user.id);
+            } catch (error) {
+                console.error("Error updating last seen:", error);
+            }
+        };
+
+        updateLastSeen();
+    }, [user]);
+
     return (
         <div className="min-h-screen bg-background pb-20 pt-14 md:pt-0 md:pb-0">
             <div className="md:hidden">
