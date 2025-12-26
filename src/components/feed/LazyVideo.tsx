@@ -10,15 +10,15 @@ interface LazyVideoProps {
     id: string;
     onClick?: (currentTime: number) => void;
     startTime?: number;
-    isFirstVideo?: boolean; // Flag to identify first video in feed
 }
 
-export const LazyVideo = ({ src, id, onClick, startTime = 0, isFirstVideo = false }: LazyVideoProps) => {
+export const LazyVideo = ({ src, id, onClick, startTime = 0 }: LazyVideoProps) => {
     const videoRef = useRef<HTMLVideoElement>(null);
     const [isPlaying, setIsPlaying] = useState(false);
     const [isMuted, setIsMuted] = useState(true);
     const [isBuffering, setIsBuffering] = useState(false);
-    const { isUnlocked, unlock } = useAutoplayUnlock();
+    const [hasAttemptedPlay, setHasAttemptedPlay] = useState(false);
+    const { unlock } = useAutoplayUnlock();
 
     const activeVideoId = useVideoStore((state) => state.activeVideoId);
     const setActiveVideo = useVideoStore((state) => state.setActiveVideo);
@@ -51,7 +51,7 @@ export const LazyVideo = ({ src, id, onClick, startTime = 0, isFirstVideo = fals
         }
     });
 
-    // Robust Playback Logic with Sound Priority
+    // Robust Playback Logic - aggressive autoplay for mobile
     useEffect(() => {
         const video = videoRef.current;
         if (!video) return;
@@ -60,15 +60,32 @@ export const LazyVideo = ({ src, id, onClick, startTime = 0, isFirstVideo = fals
             const playVideo = async () => {
                 try {
                     // Always start MUTED for reliable mobile autoplay
-                    if (video.paused) {
-                        video.muted = true;
-                        setIsMuted(true);
-                        await video.play();
-                        setIsPlaying(true);
-                    }
+                    video.muted = true;
+                    setIsMuted(true);
+
+                    // Multiple play attempts for mobile reliability
+                    const attemptPlay = async (retries = 3) => {
+                        for (let i = 0; i < retries; i++) {
+                            try {
+                                await video.play();
+                                setIsPlaying(true);
+                                setHasAttemptedPlay(true);
+                                return;
+                            } catch (e) {
+                                if (i < retries - 1) {
+                                    await new Promise(r => setTimeout(r, 100));
+                                }
+                            }
+                        }
+                        // If all retries fail, still mark as attempted
+                        setHasAttemptedPlay(true);
+                    };
+
+                    await attemptPlay();
                 } catch (error) {
                     console.log("Autoplay failed", error);
                     setIsPlaying(false);
+                    setHasAttemptedPlay(true);
                 }
             };
 
@@ -84,9 +101,7 @@ export const LazyVideo = ({ src, id, onClick, startTime = 0, isFirstVideo = fals
         e.stopPropagation();
 
         // Unlock autoplay on first interaction
-        if (!isUnlocked) {
-            unlock();
-        }
+        unlock();
 
         if (!isPlaying) {
             setActiveVideo(id);
@@ -152,17 +167,12 @@ export const LazyVideo = ({ src, id, onClick, startTime = 0, isFirstVideo = fals
                 </div>
             )}
 
-            {/* Play button or unlock prompt */}
-            {!isPlaying && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/30">
-                    <div className="bg-white/20 backdrop-blur-sm rounded-full p-4">
-                        <Play className="w-10 h-10 text-white fill-white" />
+            {/* Only show play button if video has attempted to play but failed (rare edge case) */}
+            {!isPlaying && hasAttemptedPlay && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/20">
+                    <div className="bg-white/20 backdrop-blur-sm rounded-full p-3">
+                        <Play className="w-8 h-8 text-white fill-white" />
                     </div>
-                    {isFirstVideo && !isUnlocked && (
-                        <div className="mt-4 bg-white/90 backdrop-blur-md px-6 py-3 rounded-full shadow-lg">
-                            <p className="text-sm font-semibold text-gray-900">Tap to start</p>
-                        </div>
-                    )}
                 </div>
             )}
 
