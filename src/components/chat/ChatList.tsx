@@ -9,6 +9,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
+import { usePresence } from "@/hooks/usePresence";
+
 interface ChatListProps {
     selectedId?: string;
     onSelect: (id: string) => void;
@@ -16,6 +18,7 @@ interface ChatListProps {
 
 export const ChatList = ({ selectedId, onSelect }: ChatListProps) => {
     const { user } = useAuth();
+    const { onlineUsers } = usePresence();
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [chats, setChats] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
@@ -58,12 +61,13 @@ export const ChatList = ({ selectedId, onSelect }: ChatListProps) => {
                 let chatName = conv.name;
                 let chatAvatar = null;
                 let isGroup = conv.type === 'group';
+                let chatUserId = null;
 
                 // 2. If direct, find the other user
                 if (!isGroup) {
                     const { data: otherPart } = await supabase
                         .from('conversation_participants')
-                        .select('profiles(username, display_name, avatar_url)')
+                        .select('profiles(id, username, display_name, avatar_url)')
                         .eq('conversation_id', conv.id)
                         .neq('user_id', user?.id)
                         .maybeSingle();
@@ -71,6 +75,8 @@ export const ChatList = ({ selectedId, onSelect }: ChatListProps) => {
                     if (otherPart && otherPart.profiles) {
                         chatName = otherPart.profiles.display_name || otherPart.profiles.username;
                         chatAvatar = otherPart.profiles.avatar_url;
+                        // @ts-ignore
+                        chatUserId = otherPart.profiles.id;
                     }
                 }
 
@@ -86,6 +92,7 @@ export const ChatList = ({ selectedId, onSelect }: ChatListProps) => {
                 return {
                     id: conv.id,
                     user: {
+                        id: chatUserId,
                         name: chatName || "Unknown",
                         avatar: chatAvatar,
                         username: "user"
@@ -175,42 +182,53 @@ export const ChatList = ({ selectedId, onSelect }: ChatListProps) => {
                         <p className="text-sm">No chats found</p>
                     </div>
                 ) : (
-                    filteredChats.map((chat) => (
-                        <button
-                            key={chat.id}
-                            onClick={() => onSelect(chat.id)}
-                            className={cn(
-                                "w-full flex items-center gap-3 p-4 hover:bg-white/5 transition-colors text-left border-b border-white/5 last:border-0",
-                                selectedId === chat.id && "bg-primary/5 border-l-2 border-primary border-b-0"
-                            )}
-                        >
-                            <div className="relative">
-                                <Avatar className="w-12 h-12 border border-white/10">
-                                    <AvatarImage src={chat.user.avatar} className="object-cover" />
-                                    <AvatarFallback>
-                                        {chat.isGroup ? <Users className="w-5 h-5" /> : chat.user.name[0]}
-                                    </AvatarFallback>
-                                </Avatar>
-                                {chat.unread > 0 && <span className="absolute -top-1 -right-1 w-3 h-3 bg-primary rounded-full border-2 border-background" />}
-                            </div>
+                    filteredChats.map((chat) => {
+                        const isOnline = chat.user.id && onlineUsers.has(chat.user.id);
 
-                            <div className="flex-1 overflow-hidden">
-                                <div className="flex items-center justify-between mb-0.5">
-                                    <span className="font-semibold text-sm truncate">{chat.user.name}</span>
-                                    <span className="text-[10px] text-muted-foreground whitespace-nowrap ml-2">
-                                        {formatDistanceToNow(new Date(chat.timestamp), { addSuffix: false })}
-                                    </span>
+                        return (
+                            <button
+                                key={chat.id}
+                                onClick={() => onSelect(chat.id)}
+                                className={cn(
+                                    "w-full flex items-center gap-3 p-4 hover:bg-white/5 transition-colors text-left border-b border-white/5 last:border-0",
+                                    selectedId === chat.id && "bg-primary/5 border-l-2 border-primary border-b-0"
+                                )}
+                            >
+                                <div className="relative">
+                                    <Avatar className="w-12 h-12 border border-white/10">
+                                        <AvatarImage src={chat.user.avatar} className="object-cover" />
+                                        <AvatarFallback>
+                                            {chat.isGroup ? <Users className="w-5 h-5" /> : chat.user.name[0]}
+                                        </AvatarFallback>
+                                    </Avatar>
+                                    {isOnline && !chat.isGroup && (
+                                        <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-background z-10" />
+                                    )}
+                                    {chat.unread > 0 && <span className="absolute -top-1 -right-1 w-3 h-3 bg-primary rounded-full border-2 border-background" />}
                                 </div>
-                                <p className={cn(
-                                    "text-sm truncate",
-                                    chat.unread > 0 ? "text-primary font-medium" : "text-muted-foreground"
-                                )}>
-                                    {chat.isGroup && <span className="text-xs text-primary mr-1">Group:</span>}
-                                    {chat.lastMessage}
-                                </p>
-                            </div>
-                        </button>
-                    ))
+
+                                <div className="flex-1 overflow-hidden">
+                                    <div className="flex items-center justify-between mb-0.5">
+                                        <span className="font-semibold text-sm truncate">{chat.user.name}</span>
+                                        {isOnline && !chat.isGroup ? (
+                                            <span className="text-[10px] text-green-500 font-medium whitespace-nowrap ml-2">Active Now</span>
+                                        ) : (
+                                            <span className="text-[10px] text-muted-foreground whitespace-nowrap ml-2">
+                                                {formatDistanceToNow(new Date(chat.timestamp), { addSuffix: false })}
+                                            </span>
+                                        )}
+                                    </div>
+                                    <p className={cn(
+                                        "text-sm truncate",
+                                        chat.unread > 0 ? "text-primary font-medium" : "text-muted-foreground"
+                                    )}>
+                                        {chat.isGroup && <span className="text-xs text-primary mr-1">Group:</span>}
+                                        {chat.lastMessage}
+                                    </p>
+                                </div>
+                            </button>
+                        )
+                    })
                 )}
             </div>
 

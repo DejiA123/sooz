@@ -9,7 +9,7 @@ import { useNavigate } from "react-router-dom";
 
 interface ActivityItem {
     id: string;
-    type: "like" | "comment" | "follow";
+    type: "like" | "comment" | "follow" | "missed_call" | "message";
     created_at: string;
     user: {
         username: string;
@@ -43,7 +43,52 @@ export default function Activity() {
         try {
             if (!user) return;
 
-            // Fetch new followers
+            // 1. Fetch from 'notifications' table (New consolidated system)
+            const { data: notifications, error: notifError } = await supabase
+                .from('notifications')
+                .select('*')
+                .eq('user_id', user.id)
+                .order('created_at', { ascending: false })
+                .limit(50); // Fetch more to mix
+
+            if (notifError) throw notifError;
+
+            // Fetch actors for notifications
+            let notifItems: ActivityItem[] = [];
+            if (notifications && notifications.length > 0) {
+                const actorIds = [...new Set(notifications.map(n => n.actor_id).filter(Boolean))];
+                const { data: actors } = await supabase
+                    .from('profiles')
+                    .select('id, username, avatar_url')
+                    .in('id', actorIds);
+
+                const actorMap = Object.fromEntries(actors?.map(a => [a.id, a]) || []);
+
+                notifItems = notifications.map(n => {
+                    const actor = actorMap[n.actor_id];
+                    return {
+                        id: n.id,
+                        // Map notification types to activity types. 
+                        // 'missed_call' is new and needs handling in render (we'll treat as 'comment' or add type)
+                        // 'message' might assume chat logic.
+                        type: n.type as any,
+                        created_at: n.created_at,
+                        user: {
+                            username: actor?.username || 'Unknown',
+                            avatar_url: actor?.avatar_url || null
+                        },
+                        post_id: n.post_id || undefined,
+                        content: n.content
+                    };
+                });
+            }
+
+
+            // 2. Fetch Legacy Activities (Follows/Likes not yet in notifications table?)
+            // If the app didn't use notifications table before, we need existing data.
+            // If we are migrating, we keep this.
+
+            // Fetch new followers (Legacy)
             const { data: follows, error: followsError } = await supabase
                 .from("follows")
                 .select(`
@@ -57,7 +102,7 @@ export default function Activity() {
 
             if (followsError) throw followsError;
 
-            // Fetch likes on my posts
+            // Fetch likes on my posts (Legacy)
             const { data: likes, error: likesError } = await supabase
                 .from("likes")
                 .select(`
@@ -68,13 +113,13 @@ export default function Activity() {
           posts!inner(user_id, media_url, media_type)
         `)
                 .eq("posts.user_id", user.id)
-                .neq("user_id", user.id) // Don't show my own likes
+                .neq("user_id", user.id)
                 .order("created_at", { ascending: false })
                 .limit(20);
 
             if (likesError) throw likesError;
 
-            // Transform and combine
+            // Transform Legacy
             const followActivities = (follows || []).map(f => ({
                 id: f.id,
                 type: "follow" as const,
@@ -100,9 +145,16 @@ export default function Activity() {
                 content: "liked your post."
             }));
 
-            const allActivities = [...followActivities, ...likeActivities].sort(
-                (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-            );
+            // Deduplication (Simple ID check might fail if types differ, but dates usually suffice)
+            // We might have duplicates if we start writing likes to 'notifications' AND 'likes' table.
+            // For now, assume we just add notifications on top.
+
+            const allActivities = [...notifItems, ...followActivities, ...likeActivities]
+                // Filter out duplicates if IDs clash?
+                .filter((v, i, a) => a.findIndex(t => (t.id === v.id)) === i)
+                .sort(
+                    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+                );
 
             setActivities(allActivities as ActivityItem[]);
         } catch (error) {
@@ -147,10 +199,13 @@ export default function Activity() {
                                         <AvatarImage src={item.user.avatar_url || ""} className="object-cover" />
                                         <AvatarFallback>{item.user.username[0].toUpperCase()}</AvatarFallback>
                                     </Avatar>
-                                    <div className={`absolute -bottom-1 -right-1 p-0.5 rounded-full border-2 border-background ${item.type === 'like' ? 'bg-red-500 text-white' : 'bg-purple-500 text-white'
+                                    <div className={`absolute -bottom-1 -right-1 p-0.5 rounded-full border-2 border-background ${item.type === 'like' ? 'bg-red-500 text-white' :
+                                        item.type === 'missed_call' ? 'bg-red-500 text-white' : 'bg-purple-500 text-white'
                                         }`}>
                                         {item.type === 'like' ? (
                                             <Heart className="w-2.5 h-2.5 fill-current" />
+                                        ) : item.type === 'missed_call' ? (
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-phone-missed"><line x1="23" x2="17" y1="1" y2="7" /><line x1="17" x2="23" y1="1" y2="7" /><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.05 12.05 0 0 0 .57 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.05 12.05 0 0 0 2.81.57A2 2 0 0 1 22 16.92z" /></svg>
                                         ) : (
                                             <UserPlus className="w-2.5 h-2.5" />
                                         )}

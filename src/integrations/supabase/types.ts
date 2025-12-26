@@ -161,6 +161,58 @@ export type Database = {
           },
         ]
       }
+      notifications: {
+        Row: {
+          id: string
+          user_id: string
+          actor_id: string
+          type: "like" | "comment" | "follow" | "message" | "missed_call"
+          content: string
+          is_read: boolean
+          created_at: string
+          post_id: string | null
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          actor_id: string
+          type: "like" | "comment" | "follow" | "message" | "missed_call"
+          content: string
+          is_read?: boolean
+          created_at?: string
+          post_id?: string | null
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          actor_id?: string
+          type?: "like" | "comment" | "follow" | "message" | "missed_call"
+          content?: string
+          is_read?: boolean
+          created_at?: string
+          post_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_user_id_fkey"
+            columns: ["user_id"]
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_actor_id_fkey"
+            columns: ["actor_id"]
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_post_id_fkey"
+            columns: ["post_id"]
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
       posts: {
         Row: {
           caption: string | null

@@ -143,16 +143,42 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
         handleEnd();
     };
 
-    const rejectCall = () => {
-        if (callerInfo) {
+    const rejectCall = async () => {
+        if (callerInfo && user) {
             supabase.channel(`user:${callerInfo.id}`).send({
                 type: 'broadcast',
                 event: 'end-call',
-                payload: { from: user?.id, reason: 'busy' }
+                payload: { from: user.id, reason: 'busy' }
             });
+
+            // Log missed call notification for result of rejection
+            // Actually, if I REJECT, the caller sees "Busy".
+            // A missed call notification is relevant if:
+            // 1. The caller cancels before I answer (I missed it).
+            // 2. The call times out (I missed it).
+            // here I am manually rejecting. It's debatable if this is a "missed call" or just ignored.
+            // But let's log it so I know they called.
+            try {
+                // Insert notification for ME (the user rejecting) saying "You missed a call..."?
+                // Or insert for CALLER saying "User is busy"?
+                // The requirement is "if you missed a phone call you should see it in the Activity page".
+                // So we log it for the current user (recipient).
+                await supabase.from('notifications').insert({
+                    user_id: user.id,
+                    actor_id: callerInfo.id,
+                    type: 'missed_call',
+                    content: 'You missed a call.',
+                    is_read: false
+                });
+            } catch (e) {
+                console.error("Error logging call notification", e);
+            }
         }
         handleEnd();
     };
+
+    // We need to modify endCall to log missed call if the caller hangs up before answer
+    // But endCall is generic. Let's look at endCall logic.
 
     const getMedia = async () => {
         try {
