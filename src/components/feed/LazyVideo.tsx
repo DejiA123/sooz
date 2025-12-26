@@ -22,7 +22,7 @@ export const LazyVideo = ({ src, id, onClick, startTime = 0 }: LazyVideoProps) =
     const isActive = activeVideoId === id;
 
     const { ref } = useInView({
-        threshold: 0.2, // Trigger extremely early
+        threshold: 0.6, // Higher threshold ensures video is mostly visible (better for mobile)
         triggerOnce: false,
         onChange: (inView) => {
             if (inView) {

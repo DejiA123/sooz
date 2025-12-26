@@ -28,6 +28,7 @@ const EmailConfirmation = lazy(() => import("./pages/EmailConfirmation"));
 const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
 const UpdatePassword = lazy(() => import("./pages/UpdatePassword"));
 import { AuthListener } from "./components/AuthListener";
+import { ProtectedRoute } from "./components/ProtectedRoute";
 import { NotificationManager } from "./components/NotificationManager";
 import { CallProvider } from "@/contexts/CallContext";
 import { CallOverlay } from "@/components/video/CallOverlay";
@@ -129,7 +130,9 @@ const App = () => {
                     <Route path="/help" element={<Help />} />
                     <Route path="/privacy" element={<Privacy />} />
                     <Route path="/terms" element={<Terms />} />
-                    <Route path="/chat" element={<Chat />} />
+                    <Route element={<ProtectedRoute />}>
+                      <Route path="/chat" element={<Chat />} />
+                    </Route>
                     <Route path="/notifications" element={<Notifications />} />
                     <Route path="/profile/:username" element={<Profile />} />
                     <Route path="/post/:id" element={<PostDetails />} />

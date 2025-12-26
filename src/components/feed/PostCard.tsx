@@ -191,6 +191,10 @@ export const PostCard = ({
   };
 
   const handleDelete = async () => {
+    if (!currentUser || currentUser.id !== user.id) {
+      toast.error("You can only delete your own posts");
+      return;
+    }
     if (!confirm("Are you sure you want to delete this post?")) return;
 
     try {

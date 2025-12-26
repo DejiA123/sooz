@@ -14,11 +14,13 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { usePrefetch } from "@/hooks/usePrefetch";
 
 export const Sidebar = () => {
     const location = useLocation();
     const { user } = useAuth();
     const [showCreateModal, setShowCreateModal] = useState(false);
+    const { prefetchProfile } = usePrefetch();
 
     // Helper to determine if a link is active
     const isActive = (path: string) => location.pathname === path;
@@ -37,6 +39,12 @@ export const Sidebar = () => {
             return;
         }
         setShowCreateModal(true);
+    };
+
+    const handlePrefetch = (item: any) => {
+        if (item.label === "Profile" && user?.username) {
+            prefetchProfile(user.username);
+        }
     };
 
     return (
@@ -71,6 +79,7 @@ export const Sidebar = () => {
                             <Link
                                 key={item.label}
                                 to={item.path}
+                                onMouseEnter={() => handlePrefetch(item)}
                                 className={cn(
                                     "flex items-center gap-4 p-3 rounded-lg hover:bg-secondary/50 transition-colors group",
                                     isActive(item.path) ? "font-bold text-foreground" : "font-medium text-foreground"
@@ -125,10 +134,6 @@ export const Sidebar = () => {
                             >
                                 <Moon className="w-5 h-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0 hidden dark:block" />
                                 <Sun className="w-5 h-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100 block dark:hidden" />
-                                {/* Simple icon logic: Show Moon if Light mode (to switch to dark), Sun if Dark mode? 
-                                    Actually standard is icon represents current state or target?. 
-                                    Let's just use Moon for "Dark Mode" concept universally or toggle.
-                                */}
                                 <Moon className="w-5 h-5" />
                                 <span>Switch appearance</span>
                             </DropdownMenuItem>
@@ -167,3 +172,4 @@ export const Sidebar = () => {
         </>
     );
 };
+
