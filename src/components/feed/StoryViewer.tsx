@@ -18,9 +18,9 @@ export const StoryViewer = ({ initialUserIndex, stories, onClose }: StoryViewerP
     const [currentStoryIndex, setCurrentStoryIndex] = useState(0);
     const [progress, setProgress] = useState(0);
     const [isPaused, setIsPaused] = useState(false);
+    const videoRef = useRef<HTMLVideoElement>(null);
 
     // Guard against index out of bounds
-    // Guard against index out of bounds or empty stories
     const currentUser = stories[currentUserIndex];
     const invalidState = !currentUser || !currentUser.stories || currentUser.stories.length === 0 || currentUserIndex >= stories.length;
 
@@ -33,14 +33,21 @@ export const StoryViewer = ({ initialUserIndex, stories, onClose }: StoryViewerP
     if (invalidState) return null;
 
     const currentStory = currentUser.stories[currentStoryIndex];
+    const isVideo = currentStory.media_type === 'video';
 
     useEffect(() => {
         setCurrentStoryIndex(0);
         setProgress(0);
     }, [currentUserIndex]);
 
+    // Reset progress when story changes
     useEffect(() => {
-        if (isPaused) return;
+        setProgress(0);
+    }, [currentStoryIndex]);
+
+    // Handle Image Timer
+    useEffect(() => {
+        if (isPaused || isVideo) return;
 
         const interval = setInterval(() => {
             setProgress((prev) => {
@@ -48,18 +55,29 @@ export const StoryViewer = ({ initialUserIndex, stories, onClose }: StoryViewerP
                     handleNext();
                     return 0;
                 }
-                return prev + 1; // 50ms * 100 = 5s
+                return prev + 1; // 50ms * 100 steps = 5s duration
             });
         }, 50);
 
         return () => clearInterval(interval);
-    }, [currentUserIndex, currentStoryIndex, isPaused]);
+    }, [currentUserIndex, currentStoryIndex, isPaused, isVideo]);
+
+    // Handle Video Pause/Play on Interaction
+    useEffect(() => {
+        if (!videoRef.current) return;
+
+        if (isPaused) {
+            videoRef.current.pause();
+        } else {
+            // Promise handling to avoid race conditions with load state
+            videoRef.current.play().catch(() => {/* Ignore autoplay errors */ });
+        }
+    }, [isPaused]);
 
     const handleNext = () => {
         if (currentStoryIndex < currentUser.stories.length - 1) {
             // Next story for this user
             setCurrentStoryIndex(prev => prev + 1);
-            setProgress(0);
         } else if (currentUserIndex < stories.length - 1) {
             // Next user
             setCurrentUserIndex(prev => prev + 1);
@@ -72,9 +90,18 @@ export const StoryViewer = ({ initialUserIndex, stories, onClose }: StoryViewerP
     const handlePrev = () => {
         if (currentStoryIndex > 0) {
             setCurrentStoryIndex(prev => prev - 1);
-            setProgress(0);
         } else if (currentUserIndex > 0) {
             setCurrentUserIndex(prev => prev - 1);
+        }
+    };
+
+    const handleVideoProgress = () => {
+        if (videoRef.current && !isPaused) {
+            const duration = videoRef.current.duration;
+            const currentTime = videoRef.current.currentTime;
+            if (duration > 0) {
+                setProgress((currentTime / duration) * 100);
+            }
         }
     };
 
@@ -138,10 +165,14 @@ export const StoryViewer = ({ initialUserIndex, stories, onClose }: StoryViewerP
                     >
                         {currentStory.media_type === 'video' ? (
                             <video
+                                ref={videoRef}
+                                key={currentStory.id} // Re-mount video on change
                                 src={currentStory.media_url}
                                 autoPlay
                                 playsInline
                                 className="w-full h-full object-cover"
+                                onTimeUpdate={handleVideoProgress}
+                                onEnded={handleNext}
                             />
                         ) : (
                             <img
