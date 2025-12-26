@@ -11,6 +11,7 @@ import { z } from "zod";
 const emailSchema = z.string().email("Please enter a valid email address");
 const passwordSchema = z.string().min(6, "Password must be at least 6 characters");
 const usernameSchema = z.string().min(3, "Username must be at least 3 characters").regex(/^[a-zA-Z0-9_]+$/, "Username can only contain letters, numbers, and underscores");
+const loginIdentifierSchema = z.string().min(3, "Please enter your email or username");
 
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -34,20 +35,26 @@ const Auth = () => {
   const validateForm = () => {
     const newErrors: typeof errors = {};
 
-    const emailResult = emailSchema.safeParse(email);
-    if (!emailResult.success) {
-      newErrors.email = emailResult.error.errors[0].message;
-    }
-
     const passwordResult = passwordSchema.safeParse(password);
     if (!passwordResult.success) {
       newErrors.password = passwordResult.error.errors[0].message;
     }
 
     if (!isLogin) {
+      const emailResult = emailSchema.safeParse(email);
+      if (!emailResult.success) {
+        newErrors.email = emailResult.error.errors[0].message;
+      }
+
       const usernameResult = usernameSchema.safeParse(username);
       if (!usernameResult.success) {
         newErrors.username = usernameResult.error.errors[0].message;
+      }
+    } else {
+      // Login validation
+      const identifierResult = loginIdentifierSchema.safeParse(email); // We reuse 'email' state for identifier
+      if (!identifierResult.success) {
+        newErrors.email = identifierResult.error.errors[0].message;
       }
     }
 
@@ -64,10 +71,26 @@ const Auth = () => {
 
     try {
       if (isLogin) {
-        const { error } = await signIn(email, password);
+        let signInEmail = email;
+
+        // Check if input is NOT an email (assume username)
+        const isEmail = z.string().email().safeParse(email).success;
+        if (!isEmail) {
+          // Try to resolve username to email
+          const { data: resolvedEmail, error: rpcError } = await supabase.rpc('get_email_by_username', { username_input: email });
+
+          if (rpcError || !resolvedEmail) {
+            toast.error("Invalid username or password");
+            setIsLoading(false);
+            return;
+          }
+          signInEmail = resolvedEmail;
+        }
+
+        const { error } = await signIn(signInEmail, password);
         if (error) {
           if (error.message.includes("Invalid login credentials")) {
-            toast.error("Invalid email or password");
+            toast.error("Invalid email/username or password");
           } else {
             toast.error(error.message);
           }
@@ -160,11 +183,11 @@ const Auth = () => {
             )}
 
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">{isLogin ? "Email or Username" : "Email"}</Label>
               <Input
                 id="email"
-                type="email"
-                placeholder="Enter your email"
+                type="text" // Changed from email to allow username
+                placeholder={isLogin ? "Enter your email or username" : "Enter your email"}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="bg-muted/50 border-border/50 h-12"
