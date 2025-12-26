@@ -41,6 +41,7 @@ export default function Index() {
   const [page, setPage] = useState(0);
 
   const activeVideoId = useVideoStore((state) => state.activeVideoId);
+  const setActiveVideo = useVideoStore((state) => state.setActiveVideo);
 
   // Global interaction unlock - triggers video play on any user gesture
   const handleInteractionUnlock = useCallback(() => {
@@ -143,6 +144,11 @@ export default function Index() {
         if (isInitial) {
           // @ts-ignore
           setPosts(transformedNewPosts);
+          // Auto-set active video to first video post for autoplay on refresh
+          const firstVideo = transformedNewPosts.find(p => p.media_type === 'video');
+          if (firstVideo) {
+            setActiveVideo(firstVideo.id);
+          }
         } else {
           // @ts-ignore
           setPosts(prev => [...prev, ...transformedNewPosts]);
