@@ -229,7 +229,7 @@ export const PostCard = ({
             </Link>
             <div>
               <Link to={`/profile/${user.username}`} className="hover:opacity-80 transition-opacity">
-                <h3 className="font-semibold text-sm leading-none">{user.display_name || user.username}</h3>
+                <h3 className="font-semibold text-base leading-none">{user.display_name || user.username}</h3>
               </Link>
               {/* Optional: Location or subtext could go here */}
             </div>
@@ -348,13 +348,13 @@ export const PostCard = ({
 
           {/* Likes */}
           <div className="mb-2">
-            <p className="text-sm font-semibold">{likes.toLocaleString()} likes</p>
+            <p className="text-base font-semibold">{likes.toLocaleString()} likes</p>
           </div>
 
           {/* Caption */}
           {caption && (
             <div className="mb-1">
-              <p className="text-sm leading-normal">
+              <p className="text-base leading-normal">
                 <Link to={`/profile/${user.username}`} className="font-semibold hover:underline mr-2">
                   {user.username}
                 </Link>
