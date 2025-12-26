@@ -15,6 +15,7 @@ import {
     PopoverContent,
     PopoverTrigger,
 } from "@/components/ui/popover";
+import { usePresence } from "@/hooks/usePresence";
 
 interface Message {
     id: string;
@@ -33,7 +34,8 @@ export const ChatWindow = ({ chatId, onBack }: ChatWindowProps) => {
     const { user } = useAuth();
     const [messages, setMessages] = useState<Message[]>([]);
     const [inputValue, setInputValue] = useState("");
-    const [chatInfo, setChatInfo] = useState<{ id?: string; name: string; avatar: string | null; online?: boolean }>({ name: "Chat", avatar: null });
+    const [chatInfo, setChatInfo] = useState<{ id?: string; name: string; avatar: string | null; lastSeen?: string | null }>({ name: "Chat", avatar: null });
+    const { onlineUsers } = usePresence();
     const [participants, setParticipants] = useState<Record<string, { username: string; avatar: string | null }>>({});
     const scrollRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -46,7 +48,7 @@ export const ChatWindow = ({ chatId, onBack }: ChatWindowProps) => {
 
         const fetchChatDetails = async () => {
             // 1. Get Conversation Info
-            const { data: conv, error } = await supabase.from('conversations').select('*, conversation_participants(user_id, profiles(username, display_name, avatar_url))').eq('id', chatId).single();
+            const { data: conv, error } = await supabase.from('conversations').select('*, conversation_participants(user_id, profiles(username, display_name, avatar_url, updated_at))').eq('id', chatId).single();
 
             if (conv) {
                 // Map participants
@@ -73,7 +75,7 @@ export const ChatWindow = ({ chatId, onBack }: ChatWindowProps) => {
                             id: other.user_id,
                             name: other.profiles.display_name || other.profiles.username,
                             avatar: other.profiles.avatar_url,
-                            online: true // Mock online status for now
+                            lastSeen: other.profiles.updated_at
                         });
                     }
                 }
@@ -233,13 +235,19 @@ export const ChatWindow = ({ chatId, onBack }: ChatWindowProps) => {
                             <AvatarImage src={chatInfo.avatar || undefined} className="object-cover" />
                             <AvatarFallback>{chatInfo.name[0]}</AvatarFallback>
                         </Avatar>
-                        {chatInfo.online && (
+                        {chatInfo.id && onlineUsers.has(chatInfo.id) && (
                             <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-background" />
                         )}
                     </div>
                     <div>
                         <h3 className="font-semibold text-sm">{chatInfo.name}</h3>
-                        <p className="text-xs text-muted-foreground">{chatInfo.online ? 'Active now' : ''}</p>
+                        <p className="text-xs text-muted-foreground">
+                            {chatInfo.id && onlineUsers.has(chatInfo.id)
+                                ? 'Active now'
+                                : chatInfo.lastSeen
+                                    ? `Last seen ${formatDistanceToNow(new Date(chatInfo.lastSeen), { addSuffix: true })}`
+                                    : ''}
+                        </p>
                     </div>
                 </div>
                 <div className="flex gap-2">

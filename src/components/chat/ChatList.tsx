@@ -1,4 +1,4 @@
-import { formatDistanceToNow } from "date-fns";
+import { format, isToday, isYesterday, isThisWeek } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Plus, Users, Search, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -214,16 +214,8 @@ export const ChatList = ({ selectedId, onSelect }: ChatListProps) => {
                                 <div className="flex-1 overflow-hidden">
                                     <div className="flex items-center justify-between mb-0.5">
                                         <span className="font-semibold text-sm truncate">{chat.user.name}</span>
-                                        {isOnline && !chat.isGroup ? (
+                                        {isOnline && !chat.isGroup && (
                                             <span className="text-[10px] text-green-500 font-medium whitespace-nowrap ml-2">Active Now</span>
-                                        ) : !chat.isGroup && chat.user.lastSeen ? (
-                                            <span className="text-[10px] text-muted-foreground whitespace-nowrap ml-2">
-                                                Offline • {formatDistanceToNow(new Date(chat.user.lastSeen), { addSuffix: true })}
-                                            </span>
-                                        ) : (
-                                            <span className="text-[10px] text-muted-foreground whitespace-nowrap ml-2">
-                                                {formatDistanceToNow(new Date(chat.timestamp), { addSuffix: false })}
-                                            </span>
                                         )}
                                     </div>
                                     <p className={cn(
