@@ -46,6 +46,10 @@ const Profile = () => {
   const [showAvatarModal, setShowAvatarModal] = useState(false);
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
 
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
   // 1. Fetch Profile Data
   const { data: profileData, isLoading: isProfileLoading } = useQuery({
     queryKey: ['profile', username],

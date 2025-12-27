@@ -10,7 +10,7 @@ import { useNavigate } from "react-router-dom";
 
 interface ActivityItem {
     id: string;
-    type: "like" | "comment" | "follow" | "missed_call" | "message";
+    type: "like" | "comment" | "follow" | "missed_call" | "message" | "incoming_call" | "outgoing_call";
     created_at: string;
     user: {
         username: string;
@@ -101,6 +101,11 @@ export default function Activity() {
                 .limit(20);
             if (likesError) throw likesError;
 
+            // 3. Calls: The 'calls' table does not exist in the current schema. 
+            // We will rely on 'notifications' table to provide call-related alerts via 'missed_call' type.
+            let callItems: ActivityItem[] = [];
+
+
             const followActivities = (follows || []).map(f => ({
                 id: f.id,
                 type: "follow" as const,
@@ -126,7 +131,7 @@ export default function Activity() {
                 content: "liked your post."
             }));
 
-            const allActivities = [...notifItems, ...followActivities, ...likeActivities]
+            const allActivities = [...notifItems, ...followActivities, ...likeActivities, ...callItems]
                 .filter((v, i, a) => a.findIndex(t => (t.id === v.id)) === i)
                 .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
@@ -157,6 +162,15 @@ export default function Activity() {
                                         navigate(`/profile/${item.user.username}`);
                                     } else if (item.post_id) {
                                         navigate(`/post/${item.post_id}`);
+                                    } else if (['incoming_call', 'outgoing_call', 'missed_call'].includes(item.type)) {
+                                        // For calls, maybe navigate to chat with that user?
+                                        // Or trigger a call back?
+                                        // User said "click on any... should take you to its thing".
+                                        // Taking to chat is safest "call log" behavior usually.
+                                        // Or just do nothing if we can't deep direct.
+                                        // Let's go to profile for now, or just /chat?
+                                        // Navigating to profile seems reasonable as you can call from there.
+                                        navigate(`/profile/${item.user.username}`);
                                     }
                                 }}
                                 className="flex items-center gap-3 p-3 rounded-xl hover:bg-white/5 transition-colors cursor-pointer group"
@@ -171,8 +185,8 @@ export default function Activity() {
                                         }`}>
                                         {item.type === 'like' ? (
                                             <Heart className="w-2.5 h-2.5 fill-current" />
-                                        ) : item.type === 'missed_call' ? (
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-phone-missed"><line x1="23" x2="17" y1="1" y2="7" /><line x1="17" x2="23" y1="1" y2="7" /><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.05 12.05 0 0 0 .57 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.05 12.05 0 0 0 2.81.57A2 2 0 0 1 22 16.92z" /></svg>
+                                        ) : ['missed_call', 'incoming_call', 'outgoing_call'].includes(item.type) ? (
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-phone"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.05 12.05 0 0 0 .57 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.05 12.05 0 0 0 2.81.57A2 2 0 0 1 22 16.92z" /></svg>
                                         ) : (
                                             <UserPlus className="w-2.5 h-2.5" />
                                         )}
