@@ -141,6 +141,9 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
             peerConnection.current.close();
             peerConnection.current = null;
         }
+
+        // Clear ICE queue
+        iceCandidatesQueue.current = [];
     };
 
     // Helper to process queued candidates
@@ -353,18 +356,18 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
                 }
             })
             .on('broadcast', { event: 'ice-candidate' }, async ({ payload }) => {
-                if (peerConnection.current) {
-                    if (peerConnection.current.remoteDescription) {
-                        try {
-                            await peerConnection.current.addIceCandidate(new RTCIceCandidate(payload.candidate));
-                        } catch (e) {
-                            console.error("Error adding Ice Candidate", e);
-                        }
-                    } else {
-                        // Queue it
-                        console.log("❄️ Queueing ICE candidate (remote desc not ready)");
-                        iceCandidatesQueue.current.push(new RTCIceCandidate(payload.candidate));
+                if (peerConnection.current && peerConnection.current.remoteDescription) {
+                    try {
+                        await peerConnection.current.addIceCandidate(new RTCIceCandidate(payload.candidate));
+                    } catch (e) {
+                        console.error("Error adding Ice Candidate", e);
                     }
+                } else {
+                    // Queue it if:
+                    // 1. PC exists but no remote desc (Caller waiting for Answer, or Answerer just created PC)
+                    // 2. PC does not exist yet (Answerer ringing)
+                    console.log("❄️ Queueing ICE candidate (remote desc not ready or PC null)");
+                    iceCandidatesQueue.current.push(new RTCIceCandidate(payload.candidate));
                 }
             })
             .on('broadcast', { event: 'end-call' }, () => {
