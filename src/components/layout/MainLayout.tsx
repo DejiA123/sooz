@@ -1,4 +1,3 @@
-
 import { Outlet } from "react-router-dom";
 import { BottomNav } from "./BottomNav";
 import { TopBar } from "./TopBar";
@@ -6,12 +5,23 @@ import { Sidebar } from "./Sidebar";
 import { useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
+import { fetchPosts } from "@/services/api/posts";
 
 export const MainLayout = () => {
     const { user } = useAuth();
+    const queryClient = useQueryClient();
 
     useEffect(() => {
         if (!user) return;
+
+        // Prefetch home feed so it's ready instantly when visiting Home
+        queryClient.prefetchInfiniteQuery({
+            queryKey: ['posts', user.id],
+            queryFn: ({ pageParam }) => fetchPosts({ pageParam, userId: user.id }),
+            initialPageParam: 0,
+            staleTime: 1000 * 60 * 5,
+        });
 
         const updateLastSeen = async () => {
             try {
@@ -24,7 +34,7 @@ export const MainLayout = () => {
         };
 
         updateLastSeen();
-    }, [user]);
+    }, [user, queryClient]);
 
     return (
         <div className="min-h-screen bg-background pb-20 pt-14 md:pt-0 md:pb-0">

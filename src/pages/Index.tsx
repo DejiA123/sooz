@@ -10,6 +10,7 @@ import { SuggestedAccounts } from "@/components/home/SuggestedAccounts";
 import { SuggestedUsersRail } from "@/components/feed/SuggestedUsersRail";
 import { useVideoStore } from "@/store/useVideoStore";
 import { useInfiniteQuery } from "@tanstack/react-query";
+import { fetchPosts } from "@/services/api/posts";
 
 interface PostWithUser {
   id: string;
@@ -30,7 +31,7 @@ interface PostWithUser {
   is_saved_by_user?: boolean;
 }
 
-const POSTS_PER_PAGE = 10;
+
 
 export default function Index() {
   const { user } = useAuth();
@@ -50,75 +51,9 @@ export default function Index() {
 
   useEffect(() => {
     handleInteractionUnlock();
-    // Removed scrollTo(0,0) to preserve scroll position on back nav?
-    // User wants smooth nav. Usually scroll restoration is desired. 
-    // If they want "instant" feel, keeping position is better.
-    // But earlier I added scrollTo top. Let's keep it for now as "Start at top" is often desired on "Home" click.
-    // Actually, Instagram/TikTok usually keep position if you switch tabs and back.
-    // If you click "Home" tab AGAIN, it scrolls top.
-    // For now, let's keep it simple.
+    // Start at top on mount as per user preference
     window.scrollTo(0, 0);
   }, []);
-
-  const fetchPosts = async ({ pageParam = 0 }) => {
-    const from = pageParam * POSTS_PER_PAGE;
-    const to = from + POSTS_PER_PAGE - 1;
-
-    const { data: postsData, error: postsError } = await supabase
-      .from("posts")
-      .select(`
-        *,
-        profiles:user_id (id, username, avatar_url, display_name),
-        likes (count),
-        comments (count)
-      `)
-      .order("created_at", { ascending: false })
-      .range(from, to);
-
-    if (postsError) throw postsError;
-
-    if (!postsData || postsData.length === 0) {
-      return { posts: [], nextPage: null };
-    }
-
-    // Collect IDs for likes/bookmarks
-    const newPostIds = postsData.map(p => p.id);
-    let likedPostIds = new Set<string>();
-    let savedPostIds = new Set<string>();
-
-    if (user) {
-      const { data: userLikes } = await supabase
-        .from("likes")
-        .select("post_id")
-        .eq("user_id", user.id)
-        .in("post_id", newPostIds);
-
-      if (userLikes) userLikes.forEach(like => likedPostIds.add(like.post_id));
-
-      const { data: userBookmarks } = await supabase
-        .from("bookmarks")
-        .select("post_id")
-        .eq("user_id", user.id)
-        .in("post_id", newPostIds);
-
-      if (userBookmarks) userBookmarks.forEach(bookmark => savedPostIds.add(bookmark.post_id));
-    }
-
-    const transformedPosts = postsData.map(post => ({
-      ...post,
-      // @ts-ignore
-      likes_count: post.likes[0]?.count || 0,
-      // @ts-ignore
-      comments_count: post.comments[0]?.count || 0,
-      is_liked_by_user: likedPostIds.has(post.id),
-      is_saved_by_user: savedPostIds.has(post.id)
-    }));
-
-    return {
-      posts: transformedPosts,
-      nextPage: postsData.length === POSTS_PER_PAGE ? pageParam + 1 : null
-    };
-  };
 
   const {
     data,
@@ -128,10 +63,11 @@ export default function Index() {
     status
   } = useInfiniteQuery({
     queryKey: ['posts', user?.id], // Key includes user ID to refresh on auth change
-    queryFn: fetchPosts,
+    queryFn: ({ pageParam }) => fetchPosts({ pageParam, userId: user?.id }),
     initialPageParam: 0,
     getNextPageParam: (lastPage) => lastPage.nextPage,
     staleTime: 1000 * 60 * 5, // 5 minutes cache
+    refetchOnWindowFocus: true,
   });
 
   const { ref, inView } = useInView();
