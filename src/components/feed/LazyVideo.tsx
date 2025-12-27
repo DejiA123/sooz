@@ -15,10 +15,21 @@ interface LazyVideoProps {
 export const LazyVideo = ({ src, id, onClick, startTime = 0 }: LazyVideoProps) => {
     const videoRef = useRef<HTMLVideoElement>(null);
     const [isPlaying, setIsPlaying] = useState(false);
-    const [isMuted, setIsMuted] = useState(true);
     const [isBuffering, setIsBuffering] = useState(false);
     const [hasAttemptedPlay, setHasAttemptedPlay] = useState(false);
     const { unlock } = useAutoplayUnlock();
+
+    // Use global mute state
+    const isGlobalMuted = useVideoStore((state) => state.isGlobalMuted);
+    const setGlobalMuted = useVideoStore((state) => state.setGlobalMuted);
+
+    // Sync local mute with global state 
+    // Effect to apply global mute state to video element whenever it changes or video reference changes
+    useEffect(() => {
+        if (videoRef.current) {
+            videoRef.current.muted = isGlobalMuted;
+        }
+    }, [isGlobalMuted]);
 
     const activeVideoId = useVideoStore((state) => state.activeVideoId);
     const setActiveVideo = useVideoStore((state) => state.setActiveVideo);
@@ -40,12 +51,18 @@ export const LazyVideo = ({ src, id, onClick, startTime = 0 }: LazyVideoProps) =
                         video.currentTime = startTime;
                     }
 
-                    video.muted = true; // Essential for mobile
+                    video.muted = isGlobalMuted; // Use global mute preference
                     video.play()
                         .then(() => setIsPlaying(true))
                         .catch((e) => {
                             console.log("Optimistic play failed, will retry in useEffect", e);
                         });
+                }
+            } else {
+                // Stop playing if scrolled out of view
+                const currentActiveId = useVideoStore.getState().activeVideoId;
+                if (currentActiveId === id) {
+                    setActiveVideo(null);
                 }
             }
         }
@@ -59,9 +76,8 @@ export const LazyVideo = ({ src, id, onClick, startTime = 0 }: LazyVideoProps) =
         if (isActive) {
             const playVideo = async () => {
                 try {
-                    // Always start MUTED for reliable mobile autoplay
-                    video.muted = true;
-                    setIsMuted(true);
+                    // Start with global mute setting
+                    video.muted = isGlobalMuted;
 
                     // Multiple play attempts for mobile reliability
                     const attemptPlay = async (retries = 3) => {
@@ -72,6 +88,20 @@ export const LazyVideo = ({ src, id, onClick, startTime = 0 }: LazyVideoProps) =
                                 setHasAttemptedPlay(true);
                                 return;
                             } catch (e) {
+                                // If unmuted autoplay fails (browser policy), try muting and playing
+                                if (!video.muted) {
+                                    video.muted = true;
+                                    setGlobalMuted(true); // Fallback to global mute
+                                    try {
+                                        await video.play();
+                                        setIsPlaying(true);
+                                        setHasAttemptedPlay(true);
+                                        return;
+                                    } catch (err) {
+                                        // Ignore
+                                    }
+                                }
+
                                 if (i < retries - 1) {
                                     await new Promise(r => setTimeout(r, 100));
                                 }
@@ -94,7 +124,7 @@ export const LazyVideo = ({ src, id, onClick, startTime = 0 }: LazyVideoProps) =
             video.pause();
             setIsPlaying(false);
         }
-    }, [isActive]);
+    }, [isActive, isGlobalMuted]); // Re-run if global mute changes? No, only on active change. But we handle mute sync in other effect.
 
     // Handle click
     const handleTap = (e: React.MouseEvent) => {
@@ -107,9 +137,16 @@ export const LazyVideo = ({ src, id, onClick, startTime = 0 }: LazyVideoProps) =
             setActiveVideo(id);
             const video = videoRef.current;
             if (video) {
-                // On explicit interaction, ALWAYS enable sound
-                video.muted = false;
-                setIsMuted(false);
+                // On explicit interaction to play, we usually want sound if previously unmuted,
+                // or if it was the FIRST interaction, maybe unmute?
+                // User said: "after the user unmutes the first video, let the other videos be automatically unmuted"
+                // Tapping to play usually doesn't imply unmute unless it's a specific "Tap to unmute" overlay.
+                // But for TikTok style, tapping pauses/plays. 
+                // Let's keep tap as play/pause. Use the mute button for unmute.
+                // UNLESS the prompt implies tap should unmute? "unmute the first video with their volume button"
+                // Let's stick to explicit mute button for unmuting to be safe, or just ensure global state is respected.
+
+                video.muted = isGlobalMuted;
                 video.play()
                     .then(() => setIsPlaying(true))
                     .catch(() => { });
@@ -128,8 +165,9 @@ export const LazyVideo = ({ src, id, onClick, startTime = 0 }: LazyVideoProps) =
         e.stopPropagation();
         const video = videoRef.current;
         if (video) {
-            video.muted = !video.muted;
-            setIsMuted(video.muted);
+            const newMutedState = !video.muted;
+            video.muted = newMutedState;
+            setGlobalMuted(newMutedState); // Update global state
         }
     };
 
@@ -148,12 +186,12 @@ export const LazyVideo = ({ src, id, onClick, startTime = 0 }: LazyVideoProps) =
                 src={finalSrc}
                 className="w-full aspect-[9/16] object-contain"
                 loop
-                muted={isMuted} // Controlled by state now
+                muted={isGlobalMuted}
                 playsInline
                 autoPlay={isActive}
                 preload="auto"
                 onWaiting={() => setIsBuffering(true)}
-                onPlaying={() => setIsBuffering(false)}
+                onPlaying={() => setIsPlaying(false)}
                 onPlay={() => setIsPlaying(true)}
                 onPause={() => setIsPlaying(false)}
                 // @ts-ignore - for older iOS support
@@ -180,7 +218,7 @@ export const LazyVideo = ({ src, id, onClick, startTime = 0 }: LazyVideoProps) =
                 onClick={toggleMute}
                 className="absolute bottom-3 right-3 bg-black/60 backdrop-blur-sm p-2 rounded-full z-20"
             >
-                {isMuted ? (
+                {isGlobalMuted ? (
                     <VolumeX className="w-4 h-4 text-white" />
                 ) : (
                     <Volume2 className="w-4 h-4 text-white" />
