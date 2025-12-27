@@ -110,38 +110,32 @@ const App = () => {
             <BrowserRouter>
               <AuthListener />
               <NotificationManager />
-              <Suspense fallback={
-                <div className="flex items-center justify-center min-h-screen text-primary">
-                  <Loader2 className="h-8 w-8 animate-spin" />
-                </div>
-              }>
-                <Routes>
-                  <Route path="/auth" element={<Auth />} />
-                  <Route path="/email-confirmation" element={<EmailConfirmation />} />
-                  <Route path="/forgot-password" element={<ForgotPassword />} />
-                  <Route path="/update-password" element={<UpdatePassword />} />
+              <Routes>
+                <Route path="/auth" element={<Suspense fallback={null}><Auth /></Suspense>} />
+                <Route path="/email-confirmation" element={<Suspense fallback={null}><EmailConfirmation /></Suspense>} />
+                <Route path="/forgot-password" element={<Suspense fallback={null}><ForgotPassword /></Suspense>} />
+                <Route path="/update-password" element={<Suspense fallback={null}><UpdatePassword /></Suspense>} />
 
-                  <Route element={<MainLayout />}>
-                    <Route path="/" element={<Index />} />
-                    <Route path="/discover" element={<Discover />} />
-                    <Route path="/activity" element={<Activity />} />
-                    <Route path="/suggested-people" element={<SuggestedPeople />} />
-                    <Route path="/about" element={<About />} />
-                    <Route path="/help" element={<Help />} />
-                    <Route path="/privacy" element={<Privacy />} />
-                    <Route path="/terms" element={<Terms />} />
-                    <Route element={<ProtectedRoute />}>
-                      <Route path="/chat" element={<Chat />} />
-                    </Route>
-                    <Route path="/notifications" element={<Notifications />} />
-                    <Route path="/profile/:username" element={<Profile />} />
-                    <Route path="/post/:id" element={<PostDetails />} />
-                    <Route path="/settings" element={<Settings />} />
+                <Route element={<MainLayout />}>
+                  <Route path="/" element={<Suspense fallback={null}><Index /></Suspense>} />
+                  <Route path="/discover" element={<Suspense fallback={null}><Discover /></Suspense>} />
+                  <Route path="/activity" element={<Suspense fallback={null}><Activity /></Suspense>} />
+                  <Route path="/suggested-people" element={<Suspense fallback={null}><SuggestedPeople /></Suspense>} />
+                  <Route path="/about" element={<Suspense fallback={null}><About /></Suspense>} />
+                  <Route path="/help" element={<Suspense fallback={null}><Help /></Suspense>} />
+                  <Route path="/privacy" element={<Suspense fallback={null}><Privacy /></Suspense>} />
+                  <Route path="/terms" element={<Suspense fallback={null}><Terms /></Suspense>} />
+                  <Route element={<ProtectedRoute />}>
+                    <Route path="/chat" element={<Suspense fallback={null}><Chat /></Suspense>} />
                   </Route>
+                  <Route path="/notifications" element={<Suspense fallback={null}><Notifications /></Suspense>} />
+                  <Route path="/profile/:username" element={<Suspense fallback={null}><Profile /></Suspense>} />
+                  <Route path="/post/:id" element={<Suspense fallback={null}><PostDetails /></Suspense>} />
+                  <Route path="/settings" element={<Suspense fallback={null}><Settings /></Suspense>} />
+                </Route>
 
-                  <Route path="*" element={<NotFound />} />
-                </Routes>
-              </Suspense>
+                <Route path="*" element={<Suspense fallback={null}><NotFound /></Suspense>} />
+              </Routes>
             </BrowserRouter>
           </TooltipProvider>
         </CallProvider>

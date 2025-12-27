@@ -4,6 +4,7 @@ import { Plus, Users, Search, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useState, useEffect } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { CreateGroupModal } from "./CreateGroupModal";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -19,40 +20,22 @@ interface ChatListProps {
 export const ChatList = ({ selectedId, onSelect }: ChatListProps) => {
     const { user } = useAuth();
     const { onlineUsers } = usePresence();
+    const queryClient = useQueryClient();
     const [showCreateModal, setShowCreateModal] = useState(false);
-    const [chats, setChats] = useState<any[]>([]);
-    const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState("");
     const [activeTab, setActiveTab] = useState<"all" | "direct" | "group">("all");
 
-    useEffect(() => {
-        if (!user) return;
-        fetchChats();
+    // Fetch Chats using React Query for caching and instant load
+    const { data: chats = [] } = useQuery({
+        queryKey: ['chats', user?.id],
+        queryFn: async () => {
+            if (!user) return [];
 
-        // Subscribe to new messages or conversations
-        const channel = supabase
-            .channel('public:conversations')
-            .on(
-                'postgres_changes',
-                { event: '*', schema: 'public', table: 'messages' },
-                () => {
-                    fetchChats(); // Refresh on new message
-                }
-            )
-            .subscribe();
-
-        return () => {
-            supabase.removeChannel(channel);
-        };
-    }, [user]);
-
-    const fetchChats = async () => {
-        try {
             // 1. Get my conversations
             const { data: participations, error: partError } = await supabase
                 .from('conversation_participants')
                 .select('conversation_id, conversations(id, type, name, created_at)')
-                .eq('user_id', user?.id);
+                .eq('user_id', user.id);
 
             if (partError) throw partError;
 
@@ -70,7 +53,7 @@ export const ChatList = ({ selectedId, onSelect }: ChatListProps) => {
                         .from('conversation_participants')
                         .select('profiles(id, username, display_name, avatar_url, updated_at)')
                         .eq('conversation_id', conv.id)
-                        .neq('user_id', user?.id)
+                        .neq('user_id', user.id)
                         .maybeSingle();
 
                     if (otherPart && otherPart.profiles) {
@@ -110,17 +93,34 @@ export const ChatList = ({ selectedId, onSelect }: ChatListProps) => {
 
             // Sort by latest timestamp
             fetchedChats.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-            setChats(fetchedChats);
+            return fetchedChats;
+        },
+        enabled: !!user,
+        staleTime: 1000 * 60 * 5, // 5 minute cache
+    });
 
-        } catch (error) {
-            console.error("Error fetching chats:", error);
-        } finally {
-            setLoading(false);
-        }
-    };
+    useEffect(() => {
+        if (!user) return;
+
+        // Subscribe to new messages or conversations
+        const channel = supabase
+            .channel('public:conversations')
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'messages' },
+                () => {
+                    queryClient.invalidateQueries({ queryKey: ['chats', user.id] });
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [user, queryClient]);
 
     const handleCreateGroup = () => {
-        fetchChats(); // Re-fetch after creating group
+        queryClient.invalidateQueries({ queryKey: ['chats', user?.id] });
     };
 
     // Filter Logic
@@ -181,7 +181,7 @@ export const ChatList = ({ selectedId, onSelect }: ChatListProps) => {
 
             {/* Chat List */}
             <div className="flex-1 overflow-y-auto">
-                {filteredChats.length === 0 && !loading ? (
+                {chats.length === 0 ? (
                     <div className="p-8 text-center text-muted-foreground">
                         <p className="text-sm">No chats found</p>
                     </div>

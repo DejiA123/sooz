@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface DiscoverPost {
     id: string;
@@ -106,8 +107,10 @@ export default function Discover() {
             )}
 
             {loading ? (
-                <div className="h-40 flex items-center justify-center">
-                    <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                <div className="grid grid-cols-3 gap-0.5 px-0.5">
+                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((i) => (
+                        <Skeleton key={i} className="aspect-[3/4] w-full bg-muted/30" />
+                    ))}
                 </div>
             ) : posts.length === 0 && users.length === 0 ? (
                 <div className="text-center text-muted-foreground py-20">

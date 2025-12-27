@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Heart, UserPlus, Play } from "lucide-react";
@@ -26,30 +27,19 @@ interface ActivityItem {
 export default function Activity() {
     const { user, loading: authLoading } = useAuth();
     const navigate = useNavigate();
-    const [activities, setActivities] = useState<ActivityItem[]>([]);
-    const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
-        if (!authLoading && !user) {
-            navigate("/auth");
-            return;
-        }
-        if (user) {
-            fetchActivity();
-        }
-    }, [user, authLoading, navigate]);
+    const { data: activities = [], isLoading } = useQuery({
+        queryKey: ['activity', user?.id],
+        queryFn: async () => {
+            if (!user) return [];
 
-    const fetchActivity = async () => {
-        try {
-            if (!user) return;
-
-            // 1. Fetch from 'notifications' table (New consolidated system)
+            // 1. Fetch from 'notifications' table
             const { data: notifications, error: notifError } = await supabase
                 .from('notifications')
                 .select('*')
                 .eq('user_id', user.id)
                 .order('created_at', { ascending: false })
-                .limit(50); // Fetch more to mix
+                .limit(50);
 
             if (notifError) throw notifError;
 
@@ -68,9 +58,6 @@ export default function Activity() {
                     const actor = actorMap[n.actor_id];
                     return {
                         id: n.id,
-                        // Map notification types to activity types. 
-                        // 'missed_call' is new and needs handling in render (we'll treat as 'comment' or add type)
-                        // 'message' might assume chat logic.
                         type: n.type as any,
                         created_at: n.created_at,
                         user: {
@@ -83,43 +70,28 @@ export default function Activity() {
                 });
             }
 
-
-            // 2. Fetch Legacy Activities (Follows/Likes not yet in notifications table?)
-            // If the app didn't use notifications table before, we need existing data.
-            // If we are migrating, we keep this.
-
-            // Fetch new followers (Legacy)
+            // 2. Fetch Legacy Activities
             const { data: follows, error: followsError } = await supabase
                 .from("follows")
-                .select(`
-          id,
-          created_at,
-          follower:follower_id(username, avatar_url)
-        `)
+                .select(`id, created_at, follower:follower_id(username, avatar_url)`)
                 .eq("following_id", user.id)
                 .order("created_at", { ascending: false })
                 .limit(20);
-
             if (followsError) throw followsError;
 
-            // Fetch likes on my posts (Legacy)
             const { data: likes, error: likesError } = await supabase
                 .from("likes")
                 .select(`
-          id,
-          created_at,
-          post_id,
-          user:user_id(username, avatar_url),
-          posts!inner(user_id, media_url, media_type)
-        `)
+                    id, created_at, post_id, 
+                    user:user_id(username, avatar_url),
+                    posts!inner(user_id, media_url, media_type)
+                `)
                 .eq("posts.user_id", user.id)
                 .neq("user_id", user.id)
                 .order("created_at", { ascending: false })
                 .limit(20);
-
             if (likesError) throw likesError;
 
-            // Transform Legacy
             const followActivities = (follows || []).map(f => ({
                 id: f.id,
                 type: "follow" as const,
@@ -145,32 +117,18 @@ export default function Activity() {
                 content: "liked your post."
             }));
 
-            // Deduplication (Simple ID check might fail if types differ, but dates usually suffice)
-            // We might have duplicates if we start writing likes to 'notifications' AND 'likes' table.
-            // For now, assume we just add notifications on top.
-
             const allActivities = [...notifItems, ...followActivities, ...likeActivities]
-                // Filter out duplicates if IDs clash?
                 .filter((v, i, a) => a.findIndex(t => (t.id === v.id)) === i)
-                .sort(
-                    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-                );
+                .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
-            setActivities(allActivities as ActivityItem[]);
-        } catch (error) {
-            console.error("Error fetching activity:", error);
-        } finally {
-            setLoading(false);
-        }
-    };
+            return allActivities as ActivityItem[];
+        },
+        enabled: !!user,
+        staleTime: 1000 * 60 * 5, // Cache for 5 mins
+    });
 
-    if (authLoading || (loading && user)) {
-        return (
-            <div className="h-full flex items-center justify-center pt-20">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-            </div>
-        );
-    }
+    // Removed blocking spinner to allow instant navigation
+    // if (authLoading || (loading && user)) { ... }
 
     return (
         <div className="pb-20">

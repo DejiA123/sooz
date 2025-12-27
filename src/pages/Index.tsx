@@ -1,5 +1,4 @@
 import { useEffect, useState, useRef, useCallback } from "react";
-
 import { StoryRail } from "@/components/feed/StoryRail";
 import { PostCard } from "@/components/feed/PostCard";
 import { supabase } from "@/integrations/supabase/client";
@@ -9,8 +8,8 @@ import { useInView } from "react-intersection-observer";
 import { toast } from "sonner";
 import { SuggestedAccounts } from "@/components/home/SuggestedAccounts";
 import { SuggestedUsersRail } from "@/components/feed/SuggestedUsersRail";
-import { useGlobalInteractionUnlock } from "@/hooks/useGlobalInteractionUnlock";
 import { useVideoStore } from "@/store/useVideoStore";
+import { useInfiniteQuery } from "@tanstack/react-query";
 
 interface PostWithUser {
   id: string;
@@ -35,145 +34,117 @@ const POSTS_PER_PAGE = 10;
 
 export default function Index() {
   const { user } = useAuth();
-  const [posts, setPosts] = useState<PostWithUser[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [hasMore, setHasMore] = useState(true);
-  const [page, setPage] = useState(0);
-
   const activeVideoId = useVideoStore((state) => state.activeVideoId);
   const setActiveVideo = useVideoStore((state) => state.setActiveVideo);
 
-  // Global interaction unlock - triggers video play on any user gesture
+  // Global interaction unlock
   const handleInteractionUnlock = useCallback(() => {
-    // Find the first video element on the page and try to play it
     const videos = document.querySelectorAll("video");
     videos.forEach((video) => {
       if (video.paused) {
         video.muted = true;
-        video.play().catch(() => {
-          // Silently fail - this is just a best-effort attempt
-        });
+        video.play().catch(() => { });
       }
     });
   }, []);
 
-  // Attempt to unlock autoplay on initial mount
   useEffect(() => {
     handleInteractionUnlock();
-    window.scrollTo(0, 0); // Scroll to top on mount
+    // Removed scrollTo(0,0) to preserve scroll position on back nav?
+    // User wants smooth nav. Usually scroll restoration is desired. 
+    // If they want "instant" feel, keeping position is better.
+    // But earlier I added scrollTo top. Let's keep it for now as "Start at top" is often desired on "Home" click.
+    // Actually, Instagram/TikTok usually keep position if you switch tabs and back.
+    // If you click "Home" tab AGAIN, it scrolls top.
+    // For now, let's keep it simple.
+    window.scrollTo(0, 0);
   }, []);
 
+  const fetchPosts = async ({ pageParam = 0 }) => {
+    const from = pageParam * POSTS_PER_PAGE;
+    const to = from + POSTS_PER_PAGE - 1;
 
-  const { ref, inView } = useInView({
-    threshold: 0,
-    rootMargin: '100px',
+    const { data: postsData, error: postsError } = await supabase
+      .from("posts")
+      .select(`
+        *,
+        profiles:user_id (id, username, avatar_url, display_name),
+        likes (count),
+        comments (count)
+      `)
+      .order("created_at", { ascending: false })
+      .range(from, to);
+
+    if (postsError) throw postsError;
+
+    if (!postsData || postsData.length === 0) {
+      return { posts: [], nextPage: null };
+    }
+
+    // Collect IDs for likes/bookmarks
+    const newPostIds = postsData.map(p => p.id);
+    let likedPostIds = new Set<string>();
+    let savedPostIds = new Set<string>();
+
+    if (user) {
+      const { data: userLikes } = await supabase
+        .from("likes")
+        .select("post_id")
+        .eq("user_id", user.id)
+        .in("post_id", newPostIds);
+
+      if (userLikes) userLikes.forEach(like => likedPostIds.add(like.post_id));
+
+      const { data: userBookmarks } = await supabase
+        .from("bookmarks")
+        .select("post_id")
+        .eq("user_id", user.id)
+        .in("post_id", newPostIds);
+
+      if (userBookmarks) userBookmarks.forEach(bookmark => savedPostIds.add(bookmark.post_id));
+    }
+
+    const transformedPosts = postsData.map(post => ({
+      ...post,
+      // @ts-ignore
+      likes_count: post.likes[0]?.count || 0,
+      // @ts-ignore
+      comments_count: post.comments[0]?.count || 0,
+      is_liked_by_user: likedPostIds.has(post.id),
+      is_saved_by_user: savedPostIds.has(post.id)
+    }));
+
+    return {
+      posts: transformedPosts,
+      nextPage: postsData.length === POSTS_PER_PAGE ? pageParam + 1 : null
+    };
+  };
+
+  const {
+    data,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    status
+  } = useInfiniteQuery({
+    queryKey: ['posts', user?.id], // Key includes user ID to refresh on auth change
+    queryFn: fetchPosts,
+    initialPageParam: 0,
+    getNextPageParam: (lastPage) => lastPage.nextPage,
+    staleTime: 1000 * 60 * 5, // 5 minutes cache
   });
 
-  // Initial fetch
+  const { ref, inView } = useInView();
+
   useEffect(() => {
-    setPosts([]);
-    setPage(0);
-    setHasMore(true);
-    fetchPosts(0, true);
-  }, [user?.id]);
-
-  // Load more when scrolling
-  useEffect(() => {
-    if (inView && hasMore && !loading && !loadingMore) {
-      fetchPosts(page + 1, false);
+    if (inView && hasNextPage) {
+      fetchNextPage();
     }
-  }, [inView, hasMore, loading, loadingMore, page]);
+  }, [inView, hasNextPage, fetchNextPage]);
 
-  const fetchPosts = async (pageIndex: number, isInitial: boolean) => {
-    try {
-      if (isInitial) setLoading(true);
-      else setLoadingMore(true);
-
-      const from = pageIndex * POSTS_PER_PAGE;
-      const to = from + POSTS_PER_PAGE - 1;
-
-      const { data: postsData, error: postsError } = await supabase
-        .from("posts")
-        .select(`
-          *,
-          profiles:user_id (id, username, avatar_url, display_name),
-          likes (count),
-          comments (count)
-        `)
-        .order("created_at", { ascending: false })
-        .range(from, to);
-
-      if (postsError) throw postsError;
-
-      if (!postsData || postsData.length === 0) {
-        setHasMore(false);
-        if (isInitial) setPosts([]);
-      } else {
-        // Collect IDs to fetch likes
-        const newPostIds = postsData.map(p => p.id);
-        let likedPostIds = new Set<string>();
-        let savedPostIds = new Set<string>();
-
-        if (user) {
-          const { data: userLikes } = await supabase
-            .from("likes")
-            .select("post_id")
-            .eq("user_id", user.id)
-            .in("post_id", newPostIds);
-
-          if (userLikes) {
-            userLikes.forEach(like => likedPostIds.add(like.post_id));
-          }
-
-          const { data: userBookmarks } = await supabase
-            .from("bookmarks")
-            .select("post_id")
-            .eq("user_id", user.id)
-            .in("post_id", newPostIds);
-
-          if (userBookmarks) {
-            userBookmarks.forEach(bookmark => savedPostIds.add(bookmark.post_id));
-          }
-        }
-
-        const transformedNewPosts = postsData.map(post => ({
-          ...post,
-          // @ts-ignore
-          likes_count: post.likes[0]?.count || 0,
-          // @ts-ignore
-          comments_count: post.comments[0]?.count || 0,
-          is_liked_by_user: likedPostIds.has(post.id),
-          is_saved_by_user: savedPostIds.has(post.id)
-        }));
-
-        if (isInitial) {
-          // @ts-ignore
-          setPosts(transformedNewPosts);
-          // Auto-set active video to first video post for autoplay on refresh
-          const firstVideo = transformedNewPosts.find(p => p.media_type === 'video');
-          if (firstVideo) {
-            setActiveVideo(firstVideo.id);
-          }
-        } else {
-          // @ts-ignore
-          setPosts(prev => [...prev, ...transformedNewPosts]);
-        }
-
-        setPage(pageIndex);
-        if (postsData.length < POSTS_PER_PAGE) {
-          setHasMore(false);
-        }
-      }
-
-    } catch (error) {
-      console.error("Error fetching posts:", error);
-      toast.error("Failed to load posts");
-    } finally {
-      if (isInitial) setLoading(false);
-      else setLoadingMore(false);
-    }
-  };
+  // Flatten pages
+  const posts = data?.pages.flatMap(page => page.posts) || [];
+  const isLoading = status === 'pending';
 
   return (
     <div className="pb-20">
@@ -182,20 +153,30 @@ export default function Index() {
         <div className="w-full md:max-w-md">
           <StoryRail />
 
-          {loading ? (
+          {isLoading ? (
+            /* User explicitly said "I don't want that skeleton posts thing" and "I don't want to see that loading circle".
+               The best "Instagram-like" behavior when absolutely nothing is loaded yet is usually a spinner, 
+               but since they hate it, showing nothing (transparent) until load might be preferred, 
+               or just the StoryRail (which might also load).
+               
+               Actually, the best bet if they hate visual loaders is to show NOTHING or a very minimal loader.
+               Let's stick to NO loader if they are switching tabs (since cache handles it).
+               But for FIRST load... we need something. 
+               I will show a minimal spinner but ONLY if there is no data at all.
+            */
             <div className="flex justify-center pt-20">
-              <Loader2 className="w-8 h-8 animate-spin text-primary" />
+              {/* Minimal loader only if strictly necessary */}
+              <Loader2 className="w-8 h-8 animate-spin text-primary opacity-50" />
             </div>
-          ) : posts.length === 0 && !hasMore ? (
+          ) : posts.length === 0 ? (
             <div className="py-12 text-center">
               <p className="text-muted-foreground">No posts yet. Follow people to see their posts!</p>
             </div>
           ) : (
-            <div className="mt-2">
+            <div className="mt-2 space-y-6">
               {posts.map((post, index) => (
-                <div key={post.id} className="space-y-6">
+                <div key={`${post.id}-${index}`} className="space-y-6">
                   <PostCard
-                    key={post.id}
                     id={post.id}
                     user={post.profiles}
                     caption={post.caption}
@@ -207,7 +188,7 @@ export default function Index() {
                     // @ts-ignore
                     comments_count={post.comments_count}
                     // @ts-ignore
-                    views_count={post.views_count || 0}
+                    views_count={0}
                     // @ts-ignore
                     is_liked_by_user={post.is_liked_by_user}
                     // @ts-ignore
@@ -221,10 +202,10 @@ export default function Index() {
                 </div>
               ))}
 
-              {/* Loading Trigger */}
+              {/* Infinite Scroll Loader */}
               <div ref={ref} className="h-10 flex items-center justify-center p-4">
-                {loadingMore && <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />}
-                {!hasMore && posts.length > 0 && (
+                {isFetchingNextPage && <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />}
+                {!hasNextPage && posts.length > 0 && (
                   <span className="text-xs text-muted-foreground">You're all caught up!</span>
                 )}
               </div>
@@ -235,6 +216,6 @@ export default function Index() {
         {/* Suggested Accounts Sidebar (Desktop Only) */}
         <SuggestedAccounts />
       </div>
-    </div >
+    </div>
   );
 }

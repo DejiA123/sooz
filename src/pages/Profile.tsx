@@ -1,5 +1,6 @@
 
 import { useState, useEffect } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { Link as LinkIcon } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -38,138 +39,95 @@ const Profile = () => {
   const { username } = useParams<{ username: string }>();
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [posts, setPosts] = useState<Post[]>([]);
-  const [followersCount, setFollowersCount] = useState(0);
-  const [followingCount, setFollowingCount] = useState(0);
-  const [isFollowing, setIsFollowing] = useState(false);
-  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"posts" | "saved" | "liked">("posts");
   const [showEditModal, setShowEditModal] = useState(false);
   const [showAvatarModal, setShowAvatarModal] = useState(false);
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
 
-  const isOwnProfile = user?.id === profile?.id;
-
-  useEffect(() => {
-    if (username) {
-      fetchProfile();
-    }
-  }, [username, user, authLoading]);
-
-  // Fetch posts based on tab
-  useEffect(() => {
-    if (profile) {
-      fetchPosts();
-    }
-  }, [activeTab, profile, user]);
-
-  const fetchProfile = async () => {
-    if (!username) return;
-
-    if (username === "me" && authLoading) return;
-
-    setLoading(true);
-
-    let query = supabase.from("profiles").select("*");
-
-    if (username === "me") {
-      if (!user) {
-        navigate("/auth");
-        return;
+  // 1. Fetch Profile Data
+  const { data: profileData, isLoading: isProfileLoading } = useQuery({
+    queryKey: ['profile', username],
+    queryFn: async () => {
+      if (!username) return null;
+      if (username === "me" && !user) {
+        // If "me" and no user, we can't fetch. 
+        // But useAuth loading should be handled.
+        return null;
       }
-      query = query.eq("id", user.id);
-    } else {
-      query = query.eq("username", username);
-    }
 
-    const { data: profileData, error: profileError } = await query.maybeSingle();
+      let query = supabase.from("profiles").select("*");
+      if (username === "me") {
+        if (!user) throw new Error("Not authenticated");
+        query = query.eq("id", user.id);
+      } else {
+        query = query.eq("username", username);
+      }
 
-    if (profileError || !profileData) {
-      toast.error("Profile not found");
-      navigate("/");
-      return;
-    }
+      const { data, error } = await query.maybeSingle();
+      if (error) throw error;
+      if (!data) return null;
 
-    setProfile(profileData);
+      // Fetch counts in parallel
+      const [followersObj, followingObj, followStatus] = await Promise.all([
+        supabase.from("follows").select("*", { count: "exact", head: true }).eq("following_id", data.id),
+        supabase.from("follows").select("*", { count: "exact", head: true }).eq("follower_id", data.id),
+        user && user.id !== data.id
+          ? supabase.from("follows").select("id").eq("follower_id", user.id).eq("following_id", data.id).maybeSingle()
+          : Promise.resolve({ data: null })
+      ]);
 
-    // Fetch counts
-    const { count: followers } = await supabase.from("follows").select("*", { count: "exact", head: true }).eq("following_id", profileData.id);
-    setFollowersCount(followers || 0);
+      return {
+        ...data,
+        followersCount: followersObj.count || 0,
+        followingCount: followingObj.count || 0,
+        isFollowing: !!followStatus.data
+      };
+    },
+    enabled: !!username && (username !== "me" || !!user),
+    staleTime: 1000 * 60 * 5, // 5 min cache
+  });
 
-    const { count: following } = await supabase.from("follows").select("*", { count: "exact", head: true }).eq("follower_id", profileData.id);
-    setFollowingCount(following || 0);
+  // 2. Fetch Posts
+  const { data: posts = [] } = useQuery({
+    queryKey: ['profile-posts', profileData?.id, activeTab],
+    queryFn: async () => {
+      if (!profileData?.id) return [];
 
-    if (user && user.id !== profileData.id) {
-      const { data: followData } = await supabase.from("follows").select("id").eq("follower_id", user.id).eq("following_id", profileData.id).maybeSingle();
-      setIsFollowing(!!followData);
-    }
-
-    setLoading(false);
-  };
-
-  const fetchPosts = async () => {
-    if (!profile) return;
-
-    try {
       let rawPosts: any[] = [];
-
       if (activeTab === 'posts') {
-        const { data } = await supabase
-          .from("posts")
-          .select(`
-            *,
-            likes:likes(count),
-            comments:comments(count)
-          `)
-          .eq("user_id", profile.id)
+        const { data } = await supabase.from("posts")
+          .select(`*, likes:likes(count), comments:comments(count)`)
+          .eq("user_id", profileData.id)
           .order("created_at", { ascending: false });
         rawPosts = data || [];
       } else if (activeTab === 'saved') {
-        const { data } = await supabase
-          .from("bookmarks")
-          .select(`
-             post:posts(
-                *,
-                likes:likes(count),
-                comments:comments(count)
-             )
-          `)
-          .eq("user_id", profile.id)
+        const { data } = await supabase.from("bookmarks")
+          .select(`post:posts(*, likes:likes(count), comments:comments(count))`)
+          .eq("user_id", profileData.id)
           .order("created_at", { ascending: false });
         // @ts-ignore
         rawPosts = data?.map(item => item.post).filter(Boolean) || [];
       } else if (activeTab === 'liked') {
-        const { data } = await supabase
-          .from("likes")
-          .select(`
-             post:posts(
-                *,
-                likes:likes(count),
-                comments:comments(count)
-             )
-          `)
-          .eq("user_id", profile.id)
+        const { data } = await supabase.from("likes")
+          .select(`post:posts(*, likes:likes(count), comments:comments(count))`)
+          .eq("user_id", profileData.id)
           .order("created_at", { ascending: false });
         // @ts-ignore
         rawPosts = data?.map(item => item.post).filter(Boolean) || [];
       }
 
-      // Check liked status for current user if logged in
+      // Check liked status
       let likedPostIds = new Set<string>();
       if (user && rawPosts.length > 0) {
         const postIds = rawPosts.map(p => p.id);
         const { data: likesData } = await supabase
-          .from("likes")
-          .select("post_id")
-          .eq("user_id", user.id)
-          .in("post_id", postIds);
-
+          .from("likes").select("post_id").eq("user_id", user.id).in("post_id", postIds);
         likesData?.forEach(l => likedPostIds.add(l.post_id));
       }
 
-      const formattedPosts: Post[] = rawPosts.map(p => ({
+      return rawPosts.map(p => ({
         id: p.id,
         media_url: p.media_url,
         media_type: p.media_type,
@@ -179,14 +137,25 @@ const Profile = () => {
         likes_count: p.likes?.[0]?.count || 0,
         comments_count: p.comments?.[0]?.count || 0,
         is_liked_by_user: likedPostIds.has(p.id)
-      }));
+      })) as Post[];
+    },
+    enabled: !!profileData?.id,
+    staleTime: 1000 * 60 * 5,
+  });
 
-      setPosts(formattedPosts);
+  const profile = profileData;
+  const isOwnProfile = user?.id === profile?.id;
 
-    } catch (error) {
-      console.error("Error fetching posts:", error);
+  // Handle side effects (redirect if not found)
+  useEffect(() => {
+    if (!isProfileLoading && !profileData && username) {
+      // Only redirect if we tried to load and failed/empty
+      // But maybe wait a bit or handle graceful 'Not Found' UI?
+      // For now, keep existing behavior but be careful not to loop.
+      // navigate("/"); 
     }
-  };
+  }, [profileData, isProfileLoading, username, navigate]);
+
 
   const handleFollow = async () => {
     if (!user || !profile) {
@@ -194,22 +163,22 @@ const Profile = () => {
       return;
     }
 
-    if (isFollowing) {
-      await supabase
-        .from("follows")
-        .delete()
-        .eq("follower_id", user.id)
-        .eq("following_id", profile.id);
-      setIsFollowing(false);
-      setFollowersCount((prev) => prev - 1);
+    // Optimistic Update
+    const oldData = queryClient.getQueryData(['profile', username]);
+    // Toggle state locally
+    queryClient.setQueryData(['profile', username], (old: any) => ({
+      ...old,
+      isFollowing: !old.isFollowing,
+      followersCount: old.isFollowing ? old.followersCount - 1 : old.followersCount + 1
+    }));
+
+    if (profileData?.isFollowing) {
+      await supabase.from("follows").delete().eq("follower_id", user.id).eq("following_id", profile.id);
     } else {
-      await supabase.from("follows").insert({
-        follower_id: user.id,
-        following_id: profile.id,
-      });
-      setIsFollowing(true);
-      setFollowersCount((prev) => prev + 1);
+      await supabase.from("follows").insert({ follower_id: user.id, following_id: profile.id });
     }
+    // Invalidate to ensure consistency (optional, or just rely on optimistic)
+    queryClient.invalidateQueries({ queryKey: ['profile', username] });
   };
 
   const formatNumber = (num: number) => {
@@ -218,13 +187,8 @@ const Profile = () => {
     return num.toString();
   };
 
-  if (loading) {
-    return (
-      <div className="h-full flex items-center justify-center pt-20">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-      </div>
-    );
-  }
+  // Removed blocking spinner to allow instant navigation
+  // if (loading) { ... }
 
   if (!profile) return null;
 
@@ -296,11 +260,11 @@ const Profile = () => {
             </div>
           ) : (
             <Button
-              className={isFollowing ? "bg-background/50 backdrop-blur-sm border-white/10" : "bg-primary text-primary-foreground hover:bg-primary/90"}
+              className={profileData?.isFollowing ? "bg-background/50 backdrop-blur-sm border-white/10" : "bg-primary text-primary-foreground hover:bg-primary/90"}
               size="sm"
               onClick={handleFollow}
             >
-              {isFollowing ? "Following" : "Follow"}
+              {profileData?.isFollowing ? "Following" : "Follow"}
             </Button>
           )}
         </div>
@@ -330,11 +294,11 @@ const Profile = () => {
             <div className="text-xs text-muted-foreground">Posts</div>
           </div>
           <div className="text-center">
-            <div className="font-bold">{formatNumber(followersCount)}</div>
+            <div className="font-bold">{formatNumber(profileData?.followersCount || 0)}</div>
             <div className="text-xs text-muted-foreground">Followers</div>
           </div>
           <div className="text-center">
-            <div className="font-bold">{formatNumber(followingCount)}</div>
+            <div className="font-bold">{formatNumber(profileData?.followingCount || 0)}</div>
             <div className="text-xs text-muted-foreground">Following</div>
           </div>
         </div>
@@ -461,7 +425,7 @@ const Profile = () => {
           <EditProfileModal
             profile={profile}
             onClose={() => setShowEditModal(false)}
-            onUpdate={fetchProfile}
+            onUpdate={() => queryClient.invalidateQueries({ queryKey: ['profile', username] })}
           />
         )
       }

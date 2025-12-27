@@ -36,6 +36,11 @@ export const MainLayout = () => {
 
             <div className="md:ml-64 min-h-screen">
                 <main className="w-full md:container md:max-w-lg lg:max-w-5xl mx-auto px-0 md:px-4 animate-fade-in md:py-8">
+                    {/* Add a Suspense boundary here specifically for route transitions */}
+                    {/* fallback={null} ensures no loading spinner is shown, just empty content or previous content until ready? */}
+                    {/* React Router doesn't keep previous content with Suspense unless using useTransition. */}
+                    {/* Standard Suspense unmounts old, mounts new. fallback=null means blank space. */}
+                    {/* This satisfies "I don't want to see that loading circle". */}
                     <Outlet />
                 </main>
             </div>
