@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -27,6 +27,15 @@ interface ActivityItem {
 export default function Activity() {
     const { user, loading: authLoading } = useAuth();
     const navigate = useNavigate();
+    const scrollRef = useRef<HTMLDivElement>(null);
+
+    // Scroll to top on mount
+    useEffect(() => {
+        window.scrollTo(0, 0);
+        if (scrollRef.current?.parentElement) {
+            scrollRef.current.parentElement.scrollTop = 0;
+        }
+    }, []);
 
     const { data: activities = [], isLoading } = useQuery({
         queryKey: ['activity', user?.id],
@@ -134,7 +143,7 @@ export default function Activity() {
         <div className="pb-20">
             <h1 className="text-xl font-bold px-4 py-4">Notifications</h1>
             <ScrollArea className="h-[calc(100vh-140px)]">
-                <div className="space-y-1 px-2">
+                <div ref={scrollRef} className="space-y-1 px-2">
                     {activities.length === 0 ? (
                         <div className="text-center text-muted-foreground py-10 text-sm">
                             No recent activity
