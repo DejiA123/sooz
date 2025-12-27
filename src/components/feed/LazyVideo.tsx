@@ -172,44 +172,8 @@ export const LazyVideo = ({ src, id, onClick, startTime = 0 }: LazyVideoProps) =
     };
 
     const getCachedUrl = useVideoCache((state) => state.getCachedUrl);
-    const setCachedUrl = useVideoCache((state) => state.setCachedUrl);
     const cachedSrc = getCachedUrl(src);
-    const [localSrc, setLocalSrc] = useState<string>(cachedSrc || src);
-
-    // Aggressive Preloading
-    useEffect(() => {
-        if (cachedSrc) {
-            setLocalSrc(cachedSrc);
-            return;
-        }
-
-        let isMounted = true;
-        const controller = new AbortController();
-
-        const preloadVideo = async () => {
-            try {
-                const response = await fetch(src, { signal: controller.signal });
-                const blob = await response.blob();
-                if (isMounted) {
-                    const blobUrl = URL.createObjectURL(blob);
-                    setCachedUrl(src, blobUrl);
-                    setLocalSrc(blobUrl);
-                }
-            } catch (error) {
-                // Silently fail preloading and fallback to stream
-                console.log("Preload failed", error);
-            }
-        };
-
-        // Only preload if we are within valid range (simple logic: usually eager load)
-        // Or just let it load.
-        preloadVideo();
-
-        return () => {
-            isMounted = false;
-            controller.abort();
-        };
-    }, [src, cachedSrc, setCachedUrl]);
+    const finalSrc = cachedSrc || src;
 
     return (
         <div
@@ -219,7 +183,7 @@ export const LazyVideo = ({ src, id, onClick, startTime = 0 }: LazyVideoProps) =
         >
             <video
                 ref={videoRef}
-                src={localSrc}
+                src={finalSrc}
                 className="w-full aspect-[9/16] object-contain"
                 loop
                 muted={isGlobalMuted}
@@ -227,14 +191,25 @@ export const LazyVideo = ({ src, id, onClick, startTime = 0 }: LazyVideoProps) =
                 autoPlay={isActive}
                 preload="auto"
                 onWaiting={() => setIsBuffering(true)}
-                onPlaying={() => setIsPlaying(false)}
-                onPlay={() => setIsPlaying(true)}
+                onPlaying={() => {
+                    setIsPlaying(true);
+                    setIsBuffering(false);
+                }}
+                onPlay={() => {
+                    setIsPlaying(true);
+                    setIsBuffering(false);
+                }}
                 onPause={() => setIsPlaying(false)}
                 // @ts-ignore - for older iOS support
                 webkit-playsinline="true"
             />
 
-            {/* Removed buffering spinner as per user request */}
+            {/* Buffering spinner */}
+            {isBuffering && isPlaying && (
+                <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
+                    <Loader2 className="w-10 h-10 text-white/80 animate-spin drop-shadow-lg" />
+                </div>
+            )}
 
             {/* Only show play button if video has attempted to play but failed (rare edge case) */}
             {!isPlaying && hasAttemptedPlay && (
