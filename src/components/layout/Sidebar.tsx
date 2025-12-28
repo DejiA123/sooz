@@ -51,11 +51,11 @@ export const Sidebar = () => {
         <>
             <aside className="hidden md:flex flex-col fixed left-0 top-0 z-50 h-screen w-64 bg-background border-r border-border px-4 py-6">
                 {/* Logo */}
-                <div className="mb-10 px-2">
+                <div className="mb-8 px-1">
                     <img
                         src="/sooz-logo.jpg"
                         alt="SOOZ"
-                        className="h-10 w-auto object-contain"
+                        className="h-20 w-auto object-contain"
                     />
                 </div>
 
