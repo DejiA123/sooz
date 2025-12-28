@@ -129,6 +129,7 @@ export default function Index() {
                     is_liked_by_user={post.is_liked_by_user}
                     // @ts-ignore
                     is_saved_by_user={post.is_saved_by_user}
+                    priority={index < 2} // Preload the first 2 videos/posts
                   />
                   {index === 0 && (
                     <div className="lg:hidden -mx-1 px-4 py-2 border-y border-white/5 bg-white/5 backdrop-blur-sm">

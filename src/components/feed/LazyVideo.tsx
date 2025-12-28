@@ -10,9 +10,10 @@ interface LazyVideoProps {
     id: string;
     onClick?: (currentTime: number) => void;
     startTime?: number;
+    priority?: boolean;
 }
 
-export const LazyVideo = ({ src, id, onClick, startTime = 0 }: LazyVideoProps) => {
+export const LazyVideo = ({ src, id, onClick, startTime = 0, priority = false }: LazyVideoProps) => {
     const videoRef = useRef<HTMLVideoElement>(null);
     const [isPlaying, setIsPlaying] = useState(false);
     const [isBuffering, setIsBuffering] = useState(false);
@@ -36,7 +37,7 @@ export const LazyVideo = ({ src, id, onClick, startTime = 0 }: LazyVideoProps) =
     const isActive = activeVideoId === id;
 
     const { ref } = useInView({
-        threshold: 0.6, // Higher threshold ensures video is mostly visible (better for mobile)
+        threshold: 0.5, // Lower threshold for mobile responsiveness
         triggerOnce: false,
         onChange: (inView) => {
             if (inView) {
@@ -52,11 +53,10 @@ export const LazyVideo = ({ src, id, onClick, startTime = 0 }: LazyVideoProps) =
                     }
 
                     video.muted = isGlobalMuted; // Use global mute preference
+                    // Attempt play immediately, but don't stress if it fails (handled by robust effect)
                     video.play()
                         .then(() => setIsPlaying(true))
-                        .catch((e) => {
-                            console.log("Optimistic play failed, will retry in useEffect", e);
-                        });
+                        .catch(() => { });
                 }
             } else {
                 // Stop playing if scrolled out of view
@@ -124,7 +124,7 @@ export const LazyVideo = ({ src, id, onClick, startTime = 0 }: LazyVideoProps) =
             video.pause();
             setIsPlaying(false);
         }
-    }, [isActive, isGlobalMuted]); // Re-run if global mute changes? No, only on active change. But we handle mute sync in other effect.
+    }, [isActive, isGlobalMuted, setGlobalMuted]);
 
     // Handle click
     const handleTap = (e: React.MouseEvent) => {
@@ -137,15 +137,6 @@ export const LazyVideo = ({ src, id, onClick, startTime = 0 }: LazyVideoProps) =
             setActiveVideo(id);
             const video = videoRef.current;
             if (video) {
-                // On explicit interaction to play, we usually want sound if previously unmuted,
-                // or if it was the FIRST interaction, maybe unmute?
-                // User said: "after the user unmutes the first video, let the other videos be automatically unmuted"
-                // Tapping to play usually doesn't imply unmute unless it's a specific "Tap to unmute" overlay.
-                // But for TikTok style, tapping pauses/plays. 
-                // Let's keep tap as play/pause. Use the mute button for unmute.
-                // UNLESS the prompt implies tap should unmute? "unmute the first video with their volume button"
-                // Let's stick to explicit mute button for unmuting to be safe, or just ensure global state is respected.
-
                 video.muted = isGlobalMuted;
                 video.play()
                     .then(() => setIsPlaying(true))
@@ -189,7 +180,7 @@ export const LazyVideo = ({ src, id, onClick, startTime = 0 }: LazyVideoProps) =
                 muted={isGlobalMuted}
                 playsInline
                 autoPlay={isActive}
-                preload="auto"
+                preload={priority || isActive ? "auto" : "none"} // Optimized preloading
                 onWaiting={() => setIsBuffering(true)}
                 onPlaying={() => {
                     setIsPlaying(true);
@@ -222,7 +213,7 @@ export const LazyVideo = ({ src, id, onClick, startTime = 0 }: LazyVideoProps) =
 
             <button
                 onClick={toggleMute}
-                className="absolute bottom-3 right-3 bg-black/60 backdrop-blur-sm p-2 rounded-full z-20"
+                className="absolute bottom-3 right-3 bg-black/60 backdrop-blur-sm p-2 rounded-full z-20 touch-manipulation"
             >
                 {isGlobalMuted ? (
                     <VolumeX className="w-4 h-4 text-white" />

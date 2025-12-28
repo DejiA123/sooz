@@ -39,6 +39,7 @@ interface PostCardProps {
   views_count?: number;
   is_liked_by_user?: boolean;
   is_saved_by_user?: boolean;
+  priority?: boolean;
 }
 
 export const PostCard = ({
@@ -52,7 +53,8 @@ export const PostCard = ({
   comments_count,
   views_count: initialViews = 0,
   is_liked_by_user: initialLiked,
-  is_saved_by_user: initialSaved
+  is_saved_by_user: initialSaved,
+  priority = false
 }: PostCardProps) => {
   const { user: currentUser } = useAuth();
   const isMobile = useIsMobile();
@@ -270,6 +272,7 @@ export const PostCard = ({
               <LazyVideo
                 src={media_url}
                 id={id}
+                priority={priority}
                 onClick={isMobile ? (time) => {
                   setVideoStartTime(time);
                   setShowVideoFeed(true);
