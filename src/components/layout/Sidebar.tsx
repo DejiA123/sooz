@@ -53,9 +53,9 @@ export const Sidebar = () => {
                 {/* Logo */}
                 <div className="mb-10 px-2">
                     <img
-                        src="/sooz-logo-v3.svg"
+                        src="/sooz-logo.jpg"
                         alt="SOOZ"
-                        className="h-8 w-auto object-contain"
+                        className="h-10 w-auto object-contain"
                     />
                 </div>
 
