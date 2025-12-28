@@ -53,7 +53,7 @@ export const Sidebar = () => {
                 {/* Logo */}
                 <div className="mb-8 px-1">
                     <img
-                        src="/sooz-logo.jpg"
+                        src="/sooz-logo.png"
                         alt="SOOZ"
                         className="h-20 w-auto object-contain"
                     />

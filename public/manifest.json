@@ -9,14 +9,14 @@
     "start_url": "/",
     "icons": [
         {
-            "src": "/sooz-logo.jpg",
+            "src": "/sooz-logo.png",
             "sizes": "192x192",
-            "type": "image/jpeg"
+            "type": "image/png"
         },
         {
-            "src": "/sooz-logo.jpg",
+            "src": "/sooz-logo.png",
             "sizes": "512x512",
-            "type": "image/jpeg"
+            "type": "image/png"
         }
     ]
 }
