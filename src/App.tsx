@@ -1,10 +1,10 @@
-import { Suspense, lazy } from "react";
+import { useEffect, Suspense, lazy } from "react";
 import { HelmetProvider } from 'react-helmet-async';
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner, toast } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useParams, useNavigate } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { AuthProvider } from "@/hooks/useAuth";
 import { MainLayout } from "@/components/layout/MainLayout";
@@ -35,6 +35,7 @@ import { CallOverlay } from "@/components/video/CallOverlay";
 
 import { queryClient } from "@/lib/react-query";
 
+import { ShareRedirect } from "./components/ShareRedirect"; // id: import-shareredirect
 
 const App = () => {
   // Initialize theme
@@ -135,7 +136,9 @@ const App = () => {
                     <Route path="/settings" element={<Suspense fallback={null}><Settings /></Suspense>} />
                   </Route>
 
+                  <Route path="/s/:id" element={<ShareRedirect />} />
                   <Route path="*" element={<Suspense fallback={null}><NotFound /></Suspense>} />
+
                 </Routes>
               </BrowserRouter>
             </TooltipProvider>
