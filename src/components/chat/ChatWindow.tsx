@@ -3,7 +3,7 @@ import { useCall } from "@/contexts/CallContext";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Send, Image as ImageIcon, Smile, ArrowLeft, Phone, Video, X, Info } from "lucide-react";
+import { Send, Image as ImageIcon, Smile, ArrowLeft, Phone, Video, X, Info, MoreVertical, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -22,6 +22,12 @@ import {
     DialogTitle,
     DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { usePresence } from "@/hooks/usePresence";
 
 interface Message {
@@ -30,6 +36,7 @@ interface Message {
     type: 'text' | 'image';
     senderId: string;
     timestamp: string;
+    isDeleted?: boolean;
 }
 
 interface ChatWindowProps {
@@ -91,7 +98,7 @@ export const ChatWindow = ({ chatId, onBack }: ChatWindowProps) => {
             // 2. Get Messages
             const { data: msgs } = await supabase
                 .from('messages')
-                .select('id, content, sender_id, created_at')
+                .select('id, content, sender_id, created_at, is_deleted')
                 .eq('conversation_id', chatId)
                 .order('created_at', { ascending: true }); // Oldest first for chat log
 
@@ -101,14 +108,15 @@ export const ChatWindow = ({ chatId, onBack }: ChatWindowProps) => {
                     content: m.content,
                     type: m.content.startsWith('http') && (m.content.includes('/chat-images/') || m.content.match(/\.(jpg|jpeg|png|gif|webp)$/i)) ? 'image' : 'text',
                     senderId: m.sender_id, // Store actual ID
-                    timestamp: m.created_at
+                    timestamp: m.created_at,
+                    isDeleted: m.is_deleted
                 })));
             }
         };
 
         fetchChatDetails();
 
-        // 3. Subscribe to new messages
+        // 3. Subscribe to new messages and UPDATES (for deletion)
         const channel = supabase
             .channel(`chat:${chatId}`)
             .on(
@@ -125,9 +133,18 @@ export const ChatWindow = ({ chatId, onBack }: ChatWindowProps) => {
                             content: newMsg.content,
                             type: newMsg.content.startsWith('http') && (newMsg.content.includes('/chat-images/') || newMsg.content.match(/\.(jpg|jpeg|png|gif|webp)$/i)) ? 'image' : 'text',
                             senderId: newMsg.sender_id,
-                            timestamp: newMsg.created_at
+                            timestamp: newMsg.created_at,
+                            isDeleted: newMsg.is_deleted
                         }];
                     });
+                }
+            )
+            .on(
+                'postgres_changes',
+                { event: 'UPDATE', schema: 'public', table: 'messages', filter: `conversation_id=eq.${chatId}` },
+                (payload) => {
+                    const updatedMsg = payload.new;
+                    setMessages(prev => prev.map(m => m.id === updatedMsg.id ? { ...m, isDeleted: updatedMsg.is_deleted } : m));
                 }
             )
             .subscribe((status) => {
@@ -182,6 +199,21 @@ export const ChatWindow = ({ chatId, onBack }: ChatWindowProps) => {
             console.error("Failed to send:", error);
             toast.error("Failed to send message");
             setInputValue(content); // Restore if failed
+        }
+    };
+
+    const handleDeleteMessage = async (messageId: string) => {
+        try {
+            const { error } = await supabase
+                .from('messages')
+                .update({ is_deleted: true })
+                .eq('id', messageId);
+
+            if (error) throw error;
+            toast.success("Message deleted");
+        } catch (error) {
+            console.error("Failed to delete message:", error);
+            toast.error("Failed to delete message");
         }
     };
 
@@ -324,7 +356,7 @@ export const ChatWindow = ({ chatId, onBack }: ChatWindowProps) => {
                         <div
                             key={msg.id}
                             className={cn(
-                                "flex w-full animate-fade-in items-end gap-2",
+                                "flex w-full animate-fade-in items-end gap-2 group", // Added group for hover effects
                                 isMe ? "justify-end" : "justify-start"
                             )}
                         >
@@ -341,24 +373,49 @@ export const ChatWindow = ({ chatId, onBack }: ChatWindowProps) => {
                                 </div>
                             )}
 
-                            <div
-                                className={cn(
-                                    "max-w-[70%] text-sm leading-relaxed shadow-sm break-words",
-                                    isMe
-                                        ? "bg-gradient-to-br from-indigo-600 to-violet-600 text-white rounded-2xl rounded-tr-sm"
-                                        : "bg-secondary/80 backdrop-blur-sm text-foreground rounded-2xl rounded-tl-sm border border-white/5",
-                                    msg.type === 'image' ? "p-1" : "px-4 py-3"
-                                )}
-                            >
-                                {msg.type === 'image' ? (
-                                    <img
-                                        src={msg.content}
-                                        alt="Sent image"
-                                        className="rounded-xl w-full h-auto max-h-60 object-cover"
-                                        loading="lazy"
-                                    />
-                                ) : (
-                                    msg.content
+                            <div className="flex items-center gap-2 max-w-[70%]">
+                                {/* Message Bubble */}
+                                <div
+                                    className={cn(
+                                        "text-sm leading-relaxed shadow-sm break-words relative",
+                                        isMe
+                                            ? "bg-gradient-to-br from-indigo-600 to-violet-600 text-white rounded-2xl rounded-tr-sm"
+                                            : "bg-secondary/80 backdrop-blur-sm text-foreground rounded-2xl rounded-tl-sm border border-white/5",
+                                        msg.isDeleted ? "px-4 py-3 italic text-muted-foreground/80 bg-muted/30 border border-white/5" : (msg.type === 'image' ? "p-1" : "px-4 py-3")
+                                    )}
+                                >
+                                    {msg.isDeleted ? (
+                                        <span className="flex items-center gap-1.5 text-xs">
+                                            <Info className="w-3 h-3" />
+                                            This message was deleted
+                                        </span>
+                                    ) : msg.type === 'image' ? (
+                                        <img
+                                            src={msg.content}
+                                            alt="Sent image"
+                                            className="rounded-xl w-full h-auto max-h-60 object-cover"
+                                            loading="lazy"
+                                        />
+                                    ) : (
+                                        msg.content
+                                    )}
+                                </div>
+
+                                {/* Actions Dropdown (Only for me and not deleted) */}
+                                {isMe && !msg.isDeleted && (
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                            <Button variant="ghost" size="icon" className="h-6 w-6 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <MoreVertical className="w-3 h-3 text-muted-foreground" />
+                                            </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end">
+                                            <DropdownMenuItem className="text-red-500 focus:text-red-500 cursor-pointer" onClick={() => handleDeleteMessage(msg.id)}>
+                                                <Trash2 className="w-4 h-4 mr-2" />
+                                                Delete for everyone
+                                            </DropdownMenuItem>
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
                                 )}
                             </div>
                         </div>
