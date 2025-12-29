@@ -381,12 +381,12 @@ export const ChatWindow = ({ chatId, onBack }: ChatWindowProps) => {
                                         isMe
                                             ? "bg-gradient-to-br from-indigo-600 to-violet-600 text-white rounded-2xl rounded-tr-sm"
                                             : "bg-secondary/80 backdrop-blur-sm text-foreground rounded-2xl rounded-tl-sm border border-white/5",
-                                        msg.isDeleted ? "px-4 py-3 italic text-muted-foreground/80 bg-muted/30 border border-white/5" : (msg.type === 'image' ? "p-1" : "px-4 py-3")
+                                        msg.isDeleted ? "px-4 py-3 italic text-white/70 bg-white/5 border border-white/10" : (msg.type === 'image' ? "p-1" : "px-4 py-3")
                                     )}
                                 >
                                     {msg.isDeleted ? (
                                         <span className="flex items-center gap-1.5 text-xs">
-                                            <Info className="w-3 h-3" />
+                                            <Info className="w-3 h-3 text-white/70" />
                                             This message was deleted
                                         </span>
                                     ) : msg.type === 'image' ? (
