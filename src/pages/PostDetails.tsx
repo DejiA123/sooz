@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Helmet } from 'react-helmet-async';
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { PostCard } from "@/components/feed/PostCard";
@@ -83,8 +84,22 @@ export default function PostDetails() {
         );
     }
 
+    const pageTitle = post ? `Post by ${post.profiles.display_name || post.profiles.username} on SOOZ` : "Post | SOOZ";
+    const pageDescription = post?.caption || "Check out this post on SOOZ";
+    const pageImage = post?.media_url || "/sooz-logo-v3.png";
+
     return (
         <div className="pb-20">
+            <Helmet>
+                <title>{pageTitle}</title>
+                <meta property="og:title" content={pageTitle} />
+                <meta property="og:description" content={pageDescription} />
+                <meta property="og:image" content={pageImage} />
+                <meta name="twitter:title" content={pageTitle} />
+                <meta name="twitter:description" content={pageDescription} />
+                <meta name="twitter:image" content={pageImage} />
+            </Helmet>
+
             <div className="sticky top-0 z-40 bg-background/80 backdrop-blur-md border-b border-white/5 px-4 h-14 flex items-center gap-4">
                 <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
                     <ArrowLeft className="w-5 h-5" />

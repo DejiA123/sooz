@@ -1,5 +1,5 @@
-
 import { Suspense, lazy } from "react";
+import { HelmetProvider } from 'react-helmet-async';
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner, toast } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -101,45 +101,47 @@ const App = () => {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <CallProvider>
-          <CallOverlay />
-          <TooltipProvider>
-            <Toaster />
-            <Sonner />
-            <BrowserRouter>
-              <AuthListener />
-              <NotificationManager />
-              <Routes>
-                <Route path="/auth" element={<Suspense fallback={null}><Auth /></Suspense>} />
-                <Route path="/email-confirmation" element={<Suspense fallback={null}><EmailConfirmation /></Suspense>} />
-                <Route path="/forgot-password" element={<Suspense fallback={null}><ForgotPassword /></Suspense>} />
-                <Route path="/update-password" element={<Suspense fallback={null}><UpdatePassword /></Suspense>} />
+      <HelmetProvider>
+        <AuthProvider>
+          <CallProvider>
+            <CallOverlay />
+            <TooltipProvider>
+              <Toaster />
+              <Sonner />
+              <BrowserRouter>
+                <AuthListener />
+                <NotificationManager />
+                <Routes>
+                  <Route path="/auth" element={<Suspense fallback={null}><Auth /></Suspense>} />
+                  <Route path="/email-confirmation" element={<Suspense fallback={null}><EmailConfirmation /></Suspense>} />
+                  <Route path="/forgot-password" element={<Suspense fallback={null}><ForgotPassword /></Suspense>} />
+                  <Route path="/update-password" element={<Suspense fallback={null}><UpdatePassword /></Suspense>} />
 
-                <Route element={<MainLayout />}>
-                  <Route path="/" element={<Suspense fallback={null}><Index /></Suspense>} />
-                  <Route path="/discover" element={<Suspense fallback={null}><Discover /></Suspense>} />
-                  <Route path="/activity" element={<Suspense fallback={null}><Activity /></Suspense>} />
-                  <Route path="/suggested-people" element={<Suspense fallback={null}><SuggestedPeople /></Suspense>} />
-                  <Route path="/about" element={<Suspense fallback={null}><About /></Suspense>} />
-                  <Route path="/help" element={<Suspense fallback={null}><Help /></Suspense>} />
-                  <Route path="/privacy" element={<Suspense fallback={null}><Privacy /></Suspense>} />
-                  <Route path="/terms" element={<Suspense fallback={null}><Terms /></Suspense>} />
-                  <Route element={<ProtectedRoute />}>
-                    <Route path="/chat" element={<Suspense fallback={null}><Chat /></Suspense>} />
+                  <Route element={<MainLayout />}>
+                    <Route path="/" element={<Suspense fallback={null}><Index /></Suspense>} />
+                    <Route path="/discover" element={<Suspense fallback={null}><Discover /></Suspense>} />
+                    <Route path="/activity" element={<Suspense fallback={null}><Activity /></Suspense>} />
+                    <Route path="/suggested-people" element={<Suspense fallback={null}><SuggestedPeople /></Suspense>} />
+                    <Route path="/about" element={<Suspense fallback={null}><About /></Suspense>} />
+                    <Route path="/help" element={<Suspense fallback={null}><Help /></Suspense>} />
+                    <Route path="/privacy" element={<Suspense fallback={null}><Privacy /></Suspense>} />
+                    <Route path="/terms" element={<Suspense fallback={null}><Terms /></Suspense>} />
+                    <Route element={<ProtectedRoute />}>
+                      <Route path="/chat" element={<Suspense fallback={null}><Chat /></Suspense>} />
+                    </Route>
+                    <Route path="/notifications" element={<Suspense fallback={null}><Notifications /></Suspense>} />
+                    <Route path="/profile/:username" element={<Suspense fallback={null}><Profile /></Suspense>} />
+                    <Route path="/post/:id" element={<Suspense fallback={null}><PostDetails /></Suspense>} />
+                    <Route path="/settings" element={<Suspense fallback={null}><Settings /></Suspense>} />
                   </Route>
-                  <Route path="/notifications" element={<Suspense fallback={null}><Notifications /></Suspense>} />
-                  <Route path="/profile/:username" element={<Suspense fallback={null}><Profile /></Suspense>} />
-                  <Route path="/post/:id" element={<Suspense fallback={null}><PostDetails /></Suspense>} />
-                  <Route path="/settings" element={<Suspense fallback={null}><Settings /></Suspense>} />
-                </Route>
 
-                <Route path="*" element={<Suspense fallback={null}><NotFound /></Suspense>} />
-              </Routes>
-            </BrowserRouter>
-          </TooltipProvider>
-        </CallProvider>
-      </AuthProvider>
+                  <Route path="*" element={<Suspense fallback={null}><NotFound /></Suspense>} />
+                </Routes>
+              </BrowserRouter>
+            </TooltipProvider>
+          </CallProvider>
+        </AuthProvider>
+      </HelmetProvider>
     </QueryClientProvider >
   );
 };

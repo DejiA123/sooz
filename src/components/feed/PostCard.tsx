@@ -321,6 +321,8 @@ export const PostCard = ({
                   try {
                     if (navigator.share) {
                       await navigator.share({
+                        title: `Post by ${user.display_name || user.username} on SOOZ`,
+                        text: caption || `Check out this post from ${user.username}`,
                         url: postUrl,
                       });
                     } else {
