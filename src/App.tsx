@@ -35,7 +35,6 @@ import { CallOverlay } from "@/components/video/CallOverlay";
 
 import { queryClient } from "@/lib/react-query";
 
-import { ShareRedirect } from "./components/ShareRedirect"; // id: import-shareredirect
 
 const App = () => {
   // Initialize theme
@@ -136,7 +135,6 @@ const App = () => {
                     <Route path="/settings" element={<Suspense fallback={null}><Settings /></Suspense>} />
                   </Route>
 
-                  <Route path="/s/:id" element={<ShareRedirect />} />
                   <Route path="*" element={<Suspense fallback={null}><NotFound /></Suspense>} />
 
                 </Routes>

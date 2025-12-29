@@ -317,7 +317,10 @@ export const PostCard = ({
               <button
                 className="hover:opacity-70 transition-opacity focus:outline-none"
                 onClick={async () => {
-                  const postUrl = `${window.location.origin}/s/${id}`;
+                  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+                  // Construct the Edge Function URL for sharing
+                  const postUrl = `${supabaseUrl}/functions/v1/share-preview?id=${id}`;
+
                   try {
                     if (navigator.share) {
                       await navigator.share({
