@@ -7,7 +7,7 @@ export const TopBar = () => {
         <img
           src="/sooz-logo.png"
           alt="SOOZ"
-          className="h-12 w-auto object-contain text-foreground"
+          className="h-24 w-auto object-contain text-foreground"
         />
       </Link>
     </div>
