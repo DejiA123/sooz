@@ -9,12 +9,12 @@
     "start_url": "/",
     "icons": [
         {
-            "src": "/sooz-logo.png",
+            "src": "/sooz-logo-v3.png",
             "sizes": "192x192",
             "type": "image/png"
         },
         {
-            "src": "/sooz-logo.png",
+            "src": "/sooz-logo-v3.png",
             "sizes": "512x512",
             "type": "image/png"
         }
