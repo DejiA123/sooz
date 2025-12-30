@@ -317,9 +317,8 @@ export const PostCard = ({
               <button
                 className="hover:opacity-70 transition-opacity focus:outline-none"
                 onClick={async () => {
-                  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-                  // Construct the Edge Function URL for sharing
-                  const postUrl = `${supabaseUrl}/functions/v1/share-preview?id=${id}`;
+                  const appDomain = import.meta.env.VITE_APP_DOMAIN || 'https://sooz.lovable.app';
+                  const postUrl = `${appDomain}/share/${id}`;
 
                   try {
                     if (navigator.share) {

@@ -22,6 +22,7 @@ Deno.serve(async (req) => {
     // Init Supabase
     const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
     const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY') || '';
+    const appDomain = Deno.env.get('APP_DOMAIN') || 'https://sooz.lovable.app';
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     // Fetch post data
@@ -39,7 +40,7 @@ Deno.serve(async (req) => {
 
     if (error || !post) {
         // Redirect to home if not found
-        return Response.redirect('https://sooz.lovable.app', 302);
+        return Response.redirect(appDomain, 302);
     }
 
     const title = post.profiles
@@ -49,8 +50,7 @@ Deno.serve(async (req) => {
     const description = post.caption || 'Check out this post on SOOZ';
 
     // Logic for image/video
-    let image = 'https://sooz.lovable.app/sooz-logo-v3.png'; // Default
-    let videoMeta = '';
+    let image = `${appDomain}/sooz-logo-v3.png`; // Default
 
     if (post.media_url) {
         if (post.media_type === 'image') {
@@ -60,8 +60,6 @@ Deno.serve(async (req) => {
             if (post.thumbnail_url) {
                 image = post.thumbnail_url;
             }
-            // Add og:video meta tag
-            videoMeta = `<meta property="og:video" content="${post.media_url}" />`;
         } else {
             // Fallback check extension
             if (!post.media_url.match(/\.(mp4|mov|avi)$/i)) {
@@ -70,7 +68,7 @@ Deno.serve(async (req) => {
         }
     }
 
-    const redirectUrl = `https://sooz.lovable.app/post/${id}`;
+    const redirectUrl = `${appDomain}/post/${id}`;
 
     // Checking User-Agent to see if it's a bot/crawler
     const userAgent = req.headers.get('user-agent') || '';
@@ -78,23 +76,41 @@ Deno.serve(async (req) => {
 
     // If it's a bot/crawler, serve HTML with OG tags (no redirect)
     if (isBot) {
+        // Determine og:type based on media
+        const ogType = post.media_type === 'video' ? 'video.other' : 'website';
+
+        // For videos, add additional metadata
+        let videoMetaTags = '';
+        if (post.media_type === 'video' && post.media_url) {
+            videoMetaTags = `
+            <meta property="og:video" content="${post.media_url}" />
+            <meta property="og:video:secure_url" content="${post.media_url}" />
+            <meta property="og:video:type" content="video/mp4" />
+            <meta property="og:video:width" content="1280" />
+            <meta property="og:video:height" content="720" />
+            <meta name="twitter:card" content="player" />
+            <meta name="twitter:player" content="${post.media_url}" />
+            <meta name="twitter:player:width" content="1280" />
+            <meta name="twitter:player:height" content="720" />`;
+        }
+
         const html = `
         <!DOCTYPE html>
         <html lang="en">
           <head>
             <meta charset="utf-8" />
             <title>${title}</title>
-            <meta property="og:type" content="website" />
+            <meta property="og:type" content="${ogType}" />
             <meta property="og:url" content="${redirectUrl}" />
             <meta property="og:title" content="${title.replace(/"/g, '&quot;')}" />
             <meta property="og:description" content="${description.replace(/"/g, '&quot;')}" />
             <meta property="og:image" content="${image}" />
             <meta property="og:image:secure_url" content="${image}" />
             <meta property="og:image:type" content="image/png" />
-            <meta property="og:image:width" content="512" />
-            <meta property="og:image:height" content="512" />
-            ${videoMeta}
-            <meta name="twitter:card" content="summary_large_image" />
+            <meta property="og:image:width" content="1200" />
+            <meta property="og:image:height" content="630" />
+            ${videoMetaTags}
+            <meta name="twitter:card" content="${post.media_type === 'video' ? 'player' : 'summary_large_image'}" />
             <meta name="twitter:title" content="${title.replace(/"/g, '&quot;')}" />
             <meta name="twitter:description" content="${description.replace(/"/g, '&quot;')}" />
             <meta name="twitter:image" content="${image}" />
