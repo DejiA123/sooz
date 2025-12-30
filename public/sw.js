@@ -26,6 +26,9 @@ self.addEventListener('fetch', (event) => {
     // Skip cross-origin (except maybe common CDNs if needed)
     if (url.origin !== self.location.origin) return;
 
+    // Only cache GET requests
+    if (event.request.method !== 'GET') return;
+
     // Cache First for hashed assets (Vite output .hash.js)
     // Stale-While-Revalidate for others
     const isAsset = /\.(js|css|png|jpg|jpeg|svg|woff2|ico)$/.test(url.pathname);

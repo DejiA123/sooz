@@ -132,6 +132,7 @@ const App = () => {
                     <Route path="/notifications" element={<Suspense fallback={null}><Notifications /></Suspense>} />
                     <Route path="/profile/:username" element={<Suspense fallback={null}><Profile /></Suspense>} />
                     <Route path="/post/:id" element={<Suspense fallback={null}><PostDetails /></Suspense>} />
+                    <Route path="/share/:id" element={<Suspense fallback={null}><PostDetails /></Suspense>} />
                     <Route path="/settings" element={<Suspense fallback={null}><Settings /></Suspense>} />
                   </Route>
 
