@@ -11,9 +11,10 @@ async function getFFmpeg(): Promise<FFmpeg> {
 
     ffmpeg = new FFmpeg();
 
-    // Load FFmpeg
+    // Load FFmpeg from CDN
     await ffmpeg.load({
-        coreURL: '/ffmpeg/ffmpeg-core.js',
+        coreURL: 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.js',
+        wasmURL: 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.wasm',
     });
 
     return ffmpeg;
