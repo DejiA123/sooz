@@ -91,12 +91,16 @@ Deno.serve(async (req) => {
         <meta name="twitter:description" content="${description.replace(/"/g, '&quot;')}" />
         <meta name="twitter:image" content="${image}" />
         
+        <meta http-equiv="refresh" content="0;url=${redirectUrl}" />
         <script>
           window.location.href = "${redirectUrl}";
         </script>
       </head>
       <body>
-        <p>Redirecting to post...</p>
+        <p>Redirecting to <a href="${redirectUrl}">post...</a></p>
+        <script>
+            setTimeout(function() { window.location.href = "${redirectUrl}"; }, 500);
+        </script>
       </body>
     </html>
   `;
@@ -105,7 +109,7 @@ Deno.serve(async (req) => {
         headers: {
             ...corsHeaders,
             'Content-Type': 'text/html',
-            'Content-Security-Policy': "default-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' https:; img-src 'self' https: data:;",
+            'Content-Security-Policy': "default-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' https:; img-src 'self' https: data:;",
         },
     })
 })
