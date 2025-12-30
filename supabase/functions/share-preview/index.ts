@@ -72,7 +72,7 @@ Deno.serve(async (req) => {
 
     // Checking User-Agent to see if it's a bot/crawler
     const userAgent = req.headers.get('user-agent') || '';
-    const isBot = /facebookexternalhit|twitterbot|whatsapp|linkedinbot|pinterest|slackbot/i.test(userAgent);
+    const isBot = /facebookexternalhit|twitterbot|whatsapp|linkedinbot|pinterest|slackbot|telegrambot|discordbot|googlebot/i.test(userAgent);
 
     // If it's a bot/crawler, serve HTML with OG tags (no redirect)
     if (isBot) {
@@ -88,11 +88,13 @@ Deno.serve(async (req) => {
             <meta property="og:video:type" content="video/mp4" />
             <meta property="og:video:width" content="1280" />
             <meta property="og:video:height" content="720" />
-            <meta name="twitter:card" content="player" />
             <meta name="twitter:player" content="${post.media_url}" />
             <meta name="twitter:player:width" content="1280" />
             <meta name="twitter:player:height" content="720" />`;
         }
+
+        // Canonical URL should be the share URL itself so scrapers always get the tags
+        const shareUrl = `${appDomain}/share/${id}`;
 
         const html = `
         <!DOCTYPE html>
@@ -101,12 +103,12 @@ Deno.serve(async (req) => {
             <meta charset="utf-8" />
             <title>${title}</title>
             <meta property="og:type" content="${ogType}" />
-            <meta property="og:url" content="${redirectUrl}" />
+            <meta property="og:url" content="${shareUrl}" />
             <meta property="og:title" content="${title.replace(/"/g, '&quot;')}" />
             <meta property="og:description" content="${description.replace(/"/g, '&quot;')}" />
             <meta property="og:image" content="${image}" />
             <meta property="og:image:secure_url" content="${image}" />
-            <meta property="og:image:type" content="image/png" />
+            <meta property="og:image:type" content="image/jpeg" />
             <meta property="og:image:width" content="1200" />
             <meta property="og:image:height" content="630" />
             ${videoMetaTags}
@@ -118,6 +120,7 @@ Deno.serve(async (req) => {
           <body>
             <h1>${title}</h1>
             <p>${description}</p>
+            <img src="${image}" alt="Preview" style="max-width:100%;" />
           </body>
         </html>
       `;
