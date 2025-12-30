@@ -31,6 +31,7 @@ Deno.serve(async (req) => {
       caption,
       media_url,
       media_type,
+      thumbnail_url,
       profiles:user_id (username, display_name)
     `)
         .eq('id', id)
@@ -55,7 +56,11 @@ Deno.serve(async (req) => {
         if (post.media_type === 'image') {
             image = post.media_url;
         } else if (post.media_type === 'video') {
-            // For video, fallback to logo for og:image, but add og:video
+            // For video: use thumbnail if available, fallback to logo
+            if (post.thumbnail_url) {
+                image = post.thumbnail_url;
+            }
+            // Add og:video meta tag
             videoMeta = `<meta property="og:video" content="${post.media_url}" />`;
         } else {
             // Fallback check extension
@@ -69,47 +74,43 @@ Deno.serve(async (req) => {
 
     // Checking User-Agent to see if it's a bot/crawler
     const userAgent = req.headers.get('user-agent') || '';
-    const isBot = /facebookexternalhit|twitterbot|whatsapp|linkedinbot|pinterest/i.test(userAgent);
+    const isBot = /facebookexternalhit|twitterbot|whatsapp|linkedinbot|pinterest|slackbot/i.test(userAgent);
 
-    // If NOT a bot, we could redirect immediately (for better UX), 
-    // but showing the HTML with JS redirect is safer for some crawlers that strictly follow redirects.
-    // Actually, for Edge Functions, returning HTML is fine.
+    // If it's a bot/crawler, serve HTML with OG tags (no redirect)
+    if (isBot) {
+        const html = `
+        <!DOCTYPE html>
+        <html lang="en">
+          <head>
+            <meta charset="utf-8" />
+            <title>${title}</title>
+            <meta property="og:type" content="website" />
+            <meta property="og:url" content="${redirectUrl}" />
+            <meta property="og:title" content="${title.replace(/"/g, '&quot;')}" />
+            <meta property="og:description" content="${description.replace(/"/g, '&quot;')}" />
+            <meta property="og:image" content="${image}" />
+            <meta property="og:image:secure_url" content="${image}" />
+            <meta property="og:image:type" content="image/png" />
+            <meta property="og:image:width" content="512" />
+            <meta property="og:image:height" content="512" />
+            ${videoMeta}
+            <meta name="twitter:card" content="summary_large_image" />
+            <meta name="twitter:title" content="${title.replace(/"/g, '&quot;')}" />
+            <meta name="twitter:description" content="${description.replace(/"/g, '&quot;')}" />
+            <meta name="twitter:image" content="${image}" />
+          </head>
+          <body>
+            <h1>${title}</h1>
+            <p>${description}</p>
+          </body>
+        </html>
+      `;
 
-    const html = `
-    <!DOCTYPE html>
-    <html lang="en">
-      <head>
-        <meta charset="utf-8" />
-        <title>${title}</title>
-        <meta property="og:type" content="website" />
-        <meta property="og:title" content="${title.replace(/"/g, '&quot;')}" />
-        <meta property="og:description" content="${description.replace(/"/g, '&quot;')}" />
-        <meta property="og:image" content="${image}" />
-        ${videoMeta}
-        <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content="${title.replace(/"/g, '&quot;')}" />
-        <meta name="twitter:description" content="${description.replace(/"/g, '&quot;')}" />
-        <meta name="twitter:image" content="${image}" />
-        
-        <meta http-equiv="refresh" content="0;url=${redirectUrl}" />
-        <script>
-          window.location.href = "${redirectUrl}";
-        </script>
-      </head>
-      <body>
-        <p>Redirecting to <a href="${redirectUrl}">post...</a></p>
-        <script>
-            setTimeout(function() { window.location.href = "${redirectUrl}"; }, 500);
-        </script>
-      </body>
-    </html>
-  `;
+        return new Response(html, {
+            headers: { ...corsHeaders, 'Content-Type': 'text/html' },
+        });
+    }
 
-    return new Response(html, {
-        headers: {
-            ...corsHeaders,
-            'Content-Type': 'text/html',
-            'Content-Security-Policy': "default-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' https:; img-src 'self' https: data:;",
-        },
-    })
+    // If it's a real user, do a proper HTTP redirect
+    return Response.redirect(redirectUrl, 302);
 })

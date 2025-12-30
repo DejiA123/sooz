@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { s3Client, s3Config } from "@/integrations/s3/client";
 import { Upload } from "@aws-sdk/lib-storage";
+import { extractVideoThumbnail } from "@/utils/videoThumbnail";
 
 interface CreatePostModalProps {
     isOpen: boolean;
@@ -51,6 +52,7 @@ export default function CreatePostModal({ isOpen, onClose, onPostCreated }: Crea
             console.log("Starting upload...");
             let mediaUrl = null;
             let mediaType = null;
+            let thumbnailUrl = null;
 
             if (mediaFile) {
                 const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
@@ -78,6 +80,33 @@ export default function CreatePostModal({ isOpen, onClose, onPostCreated }: Crea
 
                 mediaUrl = `${import.meta.env.VITE_PUBLIC_R2_URL}/${fileName}`;
                 mediaType = mediaFile.type.startsWith('video/') ? 'video' : 'image';
+
+                // Generate and upload thumbnail for videos
+                if (mediaType === 'video') {
+                    try {
+                        console.log("Generating video thumbnail...");
+                        const thumbnailBlob = await extractVideoThumbnail(mediaFile);
+                        const thumbnailFileName = `thumbnails/${uniqueSuffix}.jpg`;
+
+                        const thumbnailUpload = new Upload({
+                            client: s3Client,
+                            params: {
+                                Bucket: s3Config.bucketName,
+                                Key: thumbnailFileName,
+                                Body: thumbnailBlob,
+                                ContentType: 'image/jpeg',
+                            },
+                        });
+
+                        await thumbnailUpload.done();
+                        thumbnailUrl = `${import.meta.env.VITE_PUBLIC_R2_URL}/${thumbnailFileName}`;
+                        console.log("Thumbnail uploaded:", thumbnailUrl);
+                    } catch (thumbError) {
+                        console.error("Failed to generate thumbnail:", thumbError);
+                        // Continue without thumbnail - not critical
+                    }
+                }
+
                 console.log("Inserting post into database...");
             }
 
@@ -87,7 +116,8 @@ export default function CreatePostModal({ isOpen, onClose, onPostCreated }: Crea
                     user_id: user.id,
                     caption: caption,
                     media_url: mediaUrl,
-                    media_type: mediaType
+                    media_type: mediaType,
+                    thumbnail_url: thumbnailUrl
                 })
                 .select();
 
