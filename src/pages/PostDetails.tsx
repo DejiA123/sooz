@@ -101,7 +101,13 @@ export default function PostDetails() {
             </Helmet>
 
             <div className="sticky top-0 z-40 bg-background/80 backdrop-blur-md border-b border-white/5 px-4 h-14 flex items-center gap-4">
-                <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+                <Button variant="ghost" size="icon" onClick={() => {
+                    if (window.history.state && window.history.state.idx > 0) {
+                        navigate(-1);
+                    } else {
+                        navigate("/");
+                    }
+                }}>
                     <ArrowLeft className="w-5 h-5" />
                 </Button>
                 <h1 className="font-semibold text-lg">Post</h1>
