@@ -1,27 +1,6 @@
-import { FFmpeg } from '@ffmpeg/ffmpeg';
-import { fetchFile } from '@ffmpeg/util';
-
-let ffmpeg: FFmpeg | null = null;
-
 /**
- * Initialize FFmpeg instance (loads WebAssembly module)
- */
-async function getFFmpeg(): Promise<FFmpeg> {
-    if (ffmpeg) return ffmpeg;
-
-    ffmpeg = new FFmpeg();
-
-    // Load FFmpeg from CDN
-    await ffmpeg.load({
-        coreURL: 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.js',
-        wasmURL: 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.wasm',
-    });
-
-    return ffmpeg;
-}
-
-/**
- * Extract a thumbnail from a video file
+ * Extract a thumbnail from a video file using HTML5 Canvas
+ * This avoids heavy FFmpeg WASM dependencies and SharedArrayBuffer requirements
  * @param videoFile - The video file to extract thumbnail from
  * @param timeInSeconds - Time position to extract frame (default: 1 second)
  * @returns Blob of the extracted thumbnail as JPEG
@@ -30,28 +9,65 @@ export async function extractVideoThumbnail(
     videoFile: File,
     timeInSeconds: number = 1
 ): Promise<Blob> {
-    const ffmpegInstance = await getFFmpeg();
+    return new Promise((resolve, reject) => {
+        const video = document.createElement('video');
+        video.preload = 'metadata';
+        video.src = URL.createObjectURL(videoFile);
+        video.muted = true;
+        video.playsInline = true;
+        video.crossOrigin = 'anonymous'; // Good practice
 
-    // Write video file to FFmpeg's virtual file system
-    await ffmpegInstance.writeFile('input.mp4', await fetchFile(videoFile));
+        const cleanup = () => {
+            URL.revokeObjectURL(video.src);
+            video.remove();
+        };
 
-    // Extract frame at specified time
-    await ffmpegInstance.exec([
-        '-i', 'input.mp4',
-        '-ss', timeInSeconds.toString(),
-        '-vframes', '1',
-        '-vf', 'scale=1280:720:force_original_aspect_ratio=decrease',
-        '-q:v', '2',
-        'thumbnail.jpg'
-    ]);
+        video.onloadedmetadata = () => {
+            // Seek to the desired timestamp
+            // Ensure we don't seek past the end
+            if (timeInSeconds > video.duration) {
+                video.currentTime = 0;
+            } else {
+                video.currentTime = timeInSeconds;
+            }
+        };
 
-    // Read the output thumbnail
-    const data = await ffmpegInstance.readFile('thumbnail.jpg');
+        video.onseeked = () => {
+            try {
+                const canvas = document.createElement('canvas');
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
 
-    // Clean up
-    await ffmpegInstance.deleteFile('input.mp4');
-    await ffmpegInstance.deleteFile('thumbnail.jpg');
+                const ctx = canvas.getContext('2d');
+                if (!ctx) {
+                    cleanup();
+                    reject(new Error('Failed to get canvas context'));
+                    return;
+                }
 
-    // Convert Uint8Array to Blob - use Array.from to satisfy TypeScript
-    return new Blob([new Uint8Array(Array.from(data as Uint8Array))], { type: 'image/jpeg' });
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+                canvas.toBlob(
+                    (blob) => {
+                        cleanup();
+                        if (blob) {
+                            resolve(blob);
+                        } else {
+                            reject(new Error('Canvas to Blob failed'));
+                        }
+                    },
+                    'image/jpeg',
+                    0.7 // Quality
+                );
+            } catch (error) {
+                cleanup();
+                reject(error);
+            }
+        };
+
+        video.onerror = () => {
+            cleanup();
+            reject(new Error('Error loading video file'));
+        };
+    });
 }
