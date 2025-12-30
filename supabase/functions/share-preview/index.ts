@@ -102,6 +102,10 @@ Deno.serve(async (req) => {
   `;
 
     return new Response(html, {
-        headers: { ...corsHeaders, 'Content-Type': 'text/html' },
+        headers: {
+            ...corsHeaders,
+            'Content-Type': 'text/html',
+            'Content-Security-Policy': "default-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' https:; img-src 'self' https: data:;",
+        },
     })
 })
