@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Home, Heart, User, PlusSquare, Search, Menu, MoreHorizontal, Settings as SettingsIcon, ActivitySquare, Bookmark, Moon, Sun, MessageSquareWarning, LogOut, MessageCircle } from "lucide-react";
+import { Home, Heart, User, PlusSquare, Search, Menu, MoreHorizontal, Settings as SettingsIcon, ActivitySquare, Bookmark, Moon, Sun, MessageSquareWarning, LogOut, MessageCircle, Code2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { CreateModal } from "@/components/create/CreateModal";
@@ -42,8 +42,8 @@ export const Sidebar = () => {
     };
 
     const handlePrefetch = (item: any) => {
-        if (item.label === "Profile" && user?.username) {
-            prefetchProfile(user.username);
+        if (item.label === "Profile" && user?.user_metadata?.username) {
+            prefetchProfile(user.user_metadata.username);
         }
     };
 
@@ -118,6 +118,12 @@ export const Sidebar = () => {
                                 <Link to="/activity" className="flex items-center gap-3 p-3 cursor-pointer rounded-lg focus:bg-secondary/50">
                                     <ActivitySquare className="w-5 h-5" />
                                     <span>Your activity</span>
+                                </Link>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem asChild>
+                                <Link to="/algorithms" className="flex items-center gap-3 p-3 cursor-pointer rounded-lg focus:bg-secondary/50">
+                                    <Code2 className="w-5 h-5" />
+                                    <span>C++ Algorithms</span>
                                 </Link>
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => toast("Saved posts coming soon!")} className="flex items-center gap-3 p-3 cursor-pointer rounded-lg focus:bg-secondary/50">

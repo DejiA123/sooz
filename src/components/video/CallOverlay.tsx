@@ -1,10 +1,10 @@
-
 import React, { useEffect, useRef } from 'react';
 import { useCall } from '@/contexts/CallContext';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Phone, PhoneOff, Mic, MicOff, Video, VideoOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
 export const CallOverlay = () => {
     const {

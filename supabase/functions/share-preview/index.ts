@@ -43,8 +43,9 @@ Deno.serve(async (req) => {
         return Response.redirect(appDomain, 302);
     }
 
-    const title = post.profiles
-        ? `Post by ${post.profiles.display_name || post.profiles.username} on SOOZ`
+    const profileData = (post.profiles as unknown) as { username: string; display_name: string } | null;
+    const title = profileData
+        ? `Post by ${profileData.display_name || profileData.username} on SOOZ`
         : 'SOOZ - Sound Out Of Zion';
 
     const description = post.caption || 'Check out this post on SOOZ';

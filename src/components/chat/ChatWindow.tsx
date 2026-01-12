@@ -98,18 +98,18 @@ export const ChatWindow = ({ chatId, onBack }: ChatWindowProps) => {
             // 2. Get Messages
             const { data: msgs } = await supabase
                 .from('messages')
-                .select('id, content, sender_id, created_at, is_deleted')
+                .select('id, content, sender_id, created_at')
                 .eq('conversation_id', chatId)
                 .order('created_at', { ascending: true }); // Oldest first for chat log
 
             if (msgs) {
-                setMessages(msgs.map(m => ({
+                setMessages(msgs.map((m: any) => ({
                     id: m.id,
                     content: m.content,
                     type: m.content.startsWith('http') && (m.content.includes('/chat-images/') || m.content.match(/\.(jpg|jpeg|png|gif|webp)$/i)) ? 'image' : 'text',
                     senderId: m.sender_id, // Store actual ID
                     timestamp: m.created_at,
-                    isDeleted: m.is_deleted
+                    isDeleted: false
                 })));
             }
         };
@@ -206,10 +206,13 @@ export const ChatWindow = ({ chatId, onBack }: ChatWindowProps) => {
         try {
             const { error } = await supabase
                 .from('messages')
-                .update({ is_deleted: true })
+                .delete()
                 .eq('id', messageId);
 
             if (error) throw error;
+            
+            // Remove from local state
+            setMessages(prev => prev.filter(m => m.id !== messageId));
             toast.success("Message deleted");
         } catch (error) {
             console.error("Failed to delete message:", error);
