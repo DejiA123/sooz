@@ -77,15 +77,24 @@ const Auth = () => {
         // Check if input is NOT an email (assume username)
         const isEmail = z.string().email().safeParse(email).success;
         if (!isEmail) {
-          // Try to resolve username to email
-          const { data: resolvedEmail, error: rpcError } = await supabase.rpc('get_email_by_username', { username_input: email });
+          // Try to resolve username to email via profiles table
+          const { data: profile, error: profileError } = await supabase
+            .from('profiles')
+            .select('id')
+            .eq('username', email.toLowerCase())
+            .maybeSingle();
 
-          if (rpcError || !resolvedEmail) {
+          if (profileError || !profile) {
             toast.error("Invalid username or password");
             setIsLoading(false);
             return;
           }
-          signInEmail = resolvedEmail;
+          
+          // Get email from auth - for now just use the username as email hint
+          // Users should use their email to login
+          toast.error("Please use your email address to sign in");
+          setIsLoading(false);
+          return;
         }
 
         const { error } = await signIn(signInEmail, password);

@@ -64,7 +64,7 @@ export default function Activity() {
                 const actorMap = Object.fromEntries(actors?.map(a => [a.id, a]) || []);
 
                 notifItems = notifications.map(n => {
-                    const actor = actorMap[n.actor_id];
+                    const actor = actorMap[n.actor_id!];
                     return {
                         id: n.id,
                         type: n.type as any,
@@ -73,7 +73,7 @@ export default function Activity() {
                             username: actor?.username || 'Unknown',
                             avatar_url: actor?.avatar_url || null
                         },
-                        post_id: n.post_id || undefined,
+                        post_id: n.reference_id || undefined,
                         content: n.content
                     };
                 });

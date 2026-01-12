@@ -84,6 +84,7 @@ const Profile = () => {
 
       return {
         ...data,
+        website: (data as any).website || null,
         followersCount: followersObj.count || 0,
         followingCount: followingObj.count || 0,
         isFollowing: !!followStatus.data

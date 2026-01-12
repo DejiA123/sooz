@@ -27,6 +27,7 @@ const NotFound = lazy(() => import("./pages/NotFound"));
 const EmailConfirmation = lazy(() => import("./pages/EmailConfirmation"));
 const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
 const UpdatePassword = lazy(() => import("./pages/UpdatePassword"));
+const Algorithms = lazy(() => import("./pages/Algorithms"));
 import { AuthListener } from "./components/AuthListener";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { NotificationManager } from "./components/NotificationManager";
@@ -126,6 +127,7 @@ const App = () => {
                     <Route path="/help" element={<Suspense fallback={null}><Help /></Suspense>} />
                     <Route path="/privacy" element={<Suspense fallback={null}><Privacy /></Suspense>} />
                     <Route path="/terms" element={<Suspense fallback={null}><Terms /></Suspense>} />
+                    <Route path="/algorithms" element={<Suspense fallback={null}><Algorithms /></Suspense>} />
                     <Route element={<ProtectedRoute />}>
                       <Route path="/chat" element={<Suspense fallback={null}><Chat /></Suspense>} />
                     </Route>

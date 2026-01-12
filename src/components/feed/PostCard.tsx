@@ -134,10 +134,10 @@ export const PostCard = ({
         if (entries[0].isIntersecting && !hasTrackedView) {
           setHasTrackedView(true);
           setViews(prev => prev + 1);
-          // Fire and forget - wrap in async IIFE
+          // Fire and forget - track view via insert
           (async () => {
             try {
-              await supabase.rpc('increment_view_count', { post_id_param: id });
+              await supabase.from('post_views').insert({ post_id: id });
             } catch (err) {
               console.error("Failed to track view:", err);
             }
