@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { House, MessageCircle, Heart, User, PlusSquare } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
@@ -33,11 +32,11 @@ export const BottomNav = () => {
       });
     }
     if (path === '/activity') {
-      // Prefetch notifications (simulated by fetching recent likes/follows)
+      // Prefetch notifications
       queryClient.prefetchQuery({
         queryKey: ['notifications'],
         queryFn: async () => {
-          return []; // Placeholder until notification query is formalized
+          return [];
         }
       });
     }
@@ -54,7 +53,7 @@ export const BottomNav = () => {
   return (
     <>
       <div className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-border pb-safe">
-        <div className="flex items-center justify-around px-2 pt-0.5 pb-6">
+        <div className="flex items-center justify-around px-2 pt-1 pb-6">
           {navItems.map(({ icon: Icon, label, path, isCreate }) => {
             if (isCreate) {
               return (
@@ -70,27 +69,16 @@ export const BottomNav = () => {
             }
 
             const isActive = location.pathname === path;
-            const IconComponent = Icon!; // Safe assertion as filtered out by isCreate
+            const IconComponent = Icon!;
 
             return (
               <Link
                 key={path}
                 to={path}
                 onMouseEnter={() => {
-                  // Prefetch the route chunk
                   if (path === '/chat') import('../../pages/Chat');
                   if (path === '/activity') import('../../pages/Notifications');
                   if (path === '/profile/me') import('../../pages/Profile');
-
-                  // Prefetch Data
-                  prefetchData(path);
-                }}
-                onTouchStart={() => {
-                  if (path === '/chat') import('../../pages/Chat');
-                  if (path === '/activity') import('../../pages/Notifications');
-                  if (path === '/profile/me') import('../../pages/Profile');
-
-                  // Prefetch Data
                   prefetchData(path);
                 }}
                 className={cn(
