@@ -219,6 +219,19 @@ textarea {
     /* Ensure it's below the nav (z-50) */
   }
 
+  /* Fill the top status bar area with white padding */
+  body::before {
+    content: "";
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: env(safe-area-inset-top);
+    background: white;
+    z-index: 51;
+    /* Needs to be above everything at the very top */
+  }
+
   /* Add padding to the fixed header so it doesn't overlap with status bar */
   .fixed.top-0 {
     top: env(safe-area-inset-top) !important;
