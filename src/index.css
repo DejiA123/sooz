@@ -218,4 +218,9 @@ textarea {
     z-index: 49;
     /* Ensure it's below the nav (z-50) */
   }
+
+  /* Add padding to the fixed header so it doesn't overlap with status bar */
+  .fixed.top-0 {
+    top: env(safe-area-inset-top) !important;
+  }
 }
