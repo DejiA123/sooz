@@ -2,7 +2,6 @@ import { useRef, useState, useEffect } from "react";
 import { Play, Volume2, VolumeX, Loader2 } from "lucide-react";
 import { useInView } from "react-intersection-observer";
 import { useVideoStore } from "@/store/useVideoStore";
-import { useVideoCache } from "@/store/useVideoCache";
 import { useAutoplayUnlock } from "@/hooks/useAutoplayUnlock";
 
 interface LazyVideoProps {
@@ -36,30 +35,25 @@ export const LazyVideo = ({ src, id, onClick, startTime = 0, priority = false }:
     const setActiveVideo = useVideoStore((state) => state.setActiveVideo);
     const isActive = activeVideoId === id;
 
+    // Observer for Active Playing state (viewport threshold)
     const { ref } = useInView({
-        threshold: 0.5, // Lower threshold for mobile responsiveness
+        threshold: 0.5,
         triggerOnce: false,
         onChange: (inView) => {
             if (inView) {
-                // 1. Immediate Global State Update
                 setActiveVideo(id);
 
-                // 2. Optimistic Immediate Play (Don't wait for React render cycle)
                 const video = videoRef.current;
                 if (video) {
-                    // Smart seek if start time provided
                     if (startTime > 0 && Math.abs(video.currentTime - startTime) > 0.5) {
                         video.currentTime = startTime;
                     }
-
-                    video.muted = isGlobalMuted; // Use global mute preference
-                    // Attempt play immediately, but don't stress if it fails (handled by robust effect)
+                    video.muted = isGlobalMuted;
                     video.play()
                         .then(() => setIsPlaying(true))
                         .catch(() => { });
                 }
             } else {
-                // Stop playing if scrolled out of view
                 const currentActiveId = useVideoStore.getState().activeVideoId;
                 if (currentActiveId === id) {
                     setActiveVideo(null);
@@ -67,6 +61,24 @@ export const LazyVideo = ({ src, id, onClick, startTime = 0, priority = false }:
             }
         }
     });
+
+    // New Observer for Preloading (Approaching viewport)
+    // Triggers when video is within 1 viewport height (approx) of entering
+    const [shouldPreload, setShouldPreload] = useState(false);
+    const { ref: preloadRef } = useInView({
+        rootMargin: '600px 0px', // Start loading when 600px away (approx 1 post)
+        threshold: 0,
+        triggerOnce: true,
+        onChange: (inView) => {
+            if (inView) setShouldPreload(true);
+        }
+    });
+
+    // Merge refs
+    const setRefs = (node: HTMLDivElement | null) => {
+        ref(node);
+        preloadRef(node);
+    };
 
     // Robust Playback Logic - aggressive autoplay for mobile
     useEffect(() => {
@@ -162,25 +174,21 @@ export const LazyVideo = ({ src, id, onClick, startTime = 0, priority = false }:
         }
     };
 
-    const getCachedUrl = useVideoCache((state) => state.getCachedUrl);
-    const cachedSrc = getCachedUrl(src);
-    const finalSrc = cachedSrc || src;
-
     return (
         <div
-            ref={ref}
+            ref={setRefs}
             className="w-full relative cursor-pointer bg-black overflow-hidden"
             onClick={handleTap}
         >
             <video
                 ref={videoRef}
-                src={finalSrc}
+                src={src}
                 className="w-full aspect-[9/16] object-contain"
                 loop
                 muted={isGlobalMuted}
                 playsInline
                 autoPlay={isActive}
-                preload={priority || isActive ? "auto" : "none"} // Optimized preloading
+                preload={priority || isActive || shouldPreload ? "auto" : "metadata"}
                 onWaiting={() => setIsBuffering(true)}
                 onPlaying={() => {
                     setIsPlaying(true);

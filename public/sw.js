@@ -23,15 +23,20 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
     const url = new URL(event.request.url);
 
-    // Skip cross-origin (except maybe common CDNs if needed)
-    if (url.origin !== self.location.origin) return;
+    // Skip cross-origin (except CDN/Supabase)
+    // We want to cache Supabase storage images/videos if possible
+    const isSupabaseStorage = url.hostname.includes('supabase.co') && url.pathname.includes('/storage/v1/object/');
+    const isExternalImage = url.pathname.match(/\.(jpg|jpeg|png|gif|webp|svg|ico)$/i);
 
     // Only cache GET requests
     if (event.request.method !== 'GET') return;
 
-    // Cache First for hashed assets (Vite output .hash.js)
+    // Skip range requests (videos often use these) to avoid partial content caching issues in simple SW
+    if (event.request.headers.has('range')) return;
+
+    // Cache First for Assets (JS/CSS/Fonts/Images)
     // Stale-While-Revalidate for others
-    const isAsset = /\.(js|css|png|jpg|jpeg|svg|woff2|ico)$/.test(url.pathname);
+    const isAsset = /\.(js|css|png|jpg|jpeg|svg|woff2|ico|webp)$/i.test(url.pathname) || isSupabaseStorage || isExternalImage;
 
     if (isAsset) {
         event.respondWith(
@@ -42,8 +47,18 @@ self.addEventListener('fetch', (event) => {
 
                     // Otherwise fetch and cache
                     return fetch(event.request).then((networkResponse) => {
-                        cache.put(event.request, networkResponse.clone());
+                        // Check if we received a valid response
+                        if (!networkResponse || networkResponse.status !== 200 || networkResponse.type !== 'basic' && networkResponse.type !== 'cors') {
+                            return networkResponse;
+                        }
+
+                        // Clone the response
+                        const responseToCache = networkResponse.clone();
+
+                        cache.put(event.request, responseToCache);
                         return networkResponse;
+                    }).catch(() => {
+                        // Fallback?
                     });
                 });
             })
@@ -54,6 +69,9 @@ self.addEventListener('fetch', (event) => {
             fetch(event.request)
                 .then((response) => {
                     return caches.open(CACHE_NAME).then((cache) => {
+                        if (!response || response.status !== 200 || response.type !== 'basic') {
+                            return response;
+                        }
                         cache.put(event.request, response.clone());
                         return response;
                     });
