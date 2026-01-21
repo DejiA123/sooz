@@ -205,4 +205,17 @@ textarea {
   .fixed.bottom-0 {
     bottom: 12px !important;
   }
+
+  /* Fill the gap below the bottom navigation with white padding */
+  body::after {
+    content: "";
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 12px;
+    background: white;
+    z-index: 49;
+    /* Ensure it's below the nav (z-50) */
+  }
 }
