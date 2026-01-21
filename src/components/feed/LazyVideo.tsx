@@ -11,13 +11,16 @@ interface LazyVideoProps {
     onClick?: (currentTime: number) => void;
     startTime?: number;
     priority?: boolean;
+    disableClick?: boolean;
+    className?: string; // Standard prop
 }
 
-export const LazyVideo = ({ src, id, onClick, startTime = 0, priority = false }: LazyVideoProps) => {
+export const LazyVideo = ({ src, id, onClick, startTime = 0, priority = false, disableClick = false, className }: LazyVideoProps) => {
     const videoRef = useRef<HTMLVideoElement>(null);
     const [isPlaying, setIsPlaying] = useState(false);
     const [isBuffering, setIsBuffering] = useState(false);
     const [hasAttemptedPlay, setHasAttemptedPlay] = useState(false);
+    const [isVideoReady, setIsVideoReady] = useState(false);
     const { unlock } = useAutoplayUnlock();
 
     // Get cached URL if available for instant loading
@@ -29,7 +32,6 @@ export const LazyVideo = ({ src, id, onClick, startTime = 0, priority = false }:
     const setGlobalMuted = useVideoStore((state) => state.setGlobalMuted);
 
     // Sync local mute with global state 
-    // Effect to apply global mute state to video element whenever it changes or video reference changes
     useEffect(() => {
         if (videoRef.current) {
             videoRef.current.muted = isGlobalMuted;
@@ -67,11 +69,10 @@ export const LazyVideo = ({ src, id, onClick, startTime = 0, priority = false }:
         }
     });
 
-    // New Observer for Preloading (Approaching viewport)
-    // Triggers when video is within 1500px (3-4 posts ahead) - network-aware
+    // AGGRESSIVE Preload Observer - TikTok style (3000px ahead)
     const [shouldPreload, setShouldPreload] = useState(false);
     const { ref: preloadRef } = useInView({
-        rootMargin: '1500px 0px', // Increased from 600px for aggressive preloading
+        rootMargin: '3000px 0px', // Preload when 3000px away (6-8 posts ahead)
         threshold: 0,
         triggerOnce: true,
         onChange: (inView) => {
@@ -85,7 +86,7 @@ export const LazyVideo = ({ src, id, onClick, startTime = 0, priority = false }:
         preloadRef(node);
     };
 
-    // Robust Playback Logic - aggressive autoplay for mobile
+    // Robust Playback Logic - aggressive autoplay for mobile/iOS/PWA
     useEffect(() => {
         const video = videoRef.current;
         if (!video) return;
@@ -96,8 +97,8 @@ export const LazyVideo = ({ src, id, onClick, startTime = 0, priority = false }:
                     // Start with global mute setting
                     video.muted = isGlobalMuted;
 
-                    // Multiple play attempts for mobile reliability
-                    const attemptPlay = async (retries = 3) => {
+                    // Multiple play attempts for mobile reliability (iOS Safari needs this)
+                    const attemptPlay = async (retries = 5) => {
                         for (let i = 0; i < retries; i++) {
                             try {
                                 await video.play();
@@ -115,12 +116,13 @@ export const LazyVideo = ({ src, id, onClick, startTime = 0, priority = false }:
                                         setHasAttemptedPlay(true);
                                         return;
                                     } catch (err) {
-                                        // Ignore
+                                        // Continue retrying
                                     }
                                 }
 
                                 if (i < retries - 1) {
-                                    await new Promise(r => setTimeout(r, 100));
+                                    // Shorter delays for faster retries on mobile
+                                    await new Promise(r => setTimeout(r, 50));
                                 }
                             }
                         }
@@ -145,6 +147,8 @@ export const LazyVideo = ({ src, id, onClick, startTime = 0, priority = false }:
 
     // Handle click
     const handleTap = (e: React.MouseEvent) => {
+        if (disableClick) return; // Allow event to bubble up if click is disabled
+
         e.stopPropagation();
 
         // Unlock autoplay on first interaction
@@ -179,10 +183,17 @@ export const LazyVideo = ({ src, id, onClick, startTime = 0, priority = false }:
         }
     };
 
+    // Determine the preload strategy based on priority and visibility
+    const getPreloadValue = () => {
+        if (priority || isActive) return "auto";
+        if (shouldPreload) return "auto"; // Aggressive preload when close
+        return "metadata"; // Fallback for far-away videos
+    };
+
     return (
         <div
             ref={setRefs}
-            className="w-full relative cursor-pointer bg-black overflow-hidden"
+            className={`w-full relative cursor-pointer bg-black overflow-hidden ${className || ''}`}
             onClick={handleTap}
         >
             <video
@@ -193,8 +204,9 @@ export const LazyVideo = ({ src, id, onClick, startTime = 0, priority = false }:
                 muted={isGlobalMuted}
                 playsInline
                 autoPlay={isActive}
-                preload={priority || isActive || shouldPreload ? "auto" : "metadata"}
+                preload={getPreloadValue()}
                 onWaiting={() => setIsBuffering(true)}
+                onCanPlay={() => setIsVideoReady(true)}
                 onPlaying={() => {
                     setIsPlaying(true);
                     setIsBuffering(false);
@@ -204,11 +216,18 @@ export const LazyVideo = ({ src, id, onClick, startTime = 0, priority = false }:
                     setIsBuffering(false);
                 }}
                 onPause={() => setIsPlaying(false)}
+                // iOS/Safari/PWA optimizations for fast loading
                 // @ts-ignore - for older iOS support
                 webkit-playsinline="true"
+                // @ts-ignore - prevents AirPlay icon on iOS
+                x-webkit-airplay="deny"
+                // @ts-ignore - disables casting to remote devices
+                disableRemotePlayback
+                // @ts-ignore - hints for low power mode
+                disablePictureInPicture
             />
 
-            {/* Buffering spinner */}
+            {/* Buffering spinner - shows only when actually buffering during playback */}
             {isBuffering && isPlaying && (
                 <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
                     <Loader2 className="w-10 h-10 text-white/80 animate-spin drop-shadow-lg" />
@@ -216,7 +235,7 @@ export const LazyVideo = ({ src, id, onClick, startTime = 0, priority = false }:
             )}
 
             {/* Only show play button if video has attempted to play but failed (rare edge case) */}
-            {!isPlaying && hasAttemptedPlay && (
+            {!isPlaying && hasAttemptedPlay && !disableClick && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/20">
                     <div className="bg-white/20 backdrop-blur-sm rounded-full p-3">
                         <Play className="w-8 h-8 text-white fill-white" />
@@ -224,16 +243,18 @@ export const LazyVideo = ({ src, id, onClick, startTime = 0, priority = false }:
                 </div>
             )}
 
-            <button
-                onClick={toggleMute}
-                className="absolute bottom-3 right-3 bg-black/60 backdrop-blur-sm p-2 rounded-full z-20 touch-manipulation"
-            >
-                {isGlobalMuted ? (
-                    <VolumeX className="w-4 h-4 text-white" />
-                ) : (
-                    <Volume2 className="w-4 h-4 text-white" />
-                )}
-            </button>
+            {!disableClick && (
+                <button
+                    onClick={toggleMute}
+                    className="absolute bottom-3 right-3 bg-black/60 backdrop-blur-sm p-2 rounded-full z-20 touch-manipulation"
+                >
+                    {isGlobalMuted ? (
+                        <VolumeX className="w-4 h-4 text-white" />
+                    ) : (
+                        <Volume2 className="w-4 h-4 text-white" />
+                    )}
+                </button>
+            )}
 
             <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-black/60 to-transparent pointer-events-none" />
         </div>

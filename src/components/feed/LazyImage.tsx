@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useInView } from 'react-intersection-observer';
+import { useImageCache } from '@/store/useImageCache';
 
 interface LazyImageProps {
     src: string;
@@ -15,20 +16,52 @@ export const LazyImage = ({ src, alt, className = '', priority = false, onLoad }
     const [currentSrc, setCurrentSrc] = useState<string | undefined>(undefined);
     const imgRef = useRef<HTMLImageElement>(null);
 
-    // Intersection observer for lazy loading
+    // Get cached URL if available for instant loading
+    const { getCachedUrl, preloadImage } = useImageCache();
+    const cachedSrc = getCachedUrl(src);
+
+    // AGGRESSIVE intersection observer for lazy loading - TikTok style
     const { ref: containerRef, inView } = useInView({
-        rootMargin: '800px 0px', // Start loading when 800px away
+        rootMargin: '2000px 0px', // Start loading when 2000px away (was 800px)
         threshold: 0,
         triggerOnce: true,
     });
+
+    // Preload observer - even further ahead for caching
+    const { ref: preloadRef, inView: inPreloadView } = useInView({
+        rootMargin: '3000px 0px', // Start caching when 3000px away
+        threshold: 0,
+        triggerOnce: true,
+    });
+
+    // Merge refs
+    const setRefs = (node: HTMLDivElement | null) => {
+        containerRef(node);
+        preloadRef(node);
+    };
+
+    // Start caching when far from viewport
+    useEffect(() => {
+        if (inPreloadView && !cachedSrc) {
+            preloadImage(src);
+        }
+    }, [inPreloadView, src, cachedSrc, preloadImage]);
 
     // Start loading when in view or priority
     useEffect(() => {
         if ((inView || priority) && !isLoading && !isLoaded) {
             setIsLoading(true);
-            setCurrentSrc(src);
+            // Use cached URL if available, otherwise use original
+            setCurrentSrc(cachedSrc || src);
         }
-    }, [inView, priority, src, isLoading, isLoaded]);
+    }, [inView, priority, src, isLoading, isLoaded, cachedSrc]);
+
+    // Update src if cached URL becomes available while loading
+    useEffect(() => {
+        if (cachedSrc && isLoading && !isLoaded) {
+            setCurrentSrc(cachedSrc);
+        }
+    }, [cachedSrc, isLoading, isLoaded]);
 
     const handleLoad = () => {
         setIsLoaded(true);
@@ -43,7 +76,7 @@ export const LazyImage = ({ src, alt, className = '', priority = false, onLoad }
 
     return (
         <div
-            ref={containerRef}
+            ref={setRefs}
             className={`relative overflow-hidden bg-muted ${className}`}
             style={{ aspectRatio: '1/1' }}
         >
@@ -64,6 +97,8 @@ export const LazyImage = ({ src, alt, className = '', priority = false, onLoad }
                     onError={handleError}
                     loading={priority ? 'eager' : 'lazy'}
                     decoding="async"
+                    // @ts-ignore - fetchpriority is valid but not in React types
+                    fetchpriority={priority ? 'high' : 'auto'}
                 />
             )}
         </div>

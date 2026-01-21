@@ -5,6 +5,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
+import { LazyImage } from "@/components/feed/LazyImage";
+import { LazyVideo } from "@/components/feed/LazyVideo";
 
 interface DiscoverPost {
     id: string;
@@ -118,29 +120,27 @@ export default function Discover() {
                 </div>
             ) : (
                 <div className="grid grid-cols-3 gap-0.5 px-0.5 pb-4">
-                    {posts.map((post) => (
+                    {posts.map((post, index) => (
                         <div
                             key={post.id}
                             className="relative rounded-none overflow-hidden bg-muted aspect-[3/4] group cursor-pointer"
                             onClick={() => navigate(`/post/${post.id}`)}
                         >
                             {post.media_type === 'video' ? (
-                                <video
+                                <LazyVideo
                                     src={post.media_url || ""}
-                                    className="w-full h-full object-cover"
-                                    muted
-                                    loop
-                                    playsInline
+                                    id={`discover-${post.id}`}
+                                    priority={index < 6}
                                 />
                             ) : (
-                                <img
+                                <LazyImage
                                     src={post.media_url || ""}
                                     alt="Discover"
                                     className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                                    loading="lazy"
+                                    priority={index < 6}
                                 />
                             )}
-                            <div className="absolute inset-0 bg-black/20 group-hover:bg-black/0 transition-colors" />
+                            <div className="absolute inset-0 bg-black/20 group-hover:bg-black/0 transition-colors pointer-events-none" />
                         </div>
                     ))}
                 </div>

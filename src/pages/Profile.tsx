@@ -6,12 +6,15 @@ import { Link as LinkIcon } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-import { Settings, Grid3X3, Bookmark, Heart, Loader2, Camera, Play } from "lucide-react";
+import { Settings, Grid3X3, Bookmark, Heart, Loader2, Camera, Play, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import EditProfileModal from "@/components/profile/EditProfileModal";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { PostCard } from "@/components/feed/PostCard";
+import { LazyImage } from "@/components/feed/LazyImage";
+import { LazyVideo } from "@/components/feed/LazyVideo";
+import { VideoFeedModal } from "@/components/feed/VideoFeedModal";
 
 interface Profile {
   id: string;
@@ -352,7 +355,7 @@ const Profile = () => {
         {/* Posts Grid */}
         {posts.length > 0 ? (
           <div className="grid grid-cols-3 gap-0.5">
-            {posts.map((post) => (
+            {posts.map((post, index) => (
               <div
                 key={post.id}
                 className="aspect-square bg-muted overflow-hidden relative group cursor-pointer"
@@ -360,27 +363,20 @@ const Profile = () => {
               >
                 {post.media_type === 'video' ? (
                   <div className="w-full h-full relative">
-                    <video
+                    <LazyVideo
                       src={post.media_url || ""}
-                      className="w-full h-full object-cover"
-                      muted
-                      playsInline
-                      loop
-                      onMouseOver={(e) => e.currentTarget.play()}
-                      onMouseOut={(e) => {
-                        e.currentTarget.pause();
-                        e.currentTarget.currentTime = 0;
-                      }}
+                      id={`profile-${post.id}`}
+                      priority={index < 6}
+                      disableClick={true}
+                      className="pointer-events-none" // Optional additional safety
                     />
-                    <div className="absolute top-2 right-2">
-                      <Play className="w-4 h-4 text-white drop-shadow-md fill-white/50" />
-                    </div>
                   </div>
                 ) : post.media_url ? (
-                  <img
+                  <LazyImage
                     src={post.media_url}
                     alt=""
                     className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
+                    priority={index < 6}
                   />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-muted-foreground bg-card">
@@ -399,31 +395,23 @@ const Profile = () => {
         )}
       </div>
 
-      {/* Detail Dialog */}
-      <Dialog open={!!selectedPost} onOpenChange={(open) => !open && setSelectedPost(null)}>
-        <DialogContent className="p-0 border-none bg-transparent max-w-md w-full overflow-hidden sm:rounded-3xl shadow-none">
-          {selectedPost && (
-            <div className="bg-background rounded-3xl overflow-hidden">
-              <PostCard
-                id={selectedPost.id}
-                user={{
-                  id: profile.id,
-                  username: profile.username,
-                  display_name: profile.display_name,
-                  avatar_url: profile.avatar_url
-                }}
-                caption={selectedPost.caption}
-                media_url={selectedPost.media_url}
-                media_type={selectedPost.media_type}
-                created_at={selectedPost.created_at}
-                likes_count={selectedPost.likes_count}
-                comments_count={selectedPost.comments_count}
-                is_liked_by_user={selectedPost.is_liked_by_user}
-              />
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+      {/* Full-screen Feed Modal */}
+      {selectedPost && (
+        <VideoFeedModal
+          posts={posts.map(p => ({
+            ...p,
+            profiles: {
+              username: profile.username,
+              display_name: profile.display_name,
+              avatar_url: profile.avatar_url
+            },
+            likes: p.is_liked_by_user ? [{ user_id: user?.id }] : [], // Mock like structure for modal
+            comments: [{ count: p.comments_count }] // Mock comment structure for modal
+          }))}
+          initialIndex={posts.findIndex(p => p.id === selectedPost.id)}
+          onClose={() => setSelectedPost(null)}
+        />
+      )}
 
       {
         showEditModal && (

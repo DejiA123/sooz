@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { formatDistanceToNow } from "date-fns";
 import { useNavigate } from "react-router-dom";
+import { LazyImage } from "@/components/feed/LazyImage";
 
 interface ActivityItem {
     id: string;
@@ -204,17 +205,12 @@ export default function Activity() {
                                     <div className="w-10 h-10 rounded-md overflow-hidden bg-muted flex-shrink-0 border border-white/10 relative">
                                         {item.post_media.type === 'video' ? (
                                             <div className="w-full h-full bg-black flex items-center justify-center">
-                                                {/* Ideally we'd show a thumbnail here, but raw video works if we disable controls/autoplay */}
-                                                <video
-                                                    src={item.post_media.url}
-                                                    className="w-full h-full object-cover opacity-80"
-                                                    muted
-                                                    playsInline
-                                                />
+                                                {/* Using a placeholder for video thumbnails in activity feed */}
+                                                <div className="w-full h-full bg-gradient-to-br from-primary/20 to-secondary/20" />
                                                 <Play className="w-3 h-3 text-white absolute inset-0 m-auto fill-white/50" />
                                             </div>
                                         ) : (
-                                            <img src={item.post_media.url} className="w-full h-full object-cover" alt="Post" />
+                                            <LazyImage src={item.post_media.url} className="w-full h-full object-cover" alt="Post" priority />
                                         )}
                                     </div>
                                 )}

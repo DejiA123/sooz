@@ -16,8 +16,9 @@ interface VideoCacheState {
     getTotalCacheSize: () => number;
 }
 
-const MAX_CACHE_AGE_MS = 10 * 60 * 1000; // 10 minutes
-const MAX_CACHE_SIZE_MB = 200; // 200MB max cache size
+// Increased limits for TikTok-level instant loading
+const MAX_CACHE_AGE_MS = 15 * 60 * 1000; // 15 minutes (was 10)
+const MAX_CACHE_SIZE_MB = 300; // 300MB max cache size (was 200)
 
 export const useVideoCache = create<VideoCacheState>((set, get) => ({
     cachedUrls: {},

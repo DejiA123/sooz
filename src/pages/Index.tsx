@@ -11,6 +11,7 @@ import { SuggestedUsersRail } from "@/components/feed/SuggestedUsersRail";
 import { useVideoStore } from "@/store/useVideoStore";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { fetchPosts } from "@/services/api/posts";
+import { useVideoPreloader } from "@/hooks/useVideoPreloader";
 
 interface PostWithUser {
   id: string;
@@ -81,6 +82,11 @@ export default function Index() {
   // Flatten pages
   const posts = data?.pages.flatMap(page => page.posts) || [];
   const isLoading = status === 'pending';
+
+  // Enable aggressive video preloading for the feed
+  // This handles specific "keep X behind, preload Y ahead" logic
+  // and partial content fetching for instant playback
+  useVideoPreloader(posts);
 
   return (
     <div className="pb-20">
