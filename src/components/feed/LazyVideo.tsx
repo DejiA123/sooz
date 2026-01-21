@@ -3,6 +3,7 @@ import { Play, Volume2, VolumeX, Loader2 } from "lucide-react";
 import { useInView } from "react-intersection-observer";
 import { useVideoStore } from "@/store/useVideoStore";
 import { useAutoplayUnlock } from "@/hooks/useAutoplayUnlock";
+import { useVideoCache } from "@/store/useVideoCache";
 
 interface LazyVideoProps {
     src: string;
@@ -18,6 +19,10 @@ export const LazyVideo = ({ src, id, onClick, startTime = 0, priority = false }:
     const [isBuffering, setIsBuffering] = useState(false);
     const [hasAttemptedPlay, setHasAttemptedPlay] = useState(false);
     const { unlock } = useAutoplayUnlock();
+
+    // Get cached URL if available for instant loading
+    const { getCachedUrl } = useVideoCache();
+    const cachedSrc = getCachedUrl(src) || src;
 
     // Use global mute state
     const isGlobalMuted = useVideoStore((state) => state.isGlobalMuted);
@@ -63,10 +68,10 @@ export const LazyVideo = ({ src, id, onClick, startTime = 0, priority = false }:
     });
 
     // New Observer for Preloading (Approaching viewport)
-    // Triggers when video is within 1 viewport height (approx) of entering
+    // Triggers when video is within 1500px (3-4 posts ahead) - network-aware
     const [shouldPreload, setShouldPreload] = useState(false);
     const { ref: preloadRef } = useInView({
-        rootMargin: '600px 0px', // Start loading when 600px away (approx 1 post)
+        rootMargin: '1500px 0px', // Increased from 600px for aggressive preloading
         threshold: 0,
         triggerOnce: true,
         onChange: (inView) => {
@@ -182,7 +187,7 @@ export const LazyVideo = ({ src, id, onClick, startTime = 0, priority = false }:
         >
             <video
                 ref={videoRef}
-                src={src}
+                src={cachedSrc}
                 className="w-full aspect-[9/16] object-contain"
                 loop
                 muted={isGlobalMuted}

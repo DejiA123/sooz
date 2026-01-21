@@ -27,8 +27,8 @@ const Feed = () => {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Aggressively preload next videos - DISABLED to fix memory issues
-  // useVideoPreloader(posts);
+  // Aggressively preload next videos with optimized memory management
+  useVideoPreloader(posts);
 
   useEffect(() => {
     fetchPosts();

@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { EditPostDialog } from "./EditPostDialog";
 import { LazyVideo } from "./LazyVideo";
+import { LazyImage } from "./LazyImage";
 
 interface PostCardProps {
   id: string;
@@ -279,12 +280,11 @@ export const PostCard = ({
                 } : undefined}
               />
             ) : (
-              <img
+              <LazyImage
                 src={media_url}
                 alt="Post"
-                className="w-full max-h-[600px] object-contain"
-                loading="lazy"
-                decoding="async"
+                className="w-full max-h-[600px]"
+                priority={priority}
               />
             )}
           </div>
