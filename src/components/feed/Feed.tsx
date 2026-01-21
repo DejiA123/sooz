@@ -74,7 +74,6 @@ const Feed = () => {
     return (
       <div className="pt-16 pb-24">
         <StoriesBar />
-        <div className="h-px bg-border mx-0 md:mx-4 mb-4" />
         <div className="px-0 md:px-4 space-y-6">
           {[1, 2, 3].map((i) => (
             <PostCardSkeleton key={i} />
@@ -88,9 +87,6 @@ const Feed = () => {
     <div className="pt-16 pb-24">
       {/* Stories */}
       <StoriesBar />
-
-      {/* Divider */}
-      <div className="h-px bg-border mx-4 mb-4" />
 
       {/* Posts */}
       <div className="px-0 md:px-4 space-y-6">
