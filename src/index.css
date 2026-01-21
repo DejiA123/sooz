@@ -192,3 +192,17 @@ textarea {
   -webkit-user-select: text;
   user-select: text;
 }
+
+/* PWA-specific styles for better positioning */
+@media (display-mode: standalone) {
+
+  /* Add safe area padding to the top for status bar */
+  body {
+    padding-top: env(safe-area-inset-top);
+  }
+
+  /* Adjust bottom navigation positioning - bring it up */
+  .fixed.bottom-0 {
+    bottom: 12px !important;
+  }
+}
