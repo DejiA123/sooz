@@ -56,78 +56,18 @@ export const useVideoPreloader = (posts: Post[]) => {
             }
         });
 
-        // Preload videos using idle callback for non-blocking operation
+        // Preload videos using idle callback - DISABLED for now to ensure strictly one video loads at a time
+        // The user reported slow loading connections, so we rely solely on LazyVideo loading the active video.
+        /*
         postsToPreload.forEach((post, index) => {
             if (!post.media_url) return;
 
             // Skip if already cached or currently preloading
             if (cachedUrls[post.media_url] || preloadedIdsRef.current.has(post.id)) return;
 
-            // Mark as being preloaded
-            preloadedIdsRef.current.add(post.id);
-
-            // Stagger preloads with minimal delay (50ms apart for smooth loading)
-            const delay = index * 50;
-
-            const idleId = requestIdleCallback(() => {
-                setTimeout(async () => {
-                    // Double-check if still needed
-                    if (cachedUrls[post.media_url!]) {
-                        preloadedIdsRef.current.delete(post.id);
-                        return;
-                    }
-
-                    // Create abort controller for this request
-                    const abortController = new AbortController();
-                    abortControllersRef.current.set(post.id, abortController);
-
-                    try {
-                        console.log(`⚡ Preloading video [${index + 1}/${preloadCount}]: ${post.id}`);
-
-                        // For slow connections or when reducing quality, fetch partial video
-                        // This gives instant playback start while rest loads in background
-                        const fetchOptions: RequestInit = {
-                            signal: abortController.signal,
-                            headers: {
-                                'Cache-Control': 'max-age=31536000',
-                            },
-                        };
-
-                        // Try range request for partial loading (iOS Safari compatible)
-                        if (shouldReduceQuality) {
-                            fetchOptions.headers = {
-                                ...fetchOptions.headers,
-                                'Range': `bytes=0-${PARTIAL_VIDEO_SIZE}`,
-                            };
-                        }
-
-                        const response = await fetch(post.media_url!, fetchOptions);
-
-                        if (!response.ok && response.status !== 206) {
-                            throw new Error(`HTTP ${response.status}`);
-                        }
-
-                        const blob = await response.blob();
-                        const blobUrl = URL.createObjectURL(blob);
-
-                        setCachedUrl(post.media_url!, blobUrl, blob.size);
-                        console.log(`✅ Cached video: ${post.id} (${(blob.size / 1024 / 1024).toFixed(2)}MB)`);
-                    } catch (error: unknown) {
-                        const err = error as Error;
-                        if (err.name === 'AbortError') {
-                            console.log(`⏹️ Preload aborted: ${post.id}`);
-                        } else {
-                            console.error(`❌ Failed to preload video ${post.id}:`, error);
-                        }
-                        preloadedIdsRef.current.delete(post.id);
-                    } finally {
-                        abortControllersRef.current.delete(post.id);
-                    }
-                }, delay);
-            }) as number;
-
-            idleCallbacksRef.current.push(idleId);
+            // ... (preloading logic disabled)
         });
+        */
 
         // Cleanup function: abort ongoing preloads if activeVideoId changes
         return () => {

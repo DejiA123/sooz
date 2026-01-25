@@ -69,10 +69,10 @@ export const LazyVideo = ({ src, id, onClick, startTime = 0, priority = false, d
         }
     });
 
-    // AGGRESSIVE Preload Observer - TikTok style (3000px ahead)
+    // Simplified Preload Observer - only preload when very close (e.g. 1 post away)
     const [shouldPreload, setShouldPreload] = useState(false);
     const { ref: preloadRef } = useInView({
-        rootMargin: '3000px 0px', // Preload when 3000px away (6-8 posts ahead)
+        rootMargin: '200px 0px', // Preload only when 200px away (just before coming into view)
         threshold: 0,
         triggerOnce: true,
         onChange: (inView) => {
@@ -185,9 +185,9 @@ export const LazyVideo = ({ src, id, onClick, startTime = 0, priority = false, d
 
     // Determine the preload strategy based on priority and visibility
     const getPreloadValue = () => {
-        if (priority || isActive) return "auto";
-        if (shouldPreload) return "auto"; // Aggressive preload when close
-        return "metadata"; // Fallback for far-away videos
+        if (isActive) return "auto"; // Only load full video when active/playing
+        if (shouldPreload) return "metadata"; // Load metadata when close
+        return "none"; // Don't load anything when far away
     };
 
     return (
