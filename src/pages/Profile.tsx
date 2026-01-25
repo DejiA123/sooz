@@ -31,7 +31,7 @@ const GridVideo = ({ src, poster, className }: { src: string, poster?: string, c
 
   return (
     <div
-      className={cn("w-full h-full relative bg-gray-200 dark:bg-gray-800", className)}
+      className={cn("w-full h-full relative bg-gray-200 dark:bg-gray-800 flex items-center justify-center", className)}
       onMouseEnter={() => {
         if (videoRef.current) {
           videoRef.current.play().catch(() => { });
@@ -44,11 +44,14 @@ const GridVideo = ({ src, poster, className }: { src: string, poster?: string, c
         }
       }}
     >
+      {/* Fallback Icon for Mobile/Loading (Behind Video) */}
+      <Play className="w-8 h-8 text-gray-400 absolute z-0" fill="currentColor" />
+
       <video
         ref={videoRef}
         src={cachedSrc}
         poster={poster}
-        className="w-full h-full object-cover bg-transparent"
+        className="w-full h-full object-cover bg-transparent relative z-10"
         muted
         loop
         playsInline
