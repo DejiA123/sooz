@@ -20,43 +20,36 @@ import { useVideoCache } from "@/store/useVideoCache";
 import { Skeleton } from "@/components/ui/skeleton";
 
 // Optimized video component for grid view with hover-to-play
-const GridVideo = ({ src, poster, className }: { src: string, poster?: string, className?: string }) => {
+const GridVideo = ({ src, poster, className, priority = false }: { src: string, poster?: string, className?: string, priority?: boolean }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const { getCachedUrl } = useVideoCache();
   const cachedSrc = getCachedUrl(src) || src;
+  const [imageLoaded, setImageLoaded] = useState(false);
+  const [videoReady, setVideoReady] = useState(false);
 
   // Smart Thumbnail Strategy:
-  // 1. Explicit poster (fastest, best)
-  // 2. Derived from filename (e.g. video.mp4 -> video.jpg)
-  // 3. Fallback to metadata load (slow on mobile)
-
+  // Try to derive a thumbnail from the video filename if no explicit poster
   const derivedThumbnail = useMemo(() => {
     if (poster) return poster;
     if (!src) return null;
 
-    // Try to guess the thumbnail URL if it's a standard file path
-    // This works if the backend uploads a .jpg alongside the .mp4
     try {
       const url = new URL(src);
       const path = url.pathname;
       const ext = path.split('.').pop();
       if (ext && ['mp4', 'mov', 'webm'].includes(ext.toLowerCase())) {
-        // Replace extension with jpg
         return src.replace(`.${ext}`, '.jpg');
       }
     } catch (e) {
-      // invalid url, ignore
     }
     return null;
   }, [src, poster]);
 
-  // If we have ANY image candidate, skip preloading the video to save data
   const finalPoster = derivedThumbnail || poster;
-  const preloadStrategy = finalPoster ? "none" : "metadata";
 
   return (
     <div
-      className={cn("w-full h-full relative bg-gray-200 dark:bg-gray-800 flex items-center justify-center", className)}
+      className={cn("w-full h-full relative bg-gray-200 dark:bg-gray-800 overflow-hidden", className)}
       onMouseEnter={() => {
         if (videoRef.current) {
           videoRef.current.play().catch(() => { });
@@ -65,44 +58,38 @@ const GridVideo = ({ src, poster, className }: { src: string, poster?: string, c
       onMouseLeave={() => {
         if (videoRef.current) {
           videoRef.current.pause();
-          videoRef.current.currentTime = 0; // Reset to start
+          videoRef.current.currentTime = 0;
         }
       }}
     >
-      {/* 1. Underlying Icon (Last Resort) */}
-      <Play className="w-8 h-8 text-gray-400 absolute z-0" fill="currentColor" />
-
-      {/* 2. Poster Image (Derived or Explicit) */}
+      {/* 1. Thumbnail Image Layer (Middle) */}
       {finalPoster && (
         <img
           src={finalPoster}
           alt=""
-          className="absolute inset-0 w-full h-full object-cover z-10"
-          onError={(e) => {
-            // If derived thumb fails, hide it so the icon shows
-            e.currentTarget.style.display = 'none';
-          }}
+          className={cn(
+            "absolute inset-0 w-full h-full object-cover transition-opacity duration-300 z-10",
+            imageLoaded ? "opacity-100" : "opacity-0"
+          )}
+          onLoad={() => setImageLoaded(true)}
+          loading={priority ? "eager" : "lazy"}
         />
       )}
 
-      {/* 3. Video Player (Top Layer) */}
+      {/* 2. Video Player Layer (Top) */}
       <video
         ref={videoRef}
         src={cachedSrc}
-        // We don't use the native poster attribute here because we want manual control over the fallback image handling (onError)
-        // and we want the image to persist until the video *actually* plays, not just loads.
-        className="w-full h-full object-cover bg-transparent relative z-20 transition-opacity duration-300"
+        className={cn(
+          "w-full h-full object-cover bg-transparent relative z-20 transition-opacity duration-500",
+          videoReady ? "opacity-100" : "opacity-0"
+        )}
         muted
         loop
         playsInline
-        preload={preloadStrategy}
+        preload={priority ? "auto" : "metadata"}
         disablePictureInPicture
-        onPlay={(e) => {
-          // Unhide video if we were hiding it? 
-          // Actually, video is z-20. It covers image z-10.
-          // When video plays, it's opaque content covers the image.
-          // When video is empty/transparent, image shows.
-        }}
+        onLoadedData={() => setVideoReady(true)}
       />
     </div>
   );
@@ -473,6 +460,7 @@ const Profile = () => {
                       src={post.media_url || ""}
                       poster={post.thumbnail_url || ""} // Pass poster
                       className="pointer-events-none"
+                      priority={index < 6}
                     />
                   </div>
                 ) : post.media_url ? (
