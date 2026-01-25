@@ -1,7 +1,9 @@
 
 import { useEffect, useState, useRef } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Skeleton } from "@/components/ui/skeleton";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -23,50 +25,42 @@ interface StoryUser {
 
 export const StoryRail = () => {
     const { user } = useAuth();
-    const [storyUsers, setStoryUsers] = useState<StoryUser[]>([]); // Users with stories
-    const [followedUsers, setFollowedUsers] = useState<StoryUser[]>([]); // Users without stories but followed
-    const [userStory, setUserStory] = useState<any>(null);
     const [viewerOpen, setViewerOpen] = useState(false);
     const [initialUserIndex, setInitialUserIndex] = useState(0);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const navigate = useNavigate();
+    const queryClient = useQueryClient();
 
-    useEffect(() => {
-        fetchData();
+    const { data: storyData, isLoading } = useQuery({
+        queryKey: ['stories', user?.id],
+        queryFn: async () => {
+            if (!user) return { storyUsers: [], userStory: null };
 
-        const channel = supabase
-            .channel('public:stories')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'stories' }, () => {
-                fetchData();
-            })
-            .subscribe();
-
-        return () => {
-            supabase.removeChannel(channel);
-        };
-    }, [user]);
-
-    const fetchData = async () => {
-        if (!user) return;
-        await Promise.all([fetchStories(), fetchFollowedUsers()]);
-    };
-
-    const fetchStories = async () => {
-        try {
             const now = new Date().toISOString();
-            const { data, error } = await supabase
-                .from('stories')
-                .select(`
-                    id, user_id, media_url, media_type, created_at,
-                    profiles ( id, username, display_name, avatar_url )
-                `)
-                .gt('expires_at', now)
-                .order('created_at', { ascending: true });
 
-            if (data) {
-                // Group by user
-                const grouped: Record<string, StoryUser> = {};
-                data.forEach((story: any) => {
+            // Parallel fetch for speed
+            const [storiesResult, followsResult] = await Promise.all([
+                supabase
+                    .from('stories')
+                    .select(`
+                        id, user_id, media_url, media_type, created_at,
+                        profiles ( id, username, display_name, avatar_url )
+                    `)
+                    .gt('expires_at', now)
+                    .order('created_at', { ascending: true }),
+                supabase
+                    .from('follows')
+                    .select(`
+                        following_id,
+                        profiles:follows_following_id_fkey ( id, username, display_name, avatar_url )
+                    `)
+                    .eq('follower_id', user.id)
+            ]);
+
+            // Process Stories
+            const grouped: Record<string, StoryUser> = {};
+            if (storiesResult.data) {
+                storiesResult.data.forEach((story: any) => {
                     const uid = story.user_id;
                     if (!grouped[uid]) {
                         grouped[uid] = {
@@ -80,33 +74,15 @@ export const StoryRail = () => {
                     }
                     grouped[uid].stories.push(story);
                 });
-
-                // Split mine vs others
-                const others = Object.values(grouped).filter((g) => g.id !== user?.id);
-                const mine = grouped[user?.id || ''];
-
-                setStoryUsers(others);
-                setUserStory(mine);
             }
-        } catch (error) {
-            console.error("Error fetching stories:", error);
-        }
-    };
 
-    const fetchFollowedUsers = async () => {
-        try {
-            const { data, error } = await supabase
-                .from('follows')
-                .select(`
-                    following_id,
-                    profiles:follows_following_id_fkey ( id, username, display_name, avatar_url )
-                `)
-                .eq('follower_id', user?.id || '');
+            const others = Object.values(grouped).filter((g) => g.id !== user.id);
+            const mine = grouped[user.id];
 
-            if (error) throw error;
-
-            if (data) {
-                const formatted: StoryUser[] = data.map((f: any) => ({
+            // Process Follows (to show users without stories)
+            let followed: StoryUser[] = [];
+            if (followsResult.data) {
+                followed = followsResult.data.map((f: any) => ({
                     id: f.profiles.id,
                     username: f.profiles.username,
                     display_name: f.profiles.display_name,
@@ -114,12 +90,32 @@ export const StoryRail = () => {
                     stories: [],
                     hasStory: false
                 }));
-                setFollowedUsers(formatted);
             }
-        } catch (error) {
-            console.error("Error fetching follows:", error);
-        }
-    };
+
+            return { storyUsers: others, userStory: mine, followedUsers: followed };
+        },
+        enabled: !!user,
+        staleTime: 1000 * 60 * 5, // 5 min cache
+    });
+
+    const storyUsers = storyData?.storyUsers || [];
+    const userStory = storyData?.userStory || null;
+    const followedUsers = storyData?.followedUsers || [];
+
+    useEffect(() => {
+        if (!user) return;
+        // Subscribe to new stories
+        const channel = supabase
+            .channel('public:stories')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'stories' }, () => {
+                queryClient.invalidateQueries({ queryKey: ['stories', user.id] });
+            })
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [user, queryClient]);
 
     const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
@@ -162,7 +158,7 @@ export const StoryRail = () => {
             if (dbError) throw dbError;
 
             toast.success("Story added!", { id: toastId });
-            fetchData();
+            queryClient.invalidateQueries({ queryKey: ['stories', user.id] });
 
         } catch (error: any) {
             console.error("Story upload error:", error);
@@ -204,70 +200,86 @@ export const StoryRail = () => {
                         onChange={handleFileUpload}
                     />
 
-                    {/* Current User Story */}
-                    <div className="flex flex-col items-center gap-1.5 cursor-pointer group" onClick={handleMyStoryClick}>
-                        <div className="relative">
-                            <div className={cn(
-                                "p-[2px] rounded-full transition-all duration-300",
-                                userStory ? "bg-gradient-to-tr from-yellow-400 to-fuchsia-600" : ""
-                            )}>
-                                <Avatar className="w-16 h-16 border-2 border-background group-hover:scale-95 transition-transform duration-300">
-                                    <AvatarImage src={user?.user_metadata?.avatar_url} className="object-cover" />
-                                    <AvatarFallback>ME</AvatarFallback>
-                                </Avatar>
-                            </div>
-                            {!userStory && (
-                                <div className="absolute bottom-0 right-0 bg-primary text-primary-foreground rounded-full p-1 border-2 border-background">
-                                    <Plus className="w-3 h-3" strokeWidth={3} />
+                    {/* Loading State */}
+                    {isLoading && (
+                        <div className="flex gap-4">
+                            {[1, 2, 3, 4, 5, 6].map((i) => (
+                                <div key={i} className="flex flex-col items-center gap-1.5">
+                                    <Skeleton className="w-[68px] h-[68px] rounded-full" />
+                                    <Skeleton className="h-3 w-12" />
                                 </div>
-                            )}
+                            ))}
                         </div>
-                        <span className="text-[11px] font-medium text-muted-foreground group-hover:text-foreground transition-colors">
-                            Your Story
-                        </span>
-                    </div>
+                    )}
 
-                    {/* Users WITH Stories */}
-                    {storyUsers.map((storyUser, i) => (
-                        <div
-                            key={storyUser.id}
-                            className="flex flex-col items-center gap-1.5 cursor-pointer group"
-                            onClick={() => openViewer(userStory ? i + 1 : i)}
-                        >
-                            <div className="relative">
-                                <div className="p-[2px] rounded-full transition-all duration-300 bg-gradient-to-tr from-yellow-400 to-fuchsia-600">
-                                    <Avatar className="w-16 h-16 border-2 border-background group-hover:scale-95 transition-transform duration-300">
-                                        <AvatarImage src={storyUser.avatar || ""} className="object-cover" />
-                                        <AvatarFallback>{storyUser.username[0]?.toUpperCase()}</AvatarFallback>
-                                    </Avatar>
+                    {!isLoading && (
+                        <>
+                            {/* Current User Story */}
+                            <div className="flex flex-col items-center gap-1.5 cursor-pointer group" onClick={handleMyStoryClick}>
+                                <div className="relative">
+                                    <div className={cn(
+                                        "p-[2px] rounded-full transition-all duration-300",
+                                        userStory ? "bg-gradient-to-tr from-yellow-400 to-fuchsia-600" : ""
+                                    )}>
+                                        <Avatar className="w-16 h-16 border-2 border-background group-hover:scale-95 transition-transform duration-300">
+                                            <AvatarImage src={user?.user_metadata?.avatar_url} className="object-cover" />
+                                            <AvatarFallback>ME</AvatarFallback>
+                                        </Avatar>
+                                    </div>
+                                    {!userStory && (
+                                        <div className="absolute bottom-0 right-0 bg-primary text-primary-foreground rounded-full p-1 border-2 border-background">
+                                            <Plus className="w-3 h-3" strokeWidth={3} />
+                                        </div>
+                                    )}
                                 </div>
+                                <span className="text-[11px] font-medium text-muted-foreground group-hover:text-foreground transition-colors">
+                                    Your Story
+                                </span>
                             </div>
-                            <span className="text-[11px] font-medium text-muted-foreground group-hover:text-foreground transition-colors max-w-[64px] truncate text-center">
-                                {storyUser.username}
-                            </span>
-                        </div>
-                    ))}
 
-                    {/* Followed Users WITHOUT Stories */}
-                    {uniqueFollowedUsers.map((followedUser) => (
-                        <Link
-                            key={followedUser.id}
-                            to={`/profile/${followedUser.username}`}
-                            className="flex flex-col items-center gap-1.5 cursor-pointer group"
-                        >
-                            <div className="relative">
-                                <div className="p-[2px] rounded-full transition-all duration-300 border-2 border-muted hover:border-muted-foreground/50">
-                                    <Avatar className="w-16 h-16 border-2 border-background group-hover:scale-95 transition-transform duration-300">
-                                        <AvatarImage src={followedUser.avatar || ""} className="object-cover" />
-                                        <AvatarFallback>{followedUser.username[0]?.toUpperCase()}</AvatarFallback>
-                                    </Avatar>
+                            {/* Users WITH Stories */}
+                            {storyUsers.map((storyUser, i) => (
+                                <div
+                                    key={storyUser.id}
+                                    className="flex flex-col items-center gap-1.5 cursor-pointer group"
+                                    onClick={() => openViewer(userStory ? i + 1 : i)}
+                                >
+                                    <div className="relative">
+                                        <div className="p-[2px] rounded-full transition-all duration-300 bg-gradient-to-tr from-yellow-400 to-fuchsia-600">
+                                            <Avatar className="w-16 h-16 border-2 border-background group-hover:scale-95 transition-transform duration-300">
+                                                <AvatarImage src={storyUser.avatar || ""} className="object-cover" />
+                                                <AvatarFallback>{storyUser.username[0]?.toUpperCase()}</AvatarFallback>
+                                            </Avatar>
+                                        </div>
+                                    </div>
+                                    <span className="text-[11px] font-medium text-muted-foreground group-hover:text-foreground transition-colors max-w-[64px] truncate text-center">
+                                        {storyUser.username}
+                                    </span>
                                 </div>
-                            </div>
-                            <span className="text-[11px] font-medium text-muted-foreground group-hover:text-foreground transition-colors max-w-[64px] truncate text-center">
-                                {followedUser.username}
-                            </span>
-                        </Link>
-                    ))}
+                            ))}
+
+                            {/* Followed Users WITHOUT Stories */}
+                            {uniqueFollowedUsers.map((followedUser) => (
+                                <Link
+                                    key={followedUser.id}
+                                    to={`/profile/${followedUser.username}`}
+                                    className="flex flex-col items-center gap-1.5 cursor-pointer group"
+                                >
+                                    <div className="relative">
+                                        <div className="p-[2px] rounded-full transition-all duration-300 border-2 border-muted hover:border-muted-foreground/50">
+                                            <Avatar className="w-16 h-16 border-2 border-background group-hover:scale-95 transition-transform duration-300">
+                                                <AvatarImage src={followedUser.avatar || ""} className="object-cover" />
+                                                <AvatarFallback>{followedUser.username[0]?.toUpperCase()}</AvatarFallback>
+                                            </Avatar>
+                                        </div>
+                                    </div>
+                                    <span className="text-[11px] font-medium text-muted-foreground group-hover:text-foreground transition-colors max-w-[64px] truncate text-center">
+                                        {followedUser.username}
+                                    </span>
+                                </Link>
+                            ))}
+                        </>
+                    )}
                 </div>
                 <ScrollBar orientation="horizontal" className="hidden" />
             </ScrollArea>

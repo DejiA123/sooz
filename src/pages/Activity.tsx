@@ -8,6 +8,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { formatDistanceToNow } from "date-fns";
 import { useNavigate } from "react-router-dom";
 import { LazyImage } from "@/components/feed/LazyImage";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface ActivityItem {
     id: string;
@@ -26,7 +27,7 @@ interface ActivityItem {
 }
 
 export default function Activity() {
-    const { user, loading: authLoading } = useAuth();
+    const { user } = useAuth();
     const navigate = useNavigate();
     const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -43,20 +44,50 @@ export default function Activity() {
         queryFn: async () => {
             if (!user) return [];
 
-            // 1. Fetch from 'notifications' table
-            const { data: notifications, error: notifError } = await supabase
-                .from('notifications')
-                .select('*')
-                .eq('user_id', user.id)
-                .order('created_at', { ascending: false })
-                .limit(50);
+            // Execute independent queries in PARALLEL for maximum speed
+            const [notificationsResult, followsResult, likesResult] = await Promise.all([
+                // 1. Fetch from 'notifications' table
+                supabase
+                    .from('notifications')
+                    .select('*')
+                    .eq('user_id', user.id)
+                    .order('created_at', { ascending: false })
+                    .limit(50),
 
-            if (notifError) throw notifError;
+                // 2. Fetch Legacy Activities (Follows)
+                supabase
+                    .from("follows")
+                    .select(`id, created_at, follower:follower_id(username, avatar_url)`)
+                    .eq("following_id", user.id)
+                    .order("created_at", { ascending: false })
+                    .limit(20),
 
-            // Fetch actors for notifications
+                // 3. Fetch Legacy Activities (Likes)
+                supabase
+                    .from("likes")
+                    .select(`
+                        id, created_at, post_id, 
+                        user:user_id(username, avatar_url),
+                        posts!inner(user_id, media_url, media_type)
+                    `)
+                    .eq("posts.user_id", user.id)
+                    .neq("user_id", user.id)
+                    .order("created_at", { ascending: false })
+                    .limit(20)
+            ]);
+
+            const notifications = notificationsResult.data;
+            const follows = followsResult.data;
+            const likes = likesResult.data;
+
+            if (notificationsResult.error) throw notificationsResult.error;
+
+            // Fetch actors for notifications if needed
             let notifItems: ActivityItem[] = [];
             if (notifications && notifications.length > 0) {
                 const actorIds = [...new Set(notifications.map(n => n.actor_id).filter(Boolean))];
+
+                // Fetch profiles for actors
                 const { data: actors } = await supabase
                     .from('profiles')
                     .select('id, username, avatar_url')
@@ -79,33 +110,6 @@ export default function Activity() {
                     };
                 });
             }
-
-            // 2. Fetch Legacy Activities
-            const { data: follows, error: followsError } = await supabase
-                .from("follows")
-                .select(`id, created_at, follower:follower_id(username, avatar_url)`)
-                .eq("following_id", user.id)
-                .order("created_at", { ascending: false })
-                .limit(20);
-            if (followsError) throw followsError;
-
-            const { data: likes, error: likesError } = await supabase
-                .from("likes")
-                .select(`
-                    id, created_at, post_id, 
-                    user:user_id(username, avatar_url),
-                    posts!inner(user_id, media_url, media_type)
-                `)
-                .eq("posts.user_id", user.id)
-                .neq("user_id", user.id)
-                .order("created_at", { ascending: false })
-                .limit(20);
-            if (likesError) throw likesError;
-
-            // 3. Calls: The 'calls' table does not exist in the current schema. 
-            // We will rely on 'notifications' table to provide call-related alerts via 'missed_call' type.
-            let callItems: ActivityItem[] = [];
-
 
             const followActivities = (follows || []).map(f => ({
                 id: f.id,
@@ -132,7 +136,7 @@ export default function Activity() {
                 content: "liked your post."
             }));
 
-            const allActivities = [...notifItems, ...followActivities, ...likeActivities, ...callItems]
+            const allActivities = [...notifItems, ...followActivities, ...likeActivities]
                 .filter((v, i, a) => a.findIndex(t => (t.id === v.id)) === i)
                 .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
@@ -142,15 +146,28 @@ export default function Activity() {
         staleTime: 1000 * 60 * 5, // Cache for 5 mins
     });
 
-    // Removed blocking spinner to allow instant navigation
-    // if (authLoading || (loading && user)) { ... }
+    const ActivitySkeleton = () => (
+        <div className="space-y-4 px-2">
+            {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+                <div key={i} className="flex items-center gap-3 p-3">
+                    <Skeleton className="w-10 h-10 rounded-full" />
+                    <div className="flex-1 space-y-2">
+                        <Skeleton className="h-4 w-3/4" />
+                        <Skeleton className="h-3 w-1/4" />
+                    </div>
+                </div>
+            ))}
+        </div>
+    );
 
     return (
         <div className="pb-20">
             <h1 className="text-xl font-bold px-4 py-4">Notifications</h1>
             <ScrollArea className="h-[calc(100vh-140px)]">
                 <div ref={scrollRef} className="space-y-1 px-2">
-                    {activities.length === 0 ? (
+                    {isLoading ? (
+                        <ActivitySkeleton />
+                    ) : activities.length === 0 ? (
                         <div className="text-center text-muted-foreground py-10 text-sm">
                             No recent activity
                         </div>
@@ -164,13 +181,6 @@ export default function Activity() {
                                     } else if (item.post_id) {
                                         navigate(`/post/${item.post_id}`);
                                     } else if (['incoming_call', 'outgoing_call', 'missed_call'].includes(item.type)) {
-                                        // For calls, maybe navigate to chat with that user?
-                                        // Or trigger a call back?
-                                        // User said "click on any... should take you to its thing".
-                                        // Taking to chat is safest "call log" behavior usually.
-                                        // Or just do nothing if we can't deep direct.
-                                        // Let's go to profile for now, or just /chat?
-                                        // Navigating to profile seems reasonable as you can call from there.
                                         navigate(`/profile/${item.user.username}`);
                                     }
                                 }}
@@ -205,7 +215,6 @@ export default function Activity() {
                                     <div className="w-10 h-10 rounded-md overflow-hidden bg-muted flex-shrink-0 border border-white/10 relative">
                                         {item.post_media.type === 'video' ? (
                                             <div className="w-full h-full bg-black flex items-center justify-center">
-                                                {/* Using a placeholder for video thumbnails in activity feed */}
                                                 <div className="w-full h-full bg-gradient-to-br from-primary/20 to-secondary/20" />
                                                 <Play className="w-3 h-3 text-white absolute inset-0 m-auto fill-white/50" />
                                             </div>

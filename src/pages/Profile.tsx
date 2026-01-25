@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { Link as LinkIcon } from "lucide-react";
@@ -15,6 +15,51 @@ import { PostCard } from "@/components/feed/PostCard";
 import { LazyImage } from "@/components/feed/LazyImage";
 import { LazyVideo } from "@/components/feed/LazyVideo";
 import { VideoFeedModal } from "@/components/feed/VideoFeedModal";
+import { useVideoCache } from "@/store/useVideoCache";
+// ... imports ...
+import { Skeleton } from "@/components/ui/skeleton";
+
+// Optimized video component for grid view with hover-to-play
+const GridVideo = ({ src, poster, className }: { src: string, poster?: string, className?: string }) => {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const { getCachedUrl } = useVideoCache();
+  const cachedSrc = getCachedUrl(src) || src;
+
+  // If we have a poster, we can skip loading the video until hover (fastest).
+  // If NO poster, we MUST load metadata to show the first frame (fallback).
+  const preloadStrategy = poster ? "none" : "metadata";
+
+  return (
+    <div
+      className={cn("w-full h-full relative bg-gray-200 dark:bg-gray-800", className)}
+      onMouseEnter={() => {
+        if (videoRef.current) {
+          videoRef.current.play().catch(() => { });
+        }
+      }}
+      onMouseLeave={() => {
+        if (videoRef.current) {
+          videoRef.current.pause();
+          videoRef.current.currentTime = 0; // Reset to start
+        }
+      }}
+    >
+      <video
+        ref={videoRef}
+        src={cachedSrc}
+        poster={poster}
+        className="w-full h-full object-cover"
+        muted
+        loop
+        playsInline
+        preload={preloadStrategy}
+        disablePictureInPicture
+      />
+    </div>
+  );
+};
+
+// ... inside Profile component rendered output ...
 
 interface Profile {
   id: string;
@@ -24,12 +69,16 @@ interface Profile {
   avatar_url: string | null;
   cover_url: string | null;
   website: string | null;
+  followersCount: number;
+  followingCount: number;
+  isFollowing: boolean;
 }
 
 interface Post {
   id: string;
   media_url: string | null;
   media_type: string | null;
+  thumbnail_url: string | null; // Added field
   caption: string | null;
   created_at: string;
   likes_count: number;
@@ -59,7 +108,7 @@ const Profile = () => {
     queryFn: async () => {
       if (!username) return null;
       if (username === "me" && !user) {
-        // If "me" and no user, we can't fetch. 
+        // If "me" and no user, we can't fetch.
         // But useAuth loading should be handled.
         return null;
       }
@@ -196,7 +245,7 @@ const Profile = () => {
   };
 
   // Removed blocking spinner to allow instant navigation
-  // if (loading) { ... }
+  // if (loading) {... }
 
   if (!profile) return null;
 
@@ -353,7 +402,15 @@ const Profile = () => {
         </div>
 
         {/* Posts Grid */}
-        {posts.length > 0 ? (
+        {(isProfileLoading || authLoading) ? (
+          <div className="grid grid-cols-3 gap-0.5">
+            {[...Array(12)].map((_, i) => (
+              <div key={i} className="aspect-square">
+                <Skeleton className="w-full h-full" />
+              </div>
+            ))}
+          </div>
+        ) : posts.length > 0 ? (
           <div className="grid grid-cols-3 gap-0.5">
             {posts.map((post, index) => (
               <div
@@ -363,12 +420,10 @@ const Profile = () => {
               >
                 {post.media_type === 'video' ? (
                   <div className="w-full h-full relative">
-                    <LazyVideo
+                    <GridVideo
                       src={post.media_url || ""}
-                      id={`profile-${post.id}`}
-                      priority={index < 6}
-                      disableClick={true}
-                      className="pointer-events-none" // Optional additional safety
+                      poster={post.thumbnail_url || ""} // Pass poster
+                      className="pointer-events-none"
                     />
                   </div>
                 ) : post.media_url ? (

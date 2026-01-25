@@ -61,8 +61,21 @@ export const ChatWindow = ({ chatId, onBack }: ChatWindowProps) => {
         if (!user || !chatId) return;
 
         const fetchChatDetails = async () => {
-            // 1. Get Conversation Info
-            const { data: conv, error } = await supabase.from('conversations').select('*, conversation_participants(user_id, profiles(username, display_name, avatar_url, updated_at))').eq('id', chatId).single();
+            // Load details and messages in parallel
+            const [convResult, msgsResult] = await Promise.all([
+                // 1. Get Conversation Info
+                supabase.from('conversations').select('*, conversation_participants(user_id, profiles(username, display_name, avatar_url, updated_at))').eq('id', chatId).single(),
+
+                // 2. Get Messages
+                supabase
+                    .from('messages')
+                    .select('id, content, sender_id, created_at')
+                    .eq('conversation_id', chatId)
+                    .order('created_at', { ascending: true })
+            ]);
+
+            const { data: conv } = convResult;
+            const { data: msgs } = msgsResult;
 
             if (conv) {
                 // Map participants
@@ -94,13 +107,6 @@ export const ChatWindow = ({ chatId, onBack }: ChatWindowProps) => {
                     }
                 }
             }
-
-            // 2. Get Messages
-            const { data: msgs } = await supabase
-                .from('messages')
-                .select('id, content, sender_id, created_at')
-                .eq('conversation_id', chatId)
-                .order('created_at', { ascending: true }); // Oldest first for chat log
 
             if (msgs) {
                 setMessages(msgs.map((m: any) => ({
@@ -210,7 +216,7 @@ export const ChatWindow = ({ chatId, onBack }: ChatWindowProps) => {
                 .eq('id', messageId);
 
             if (error) throw error;
-            
+
             // Remove from local state
             setMessages(prev => prev.filter(m => m.id !== messageId));
             toast.success("Message deleted");

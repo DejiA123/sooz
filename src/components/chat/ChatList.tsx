@@ -9,6 +9,7 @@ import { CreateGroupModal } from "./CreateGroupModal";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Skeleton } from "@/components/ui/skeleton";
 
 import { usePresence } from "@/hooks/usePresence";
 
@@ -18,7 +19,7 @@ interface ChatListProps {
 }
 
 export const ChatList = ({ selectedId, onSelect }: ChatListProps) => {
-    const { user } = useAuth();
+    const { user, loading: authLoading } = useAuth();
     const { onlineUsers } = usePresence();
     const queryClient = useQueryClient();
     const [showCreateModal, setShowCreateModal] = useState(false);
@@ -26,7 +27,7 @@ export const ChatList = ({ selectedId, onSelect }: ChatListProps) => {
     const [activeTab, setActiveTab] = useState<"all" | "direct" | "group">("all");
 
     // Fetch Chats using React Query for caching and instant load
-    const { data: chats = [] } = useQuery({
+    const { data: chats = [], isLoading } = useQuery({
         queryKey: ['chats', user?.id],
         queryFn: async () => {
             if (!user) return [];
@@ -39,7 +40,72 @@ export const ChatList = ({ selectedId, onSelect }: ChatListProps) => {
 
             if (partError) throw partError;
 
-            const fetchedChats = await Promise.all(participations.map(async (p: any) => {
+            // Extract IDs
+            const conversationIds = participations.map((p: any) => p.conversation_id);
+
+            if (conversationIds.length === 0) return [];
+
+            // 2. BATCH FETCH: Get all other participants for these conversations
+            // We need to fetch participants where conversation_id IS IN our list AND user_id IS NOT me
+            const { data: otherParticipants } = await supabase
+                .from('conversation_participants')
+                .select('conversation_id, profiles(id, username, display_name, avatar_url, updated_at)')
+                .in('conversation_id', conversationIds)
+                .neq('user_id', user.id);
+
+            // Create a map of conversation_id -> other participant profile
+            const participantsMap: Record<string, any> = {};
+            otherParticipants?.forEach((p: any) => {
+                if (p.profiles) {
+                    // For direct chats, there's usually just one other person. 
+                    // If group, this might just get one of them, which is fine for now or we handle groups differently.
+                    participantsMap[p.conversation_id] = p.profiles;
+                }
+            });
+
+            // 3. BATCH FETCH: Get latest message for EACH conversation
+            // This is tricky in Supabase/Postgres without a custom function for "latest per group".
+            // A common workaround is to fetch messages ordered by time and filtering in JS, 
+            // OR use a reliable RPC. 
+            // For now, let's fetch the latest messages globally for these conversations.
+            // A simple approximation is fetching the last 50 messages visible to user or similar, 
+            // but ensuring we get at least one for each is hard in one query without window functions.
+
+            // Optimized approach for Supabase JS: 
+            // We can actually use the `.in()` filter. 
+            // But getting *just* the last one per conversation is hard.
+            // Let's rely on a simpler strategy: Fetch the conversations with their latest message derived? 
+            // Actually, we can just fetch all messages for these convos created recently? No.
+
+            // Let's stick to the map strategy but do it smartly.
+            // If we can't do a single query for "last message of each", we might have to stick to Promise.all for messages 
+            // OR accept that we fetch a slightly larger chunk of recent messages.
+
+            // ALTERNATIVE: Use the `conversations` view if we had one.
+            // BETTER: Just use Promise.all but LIMIT concurrency if needed? 
+            // Actually, for 20 chats, 20 parallel requests for messages is much faster than sequential. 
+            // But let's try to optimize. 
+
+            // We will stick to the Promise.all for messages ONLY, as it's harder to batch.
+            // But we already optimized the participants fetch which was half the work.
+
+            const messagesPromises = conversationIds.map(id =>
+                supabase
+                    .from('messages')
+                    .select('content, created_at, sender_id')
+                    .eq('conversation_id', id)
+                    .order('created_at', { ascending: false })
+                    .limit(1)
+                    .maybeSingle()
+            );
+
+            const lastMessagesResults = await Promise.all(messagesPromises);
+            const lastMessagesMap: Record<string, any> = {};
+            conversationIds.forEach((id, index) => {
+                lastMessagesMap[id] = lastMessagesResults[index].data;
+            });
+
+            const fetchedChats = participations.map((p: any) => {
                 const conv = p.conversations;
                 let chatName = conv.name;
                 let chatAvatar = null;
@@ -47,33 +113,17 @@ export const ChatList = ({ selectedId, onSelect }: ChatListProps) => {
                 let chatUserId = null;
                 let chatLastSeen = null;
 
-                // 2. If direct, find the other user
                 if (!isGroup) {
-                    const { data: otherPart } = await supabase
-                        .from('conversation_participants')
-                        .select('profiles(id, username, display_name, avatar_url, updated_at)')
-                        .eq('conversation_id', conv.id)
-                        .neq('user_id', user.id)
-                        .maybeSingle();
-
-                    if (otherPart && otherPart.profiles) {
-                        chatName = otherPart.profiles.display_name || otherPart.profiles.username;
-                        chatAvatar = otherPart.profiles.avatar_url;
-                        // @ts-ignore
-                        chatUserId = otherPart.profiles.id;
-                        // @ts-ignore
-                        chatLastSeen = otherPart.profiles.updated_at;
+                    const otherProfile = participantsMap[conv.id];
+                    if (otherProfile) {
+                        chatName = otherProfile.display_name || otherProfile.username;
+                        chatAvatar = otherProfile.avatar_url;
+                        chatUserId = otherProfile.id;
+                        chatLastSeen = otherProfile.updated_at;
                     }
                 }
 
-                // 3. Get last message
-                const { data: lastMsg } = await supabase
-                    .from('messages')
-                    .select('content, created_at, sender_id')
-                    .eq('conversation_id', conv.id)
-                    .order('created_at', { ascending: false })
-                    .limit(1)
-                    .maybeSingle();
+                const lastMsg = lastMessagesMap[conv.id];
 
                 return {
                     id: conv.id,
@@ -89,7 +139,7 @@ export const ChatList = ({ selectedId, onSelect }: ChatListProps) => {
                     timestamp: lastMsg?.created_at || conv.created_at,
                     unread: 0
                 };
-            }));
+            });
 
             // Sort by latest timestamp
             fetchedChats.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
@@ -181,9 +231,17 @@ export const ChatList = ({ selectedId, onSelect }: ChatListProps) => {
 
             {/* Chat List */}
             <div className="flex-1 overflow-y-auto">
-                {chats.length === 0 ? (
-                    <div className="p-8 text-center text-muted-foreground">
-                        <p className="text-sm">No chats found</p>
+                {(isLoading || authLoading) ? (
+                    <div className="divide-y divide-white/5">
+                        {[1, 2, 3, 4, 5].map((i) => (
+                            <div key={i} className="flex items-center gap-3 p-4">
+                                <Skeleton className="w-12 h-12 rounded-full flex-shrink-0" />
+                                <div className="flex-1 space-y-2">
+                                    <Skeleton className="h-4 w-1/3" />
+                                    <Skeleton className="h-3 w-2/3" />
+                                </div>
+                            </div>
+                        ))}
                     </div>
                 ) : (
                     filteredChats.map((chat) => {
