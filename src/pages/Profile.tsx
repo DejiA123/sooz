@@ -6,7 +6,7 @@ import { Link as LinkIcon } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-import { Settings, Grid3X3, Bookmark, Heart, Loader2, Camera, Play, X } from "lucide-react";
+import { Settings, Grid3X3, Bookmark, Heart, Loader2, Camera, Play, X, VideoOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import EditProfileModal from "@/components/profile/EditProfileModal";
@@ -26,6 +26,7 @@ const GridVideo = ({ src, poster, className, priority = false }: { src: string, 
   const cachedSrc = getCachedUrl(src) || src;
   const [imageLoaded, setImageLoaded] = useState(false);
   const [videoReady, setVideoReady] = useState(false);
+  const [hasError, setHasError] = useState(false);
 
   // Smart Thumbnail Strategy:
   // Try to derive a thumbnail from the video filename if no explicit poster
@@ -34,11 +35,16 @@ const GridVideo = ({ src, poster, className, priority = false }: { src: string, 
     if (!src) return null;
 
     try {
+      // Handle URLs with query params or different cases
       const url = new URL(src);
-      const path = url.pathname;
-      const ext = path.split('.').pop();
-      if (ext && ['mp4', 'mov', 'webm'].includes(ext.toLowerCase())) {
-        return src.replace(`.${ext}`, '.jpg');
+      const pathname = url.pathname;
+      const lastDotIndex = pathname.lastIndexOf('.');
+      if (lastDotIndex !== -1) {
+        const ext = pathname.substring(lastDotIndex + 1).toLowerCase();
+        if (['mp4', 'mov', 'webm', 'quicktime'].includes(ext)) {
+          // Replace extension with jpg (standard convention for many storage Buckets)
+          return src.substring(0, src.lastIndexOf('.')) + '.jpg';
+        }
       }
     } catch (e) {
     }
@@ -47,23 +53,55 @@ const GridVideo = ({ src, poster, className, priority = false }: { src: string, 
 
   const finalPoster = derivedThumbnail || poster;
 
+  // Add a small seek time to the video URL to force mobile browsers 
+  // to render the first frame as a "poster" if an image is missing.
+  const videoSrc = useMemo(() => {
+    if (!cachedSrc) return "";
+    if (finalPoster) return cachedSrc; // If we have a poster, no need for the trick
+
+    // Add #t=0.001 to force frame rendering
+    return cachedSrc.includes('#') ? cachedSrc : `${cachedSrc}#t=0.001`;
+  }, [cachedSrc, finalPoster]);
+
+  // Timeout Fallback: If video doesn't load within 3s, show error (prevent stuck gray box)
+  useEffect(() => {
+    if (videoReady || hasError) return;
+
+    const timer = setTimeout(() => {
+      if (!videoReady && !imageLoaded) {
+        // Only show error if BOTH video and image failed to load
+        setHasError(true);
+      }
+    }, 3000);
+
+    return () => clearTimeout(timer);
+  }, [videoReady, imageLoaded, hasError]);
+
   return (
     <div
-      className={cn("w-full h-full relative bg-gray-200 dark:bg-gray-800 overflow-hidden", className)}
+      className={cn("w-full h-full relative bg-gray-200 dark:bg-gray-800 overflow-hidden group", className)}
       onMouseEnter={() => {
-        if (videoRef.current) {
+        if (videoRef.current && !hasError) {
           videoRef.current.play().catch(() => { });
         }
       }}
       onMouseLeave={() => {
-        if (videoRef.current) {
+        if (videoRef.current && !hasError) {
           videoRef.current.pause();
           videoRef.current.currentTime = 0;
         }
       }}
     >
+      {/* Error State */}
+      {hasError && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-100 dark:bg-gray-800 text-muted-foreground z-30">
+          <VideoOff className="w-8 h-8 opacity-50 mb-1" />
+          <span className="text-[10px] uppercase font-medium tracking-wider opacity-50">Unavailable</span>
+        </div>
+      )}
+
       {/* 1. Thumbnail Image Layer (Middle) */}
-      {finalPoster && (
+      {finalPoster && !hasError && (
         <img
           src={finalPoster}
           alt=""
@@ -72,6 +110,10 @@ const GridVideo = ({ src, poster, className, priority = false }: { src: string, 
             imageLoaded ? "opacity-100" : "opacity-0"
           )}
           onLoad={() => setImageLoaded(true)}
+          onError={(e) => {
+            // If the guessed image 404s, ensure we don't show a broken icon
+            e.currentTarget.style.display = 'none';
+          }}
           loading={priority ? "eager" : "lazy"}
         />
       )}
@@ -79,10 +121,10 @@ const GridVideo = ({ src, poster, className, priority = false }: { src: string, 
       {/* 2. Video Player Layer (Top) */}
       <video
         ref={videoRef}
-        src={cachedSrc}
+        src={videoSrc}
         className={cn(
           "w-full h-full object-cover bg-transparent relative z-20 transition-opacity duration-500",
-          videoReady ? "opacity-100" : "opacity-0"
+          (videoReady && !hasError) ? "opacity-100" : "opacity-0"
         )}
         muted
         loop
@@ -90,6 +132,7 @@ const GridVideo = ({ src, poster, className, priority = false }: { src: string, 
         preload={priority ? "auto" : "metadata"}
         disablePictureInPicture
         onLoadedData={() => setVideoReady(true)}
+        onError={() => setHasError(true)}
       />
     </div>
   );
