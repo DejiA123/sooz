@@ -48,7 +48,7 @@ const GridVideo = ({ src, poster, className }: { src: string, poster?: string, c
         ref={videoRef}
         src={cachedSrc}
         poster={poster}
-        className="w-full h-full object-cover"
+        className="w-full h-full object-cover bg-transparent"
         muted
         loop
         playsInline
@@ -147,7 +147,7 @@ const Profile = () => {
   });
 
   // 2. Fetch Posts
-  const { data: posts = [] } = useQuery({
+  const { data: posts = [], isLoading: isPostsLoading } = useQuery({
     queryKey: ['profile-posts', profileData?.id, activeTab],
     queryFn: async () => {
       if (!profileData?.id) return [];
@@ -402,7 +402,7 @@ const Profile = () => {
         </div>
 
         {/* Posts Grid */}
-        {(isProfileLoading || authLoading) ? (
+        {(isProfileLoading || authLoading || isPostsLoading) ? (
           <div className="grid grid-cols-3 gap-0.5">
             {[...Array(12)].map((_, i) => (
               <div key={i} className="aspect-square">
