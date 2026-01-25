@@ -1,5 +1,5 @@
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { Link as LinkIcon } from "lucide-react";
@@ -25,9 +25,34 @@ const GridVideo = ({ src, poster, className }: { src: string, poster?: string, c
   const { getCachedUrl } = useVideoCache();
   const cachedSrc = getCachedUrl(src) || src;
 
-  // If we have a poster, we can skip loading the video until hover (fastest).
-  // If NO poster, we MUST load metadata to show the first frame (fallback).
-  const preloadStrategy = poster ? "none" : "metadata";
+  // Smart Thumbnail Strategy:
+  // 1. Explicit poster (fastest, best)
+  // 2. Derived from filename (e.g. video.mp4 -> video.jpg)
+  // 3. Fallback to metadata load (slow on mobile)
+
+  const derivedThumbnail = useMemo(() => {
+    if (poster) return poster;
+    if (!src) return null;
+
+    // Try to guess the thumbnail URL if it's a standard file path
+    // This works if the backend uploads a .jpg alongside the .mp4
+    try {
+      const url = new URL(src);
+      const path = url.pathname;
+      const ext = path.split('.').pop();
+      if (ext && ['mp4', 'mov', 'webm'].includes(ext.toLowerCase())) {
+        // Replace extension with jpg
+        return src.replace(`.${ext}`, '.jpg');
+      }
+    } catch (e) {
+      // invalid url, ignore
+    }
+    return null;
+  }, [src, poster]);
+
+  // If we have ANY image candidate, skip preloading the video to save data
+  const finalPoster = derivedThumbnail || poster;
+  const preloadStrategy = finalPoster ? "none" : "metadata";
 
   return (
     <div
@@ -44,19 +69,40 @@ const GridVideo = ({ src, poster, className }: { src: string, poster?: string, c
         }
       }}
     >
-      {/* Fallback Icon for Mobile/Loading (Behind Video) */}
+      {/* 1. Underlying Icon (Last Resort) */}
       <Play className="w-8 h-8 text-gray-400 absolute z-0" fill="currentColor" />
 
+      {/* 2. Poster Image (Derived or Explicit) */}
+      {finalPoster && (
+        <img
+          src={finalPoster}
+          alt=""
+          className="absolute inset-0 w-full h-full object-cover z-10"
+          onError={(e) => {
+            // If derived thumb fails, hide it so the icon shows
+            e.currentTarget.style.display = 'none';
+          }}
+        />
+      )}
+
+      {/* 3. Video Player (Top Layer) */}
       <video
         ref={videoRef}
         src={cachedSrc}
-        poster={poster}
-        className="w-full h-full object-cover bg-transparent relative z-10"
+        // We don't use the native poster attribute here because we want manual control over the fallback image handling (onError)
+        // and we want the image to persist until the video *actually* plays, not just loads.
+        className="w-full h-full object-cover bg-transparent relative z-20 transition-opacity duration-300"
         muted
         loop
         playsInline
         preload={preloadStrategy}
         disablePictureInPicture
+        onPlay={(e) => {
+          // Unhide video if we were hiding it? 
+          // Actually, video is z-20. It covers image z-10.
+          // When video plays, it's opaque content covers the image.
+          // When video is empty/transparent, image shows.
+        }}
       />
     </div>
   );
