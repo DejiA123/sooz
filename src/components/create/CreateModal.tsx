@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { X, Image, Film, Loader2, Upload as UploadIcon, Plus } from "lucide-react";
+import { X, Image, Film, Loader2, Upload as UploadIcon, Plus, Camera as CameraIcon } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
@@ -11,6 +11,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { s3Client, s3Config } from "@/integrations/s3/client";
 import { Upload } from "@aws-sdk/lib-storage";
+import { CameraCapture } from "./CameraCapture";
 
 interface CreateModalProps {
     isOpen: boolean;
@@ -28,6 +29,7 @@ export const CreateModal = ({ isOpen, onClose, onPostCreated }: CreateModalProps
     const [uploadProgress, setUploadProgress] = useState(0);
     const [isDragging, setIsDragging] = useState(false);
     const [activeTab, setActiveTab] = useState<"post" | "story">("post");
+    const [captureMode, setCaptureMode] = useState<"upload" | "camera">("upload");
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const resetForm = () => {
@@ -37,6 +39,7 @@ export const CreateModal = ({ isOpen, onClose, onPostCreated }: CreateModalProps
         setMediaType(null);
         setIsLoading(false);
         setUploadProgress(0);
+        setCaptureMode("upload");
     };
 
     const handleFileSelect = (file: File) => {
@@ -174,52 +177,90 @@ export const CreateModal = ({ isOpen, onClose, onPostCreated }: CreateModalProps
                         </TabsList>
 
                         <div className="space-y-6">
-                            {/* Media Upload Area */}
-                            {!mediaPreview ? (
-                                <div
-                                    className={cn(
-                                        "border-2 border-dashed rounded-3xl h-[300px] flex flex-col items-center justify-center text-center transition-all duration-300 cursor-pointer group",
-                                        isDragging
-                                            ? "border-primary bg-primary/10 scale-[0.98]"
-                                            : "border-muted-foreground/20 hover:border-primary/50 hover:bg-muted/30"
-                                    )}
-                                    onDragOver={(e) => {
-                                        e.preventDefault();
-                                        setIsDragging(true);
-                                    }}
-                                    onDragLeave={() => setIsDragging(false)}
-                                    onDrop={handleDrop}
-                                    onClick={() => fileInputRef.current?.click()}
-                                >
-                                    <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
-                                        <UploadIcon className="w-10 h-10 text-primary" />
-                                    </div>
-                                    <p className="text-lg font-semibold mb-2">
-                                        {activeTab === 'story' ? 'Upload Story' : 'Upload Request'}
-                                    </p>
-                                    <p className="text-sm text-muted-foreground max-w-[200px] mx-auto mb-6">
-                                        Drag and drop or click to upload
-                                    </p>
-                                    <div className="flex items-center gap-4 text-xs font-medium text-muted-foreground bg-black/5 dark:bg-white/5 px-4 py-2 rounded-full">
-                                        <span className="flex items-center gap-1.5">
-                                            <Image className="w-3.5 h-3.5" /> Photos
-                                        </span>
-                                        <span className="w-1 h-1 rounded-full bg-current opacity-30" />
-                                        <span className="flex items-center gap-1.5">
-                                            <Film className="w-3.5 h-3.5" /> Videos
-                                        </span>
-                                    </div>
-                                    <input
-                                        ref={fileInputRef}
-                                        type="file"
-                                        accept="image/*,video/*"
-                                        onChange={(e) => {
-                                            const file = e.target.files?.[0];
-                                            if (file) handleFileSelect(file);
-                                        }}
-                                        className="hidden"
-                                    />
+                            {/* Media Upload/Camera Mode Toggle */}
+                            {!mediaPreview && (
+                                <div className="flex gap-2 mb-4">
+                                    <Button
+                                        type="button"
+                                        variant={captureMode === "upload" ? "default" : "outline"}
+                                        className={cn(
+                                            "flex-1 h-12 rounded-xl transition-all",
+                                            captureMode === "upload" && "shadow-md"
+                                        )}
+                                        onClick={() => setCaptureMode("upload")}
+                                    >
+                                        <UploadIcon className="w-4 h-4 mr-2" />
+                                        Upload
+                                    </Button>
+                                    <Button
+                                        type="button"
+                                        variant={captureMode === "camera" ? "default" : "outline"}
+                                        className={cn(
+                                            "flex-1 h-12 rounded-xl transition-all",
+                                            captureMode === "camera" && "shadow-md"
+                                        )}
+                                        onClick={() => setCaptureMode("camera")}
+                                    >
+                                        <CameraIcon className="w-4 h-4 mr-2" />
+                                        Camera
+                                    </Button>
                                 </div>
+                            )}
+
+                            {/* Media Upload/Camera Area */}
+                            {!mediaPreview ? (
+                                captureMode === "camera" ? (
+                                    <CameraCapture
+                                        mode={activeTab === "story" ? "video" : "photo"}
+                                        onCapture={handleFileSelect}
+                                        onClose={() => setCaptureMode("upload")}
+                                    />
+                                ) : (
+                                    <div
+                                        className={cn(
+                                            "border-2 border-dashed rounded-3xl h-[300px] flex flex-col items-center justify-center text-center transition-all duration-300 cursor-pointer group",
+                                            isDragging
+                                                ? "border-primary bg-primary/10 scale-[0.98]"
+                                                : "border-muted-foreground/20 hover:border-primary/50 hover:bg-muted/30"
+                                        )}
+                                        onDragOver={(e) => {
+                                            e.preventDefault();
+                                            setIsDragging(true);
+                                        }}
+                                        onDragLeave={() => setIsDragging(false)}
+                                        onDrop={handleDrop}
+                                        onClick={() => fileInputRef.current?.click()}
+                                    >
+                                        <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
+                                            <UploadIcon className="w-10 h-10 text-primary" />
+                                        </div>
+                                        <p className="text-lg font-semibold mb-2">
+                                            {activeTab === 'story' ? 'Upload Story' : 'Upload Request'}
+                                        </p>
+                                        <p className="text-sm text-muted-foreground max-w-[200px] mx-auto mb-6">
+                                            Drag and drop or click to upload
+                                        </p>
+                                        <div className="flex items-center gap-4 text-xs font-medium text-muted-foreground bg-black/5 dark:bg-white/5 px-4 py-2 rounded-full">
+                                            <span className="flex items-center gap-1.5">
+                                                <Image className="w-3.5 h-3.5" /> Photos
+                                            </span>
+                                            <span className="w-1 h-1 rounded-full bg-current opacity-30" />
+                                            <span className="flex items-center gap-1.5">
+                                                <Film className="w-3.5 h-3.5" /> Videos
+                                            </span>
+                                        </div>
+                                        <input
+                                            ref={fileInputRef}
+                                            type="file"
+                                            accept="image/*,video/*"
+                                            onChange={(e) => {
+                                                const file = e.target.files?.[0];
+                                                if (file) handleFileSelect(file);
+                                            }}
+                                            className="hidden"
+                                        />
+                                    </div>
+                                )
                             ) : (
                                 <div className="relative rounded-3xl overflow-hidden bg-black aspect-[4/5] shadow-inner group">
                                     {mediaType === "image" ? (
