@@ -30,6 +30,7 @@ export const CreateModal = ({ isOpen, onClose, onPostCreated }: CreateModalProps
     const [isDragging, setIsDragging] = useState(false);
     const [activeTab, setActiveTab] = useState<"post" | "story">("post");
     const [captureMode, setCaptureMode] = useState<"upload" | "camera">("upload");
+    const [cameraMediaType, setCameraMediaType] = useState<"photo" | "video">("photo");
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const resetForm = () => {
@@ -40,6 +41,7 @@ export const CreateModal = ({ isOpen, onClose, onPostCreated }: CreateModalProps
         setIsLoading(false);
         setUploadProgress(0);
         setCaptureMode("upload");
+        setCameraMediaType("photo");
     };
 
     const handleFileSelect = (file: File) => {
@@ -210,11 +212,44 @@ export const CreateModal = ({ isOpen, onClose, onPostCreated }: CreateModalProps
                             {/* Media Upload/Camera Area */}
                             {!mediaPreview ? (
                                 captureMode === "camera" ? (
-                                    <CameraCapture
-                                        mode={activeTab === "story" ? "video" : "photo"}
-                                        onCapture={handleFileSelect}
-                                        onClose={() => setCaptureMode("upload")}
-                                    />
+                                    <>
+                                        {/* Photo/Video Mode Selector (for Posts) */}
+                                        {activeTab === "post" && (
+                                            <div className="flex gap-2 mb-4">
+                                                <Button
+                                                    type="button"
+                                                    variant={cameraMediaType === "photo" ? "default" : "outline"}
+                                                    size="sm"
+                                                    className={cn(
+                                                        "flex-1 h-10 rounded-xl transition-all",
+                                                        cameraMediaType === "photo" && "shadow-md"
+                                                    )}
+                                                    onClick={() => setCameraMediaType("photo")}
+                                                >
+                                                    <CameraIcon className="w-4 h-4 mr-2" />
+                                                    Photo
+                                                </Button>
+                                                <Button
+                                                    type="button"
+                                                    variant={cameraMediaType === "video" ? "default" : "outline"}
+                                                    size="sm"
+                                                    className={cn(
+                                                        "flex-1 h-10 rounded-xl transition-all",
+                                                        cameraMediaType === "video" && "shadow-md"
+                                                    )}
+                                                    onClick={() => setCameraMediaType("video")}
+                                                >
+                                                    <Film className="w-4 h-4 mr-2" />
+                                                    Video
+                                                </Button>
+                                            </div>
+                                        )}
+                                        <CameraCapture
+                                            mode={activeTab === "story" ? "video" : cameraMediaType}
+                                            onCapture={handleFileSelect}
+                                            onClose={() => setCaptureMode("upload")}
+                                        />
+                                    </>
                                 ) : (
                                     <div
                                         className={cn(
