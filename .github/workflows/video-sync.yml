@@ -35,6 +35,12 @@ jobs:
           yt-dlp --version
           ffmpeg -version
 
+      - name: Verify Sync Script Version
+        run: grep "Bypass" scripts/sync-youtube-to-r2.ts
+
+      - name: Verify Sync Script Version
+        run: grep "Bypass" scripts/sync-youtube-to-r2.ts
+
       - name: Run Sync Script
         env:
           VITE_YOUTUBE_API_KEY: ${{ secrets.VITE_YOUTUBE_API_KEY }}
