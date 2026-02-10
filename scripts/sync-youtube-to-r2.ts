@@ -107,8 +107,15 @@ async function downloadVideo(videoId: string): Promise<string> {
     if (!fs.existsSync(tempPath)) fs.mkdirSync(tempPath);
 
     const outputPath = path.join(tempPath, `${videoId}.mp4`);
+    const cookiesPath = path.join(tempPath, 'cookies.txt');
 
-    console.log(`📥 Downloading video ${videoId} (Bypass v1.3 - ULTIMATE)...`);
+    // Handle cookies from environment variable if available
+    const cookiesEnv = process.env.YOUTUBE_COOKIES;
+    if (cookiesEnv) {
+        fs.writeFileSync(cookiesPath, cookiesEnv);
+    }
+
+    console.log(`📥 Downloading video ${videoId} (Bypass v1.4 - EXTREME)...`);
 
     return new Promise((resolve, reject) => {
         const args = [
@@ -117,13 +124,17 @@ async function downloadVideo(videoId: string): Promise<string> {
             '-o', outputPath,
             '--no-playlist',
             '--no-part',
-            '--extractor-args', 'youtube:player_client=ios;player_skip=configs,js;skip=hls,dash',
+            '--extractor-args', 'youtube:player_client=android_vr,ios,mweb;player_skip=configs,js;skip=hls,dash',
             '--add-header', 'User-Agent:Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1',
             '--add-header', 'Accept-Language:en-US,en;q=0.9',
             '--force-ipv4',
             '--sleep-requests', '3',
             '--sleep-interval', '5'
         ];
+
+        if (cookiesEnv) {
+            args.push('--cookies', cookiesPath);
+        }
 
         console.log(`DEBUG: Executing ${YT_DLP_CMD} ${args.join(' ')}`);
 
