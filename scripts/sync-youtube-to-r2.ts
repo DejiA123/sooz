@@ -108,10 +108,9 @@ async function downloadVideo(videoId: string): Promise<string> {
 
     const outputPath = path.join(tempPath, `${videoId}.mp4`);
 
-    console.log(`📥 Downloading video ${videoId}...`);
+    console.log(`📥 Downloading video ${videoId} (Bypass v1.2)...`);
 
     return new Promise((resolve, reject) => {
-        // Download best quality video and audio, merged into mp4
         const args = [
             `https://www.youtube.com/watch?v=${videoId}`,
             '-f', 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
@@ -119,8 +118,11 @@ async function downloadVideo(videoId: string): Promise<string> {
             '--no-playlist',
             '--no-part',
             '--extractor-args', 'youtube:player_client=ios,android;player_skip=configs,js;skip=hls,dash',
-            '--add-header', 'User-Agent:Mozilla/5.0 (iPhone; CPU iPhone OS 16_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.5 Mobile/15E148 Safari/604.1',
+            '--add-header', 'User-Agent:Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Mobile/15E148 Safari/604.1',
             '--add-header', 'Accept-Language:en-US,en;q=0.9',
+            '--force-ipv4',
+            '--sleep-requests', '2',
+            '--sleep-interval', '3'
         ];
 
         console.log(`DEBUG: Executing ${YT_DLP_CMD} ${args.join(' ')}`);
