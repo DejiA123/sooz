@@ -1,0 +1,231 @@
+import { useState, useEffect, useCallback } from "react";
+import { Search, Play, ChevronRight, Loader2 } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+    fetchVideos,
+    fetchFeaturedVideos,
+    VideoItem,
+    VIDEO_CATEGORIES,
+} from "@/services/videoArchiveService";
+import { VideoCard } from "@/components/videoArchive/VideoCard";
+import { VideoPlayerModal } from "@/components/videoArchive/VideoPlayerModal";
+
+export default function VideoArchive() {
+    const [videos, setVideos] = useState<VideoItem[]>([]);
+    const [featuredVideos, setFeaturedVideos] = useState<VideoItem[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [searchQuery, setSearchQuery] = useState("");
+    const [activeCategory, setActiveCategory] = useState("all");
+    const [selectedVideo, setSelectedVideo] = useState<VideoItem | null>(null);
+
+    const loadVideos = useCallback(async () => {
+        setLoading(true);
+        try {
+            const [allVideos, featured] = await Promise.all([
+                fetchVideos(activeCategory, searchQuery),
+                fetchFeaturedVideos(),
+            ]);
+            setVideos(allVideos);
+            setFeaturedVideos(featured);
+        } catch (error) {
+            console.error("Error loading videos:", error);
+        } finally {
+            setLoading(false);
+        }
+    }, [activeCategory, searchQuery]);
+
+    useEffect(() => {
+        loadVideos();
+    }, [loadVideos]);
+
+    // Close modal on escape
+    useEffect(() => {
+        const handleKey = (e: KeyboardEvent) => {
+            if (e.key === "Escape") setSelectedVideo(null);
+        };
+        window.addEventListener("keydown", handleKey);
+        return () => window.removeEventListener("keydown", handleKey);
+    }, []);
+
+    return (
+        <div className="pb-24 min-h-screen">
+            {/* Hero Header */}
+            <div className="relative overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-br from-primary/20 via-primary/5 to-transparent dark:from-primary/10 dark:via-primary/5" />
+                <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-purple-500/10 via-transparent to-transparent" />
+
+                <div className="relative px-4 pt-16 pb-6 md:pt-8 md:pb-8">
+                    <div className="flex items-center gap-3 mb-2">
+                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-red-500 to-red-600 flex items-center justify-center shadow-lg shadow-red-500/20">
+                            <Play className="w-5 h-5 text-white ml-0.5" fill="white" />
+                        </div>
+                        <div>
+                            <h1 className="text-2xl md:text-3xl font-black text-foreground tracking-tight">
+                                Video Archive
+                            </h1>
+                            <p className="text-xs text-muted-foreground font-medium">
+                                The Power House International
+                            </p>
+                        </div>
+                    </div>
+                    <p className="text-sm text-muted-foreground mt-3 max-w-lg leading-relaxed">
+                        Watch sermons, worship sessions, and special events. God meets with
+                        you at the points of your need and beyond. 🔥
+                    </p>
+                </div>
+            </div>
+
+            {/* Search Bar */}
+            <div className="sticky top-12 md:top-0 z-40 bg-background/80 backdrop-blur-xl px-4 py-3 border-b border-white/5">
+                <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input
+                        placeholder="Search videos..."
+                        className="pl-10 bg-muted/50 border-white/10 rounded-xl focus:bg-background transition-colors"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                    />
+                </div>
+            </div>
+
+            {/* Category Tabs */}
+            <div className="px-4 py-3">
+                <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+                    {VIDEO_CATEGORIES.map((cat) => (
+                        <button
+                            key={cat.value}
+                            onClick={() => setActiveCategory(cat.value)}
+                            className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold whitespace-nowrap transition-all duration-300 ${activeCategory === cat.value
+                                    ? "bg-primary text-primary-foreground shadow-lg shadow-primary/25 scale-105"
+                                    : "bg-muted/50 text-muted-foreground hover:bg-muted border border-white/5"
+                                }`}
+                        >
+                            <span>{cat.emoji}</span>
+                            <span>{cat.label}</span>
+                        </button>
+                    ))}
+                </div>
+            </div>
+
+            {loading ? (
+                <div className="px-4 space-y-6">
+                    {/* Featured Skeleton */}
+                    <div className="flex gap-4 overflow-hidden">
+                        {[1, 2].map((i) => (
+                            <Skeleton
+                                key={i}
+                                className="min-w-[300px] aspect-video rounded-2xl bg-muted/30"
+                            />
+                        ))}
+                    </div>
+                    {/* Grid Skeleton */}
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                        {[1, 2, 3, 4, 5, 6].map((i) => (
+                            <div key={i} className="space-y-2">
+                                <Skeleton className="aspect-video rounded-xl bg-muted/30" />
+                                <Skeleton className="h-4 w-3/4 bg-muted/20" />
+                                <Skeleton className="h-3 w-1/2 bg-muted/20" />
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            ) : (
+                <>
+                    {/* Featured Videos Carousel */}
+                    {featuredVideos.length > 0 && activeCategory === "all" && !searchQuery && (
+                        <div className="px-4 mb-6">
+                            <div className="flex items-center justify-between mb-3">
+                                <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
+                                    <span className="text-amber-500">⭐</span> Featured
+                                </h2>
+                                <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                            </div>
+                            <div className="flex gap-4 overflow-x-auto no-scrollbar pb-2 snap-x snap-mandatory">
+                                {featuredVideos.map((video) => (
+                                    <VideoCard
+                                        key={video.id}
+                                        video={video}
+                                        layout="featured"
+                                        onClick={() => setSelectedVideo(video)}
+                                    />
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* All Videos Grid */}
+                    <div className="px-4">
+                        <div className="flex items-center justify-between mb-3">
+                            <h2 className="text-lg font-bold text-foreground">
+                                {activeCategory === "all"
+                                    ? "All Videos"
+                                    : VIDEO_CATEGORIES.find((c) => c.value === activeCategory)
+                                        ?.label || "Videos"}
+                            </h2>
+                            <span className="text-xs text-muted-foreground font-medium">
+                                {videos.length} video{videos.length !== 1 ? "s" : ""}
+                            </span>
+                        </div>
+
+                        {videos.length === 0 ? (
+                            <div className="text-center py-20">
+                                <div className="w-20 h-20 rounded-full bg-muted/30 flex items-center justify-center mx-auto mb-4">
+                                    <Play className="w-8 h-8 text-muted-foreground" />
+                                </div>
+                                <p className="text-muted-foreground font-medium">
+                                    No videos found
+                                </p>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                    Try a different search or category
+                                </p>
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 pb-4">
+                                {videos.map((video) => (
+                                    <VideoCard
+                                        key={video.id}
+                                        video={video}
+                                        onClick={() => setSelectedVideo(video)}
+                                    />
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Channel CTA */}
+                    <div className="px-4 mt-6 mb-4">
+                        <a
+                            href="https://www.youtube.com/@thepowerhouseintl"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="block w-full p-4 rounded-2xl bg-gradient-to-r from-red-500/10 to-red-600/5 border border-red-500/20 hover:border-red-500/40 transition-all duration-300 group"
+                        >
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-full bg-red-500 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
+                                    <Play className="w-5 h-5 text-white ml-0.5" fill="white" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-bold text-foreground">
+                                        The Power House International
+                                    </p>
+                                    <p className="text-xs text-muted-foreground">
+                                        Subscribe on YouTube for more →
+                                    </p>
+                                </div>
+                            </div>
+                        </a>
+                    </div>
+                </>
+            )}
+
+            {/* Video Player Modal */}
+            {selectedVideo && (
+                <VideoPlayerModal
+                    video={selectedVideo}
+                    onClose={() => setSelectedVideo(null)}
+                />
+            )}
+        </div>
+    );
+}
