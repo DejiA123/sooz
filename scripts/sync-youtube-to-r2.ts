@@ -120,17 +120,24 @@ async function downloadVideo(videoId: string): Promise<string> {
             '--no-part'
         ];
 
+        console.log(`DEBUG: Executing ${YT_DLP_CMD} ${args.join(' ')}`);
+
         const proc = spawn(YT_DLP_CMD, args);
+        let errorOutput = '';
 
         proc.stdout.on('data', (data) => {
             const line = data.toString();
             if (line.includes('[download]')) {
                 process.stdout.write(`\r${line.trim()}`);
+            } else {
+                console.log(line.trim());
             }
         });
 
         proc.stderr.on('data', (data) => {
-            // console.error(`yt-dlp stderr: ${data}`);
+            const line = data.toString();
+            errorOutput += line;
+            console.error(`yt-dlp stderr: ${line.trim()}`);
         });
 
         proc.on('close', (code) => {
@@ -138,6 +145,7 @@ async function downloadVideo(videoId: string): Promise<string> {
             if (code === 0) {
                 resolve(outputPath);
             } else {
+                console.error(`❌ yt-dlp failed with code ${code}. Stderr: ${errorOutput}`);
                 if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath);
                 reject(new Error(`yt-dlp exited with code ${code}`));
             }
