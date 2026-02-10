@@ -118,7 +118,9 @@ async function downloadVideo(videoId: string): Promise<string> {
             '-o', outputPath,
             '--no-playlist',
             '--no-part',
-            '--extractor-args', 'youtube:player_client=android,web;player_skip=configs,js;skip=hls,dash'
+            '--extractor-args', 'youtube:player_client=ios,android;player_skip=configs,js;skip=hls,dash',
+            '--add-header', 'User-Agent:Mozilla/5.0 (iPhone; CPU iPhone OS 16_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.5 Mobile/15E148 Safari/604.1',
+            '--add-header', 'Accept-Language:en-US,en;q=0.9',
         ];
 
         console.log(`DEBUG: Executing ${YT_DLP_CMD} ${args.join(' ')}`);
