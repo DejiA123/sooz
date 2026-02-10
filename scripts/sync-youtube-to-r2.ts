@@ -117,7 +117,8 @@ async function downloadVideo(videoId: string): Promise<string> {
             '-f', 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
             '-o', outputPath,
             '--no-playlist',
-            '--no-part'
+            '--no-part',
+            '--extractor-args', 'youtube:player_client=android,web;player_skip=configs,js;skip=hls,dash'
         ];
 
         console.log(`DEBUG: Executing ${YT_DLP_CMD} ${args.join(' ')}`);
