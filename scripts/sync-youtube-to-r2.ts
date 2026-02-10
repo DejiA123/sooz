@@ -22,20 +22,31 @@ const R2_SECRET_ACCESS_KEY = process.env.VITE_R2_SECRET_ACCESS_KEY;
 const R2_BUCKET_NAME = process.env.VITE_R2_BUCKET_NAME || 'media';
 const R2_PUBLIC_URL = process.env.VITE_PUBLIC_R2_URL;
 
-if (!YOUTUBE_API_KEY || !SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY || !R2_ENDPOINT || !R2_ACCESS_KEY_ID || !R2_SECRET_ACCESS_KEY) {
-    console.error("❌ Missing environment variables. Please check your .env file.");
-    console.info("Required: VITE_YOUTUBE_API_KEY, VITE_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, VITE_R2_ENDPOINT, VITE_R2_ACCESS_KEY_ID, VITE_R2_SECRET_ACCESS_KEY");
+const REQUIRED_VARS = [
+    { name: 'VITE_YOUTUBE_API_KEY', val: YOUTUBE_API_KEY },
+    { name: 'VITE_SUPABASE_URL', val: SUPABASE_URL },
+    { name: 'SUPABASE_SERVICE_ROLE_KEY', val: SUPABASE_SERVICE_ROLE_KEY },
+    { name: 'VITE_R2_ENDPOINT', val: R2_ENDPOINT },
+    { name: 'VITE_R2_ACCESS_KEY_ID', val: R2_ACCESS_KEY_ID },
+    { name: 'VITE_R2_SECRET_ACCESS_KEY', val: R2_SECRET_ACCESS_KEY }
+];
+
+const missing = REQUIRED_VARS.filter(v => !v.val);
+if (missing.length > 0) {
+    console.error("❌ Missing environment variables:");
+    missing.forEach(v => console.error(`   - ${v.name}`));
+    console.info("\nPlease check your .env file or GitHub Repository Secrets.");
     process.exit(1);
 }
 
 // ── Clients ───────────────────────────────────────────
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
 const s3 = new S3Client({
     region: 'auto',
-    endpoint: R2_ENDPOINT,
+    endpoint: R2_ENDPOINT!,
     credentials: {
-        accessKeyId: R2_ACCESS_KEY_ID,
-        secretAccessKey: R2_SECRET_ACCESS_KEY,
+        accessKeyId: R2_ACCESS_KEY_ID!,
+        secretAccessKey: R2_SECRET_ACCESS_KEY!,
     },
 });
 
