@@ -102,7 +102,7 @@ function parseISO8601Duration(iso: string): string {
     return `${m}:${String(s).padStart(2, "0")}`;
 }
 
-async function downloadVideo(videoId: string): Promise<string> {
+async function downloadVideo(videoId: string): Promise<string | null> {
     const tempPath = path.join(process.cwd(), 'temp_videos');
     if (!fs.existsSync(tempPath)) fs.mkdirSync(tempPath);
 
@@ -118,18 +118,24 @@ async function downloadVideo(videoId: string): Promise<string> {
     console.log(`📥 Downloading video ${videoId} (Bypass v1.5 - THE FINAL FRONTIER)...`);
 
     return new Promise((resolve, reject) => {
+        const extractorArgs = cookiesEnv
+            ? 'youtube:player_skip=configs,js;skip=hls,dash'
+            : 'youtube:player_client=web,ios;player_skip=configs,js;skip=hls,dash';
+
         const args = [
             `https://www.youtube.com/watch?v=${videoId}`,
             '-f', 'bestvideo[ext=mp4][height<=1080]+bestaudio[ext=m4a]/best[ext=mp4]/best',
             '-o', outputPath,
             '--no-playlist',
             '--no-part',
-            '--extractor-args', 'youtube:player_client=web,ios;player_skip=configs,js;skip=hls,dash',
+            '--extractor-args', extractorArgs,
             '--add-header', 'User-Agent:Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
             '--add-header', 'Accept-Language:en-US,en;q=0.9',
             '--force-ipv4',
             '--sleep-requests', '3',
-            '--sleep-interval', '5'
+            '--sleep-interval', '5',
+            '--no-check-certificates',
+            '--prefer-free-formats'
         ];
 
         if (cookiesEnv) {
@@ -162,9 +168,9 @@ async function downloadVideo(videoId: string): Promise<string> {
                 resolve(outputPath);
             } else {
                 // Ignore "Premiere" errors
-                if (errorOutput.includes('Premieres in')) {
+                if (errorOutput.includes('Premieres in') || errorOutput.includes('this video is available for premiere')) {
                     console.log(`⏳ Video ${videoId} is a premiere. Skipping for now...`);
-                    resolve(''); // Skip without error
+                    resolve(null); // Skip without error
                     return;
                 }
                 console.error(`❌ yt-dlp failed with code ${code}. Stderr: ${errorOutput}`);
@@ -235,8 +241,8 @@ async function sync() {
             try {
                 const videoFile = await downloadVideo(videoId);
 
-                // If it's a premiere or empty, skip this video
-                if (!videoFile) {
+                // If it's a premiere or failed to download, skip this video
+                if (videoFile === null) {
                     continue;
                 }
 
