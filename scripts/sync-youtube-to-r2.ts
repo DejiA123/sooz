@@ -118,21 +118,22 @@ async function downloadVideo(videoId: string): Promise<string | null> {
     console.log(`📥 Downloading video ${videoId} (Bypass v1.5 - THE FINAL FRONTIER)...`);
 
     return new Promise((resolve, reject) => {
-        // Use ios and mweb clients. These require a PO Token for high-quality formats.
-        // If YOUTUBE_PO_TOKEN is not provided, it may fall back to lower quality.
         const poToken = process.env.YOUTUBE_PO_TOKEN;
-        let extractorArgs = 'youtube:player_client=ios,mweb';
+
+        // Try a more balanced client list. Android is often the most lenient.
+        // We include web and tv as fallbacks.
+        let extractorArgs = 'youtube:player_client=android,web,tv,ios,mweb';
 
         if (poToken) {
-            // Apply the token to both clients to maximize success
-            extractorArgs += `;po_token=mweb.gvs+${poToken},ios.gvs+${poToken}`;
-            console.log("🔑 Using provided YOUTUBE_PO_TOKEN for high-quality formats.");
+            extractorArgs += `;po_token=mweb.gvs+${poToken},ios.gvs+${poToken},android.gvs+${poToken},web.gvs+${poToken}`;
+            console.log("🔑 Using provided YOUTUBE_PO_TOKEN.");
         }
 
         const mobileUA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1';
 
         const args = [
             `https://www.youtube.com/watch?v=${videoId}`,
+            // Try best quality, but fall back to anything available if restricted
             '-f', 'bestvideo[ext=mp4][height<=1080]+bestaudio[ext=m4a]/best[ext=mp4]/best',
             '-o', outputPath,
             '--no-playlist',
@@ -141,8 +142,8 @@ async function downloadVideo(videoId: string): Promise<string | null> {
             '--add-header', `User-Agent:${mobileUA}`,
             '--add-header', 'Accept-Language:en-US,en;q=0.9',
             '--force-ipv4',
-            '--sleep-requests', '3',
-            '--sleep-interval', '5',
+            '--sleep-requests', '2',
+            '--sleep-interval', '3',
             '--no-check-certificates',
             '--prefer-free-formats',
             '--geo-bypass'
