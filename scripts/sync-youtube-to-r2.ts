@@ -199,12 +199,34 @@ async function uploadToR2(filePath: string, videoId: string): Promise<string> {
 
 // ── Main Sync Loop ─────────────────────────────────────
 
+async function upsertVideoMetadata(videoId: string, snippet: any, detailsMap: Map<string, any>) {
+    const videoDetail = detailsMap.get(videoId) as any;
+    const duration = videoDetail?.contentDetails?.duration ? parseISO8601Duration(videoDetail.contentDetails.duration) : null;
+    const views = videoDetail?.statistics?.viewCount ? parseInt(videoDetail.statistics.viewCount) : 0;
+
+    const videoData = {
+        youtube_id: videoId,
+        title: snippet.title,
+        description: snippet.description,
+        thumbnail_url: snippet.thumbnails.high?.url || snippet.thumbnails.default?.url,
+        duration,
+        view_count: views,
+        category: categorizeVideo(snippet.title),
+        published_at: snippet.publishedAt,
+        updated_at: new Date().toISOString(),
+    };
+
+    const { error } = await supabase
+        .from('video_archive')
+        .upsert(videoData, { onConflict: 'youtube_id' });
+
+    if (error) throw error;
+}
+
 async function sync() {
     const hasYtDlp = await checkYtDlp();
     if (!hasYtDlp) {
         console.error("❌ yt-dlp not found! Please install it to use this script.");
-        console.info("Windows: winget install yt-dlp");
-        console.info("Mac: brew install yt-dlp");
         return;
     }
 
@@ -217,71 +239,67 @@ async function sync() {
 
         const videoIds = youtubeVideos.map((v: any) => v.id.videoId);
         const details = await getVideoDetails(videoIds);
-        const detailsMap = new Map(details.map((d: any) => [d.id, d]));
+        const detailsMap = new Map<string, any>(details.map((d: any) => [d.id, d]));
 
-        console.log(`🔄 Found ${youtubeVideos.length} videos. Checking database...`);
+        console.log(`🚀 Phase 1: Fast Syncing Metadata for ${youtubeVideos.length} videos...`);
+        for (const ytVideo of youtubeVideos) {
+            try {
+                await upsertVideoMetadata(ytVideo.id.videoId, ytVideo.snippet, detailsMap);
+                process.stdout.write('.');
+            } catch (err: any) {
+                console.error(`\n❌ Failed to upsert metadata for ${ytVideo.id.videoId}:`, err.message);
+            }
+        }
+        console.log("\n✅ Phase 1 complete! All videos are now visible on production (with YouTube fallbacks).");
+
+        console.log(`\n🚀 Phase 2: Syncing High-Quality Videos to R2...`);
 
         for (const ytVideo of youtubeVideos) {
             const videoId = ytVideo.id.videoId;
             const snippet = ytVideo.snippet;
 
-            // Check if exists
+            // Check if R2 version already exists
             const { data: existing } = await supabase
                 .from('video_archive')
-                .select('*')
+                .select('r2_video_url')
                 .eq('youtube_id', videoId)
                 .single();
 
             if (existing?.r2_video_url) {
-                console.log(`✅ ${videoId} already synced. Skipping.`);
+                console.log(`✅ ${videoId} already has R2 video. Skipping.`);
                 continue;
             }
 
-            console.log(`\n🚀 Syncing: ${snippet.title}`);
+            console.log(`\n📦 Processing Video: ${snippet.title}`);
 
             try {
                 const videoFile = await downloadVideo(videoId);
 
-                // If it's a premiere or failed to download, skip this video
                 if (videoFile === null) {
                     continue;
                 }
 
                 const r2Url = await uploadToR2(videoFile, videoId);
 
-                const videoDetail = detailsMap.get(videoId) as any;
-                const duration = videoDetail?.contentDetails?.duration ? parseISO8601Duration(videoDetail.contentDetails.duration) : null;
-                const views = videoDetail?.statistics?.viewCount ? parseInt(videoDetail.statistics.viewCount) : 0;
-
-                const videoData = {
-                    youtube_id: videoId,
-                    title: snippet.title,
-                    description: snippet.description,
-                    thumbnail_url: snippet.thumbnails.high?.url || snippet.thumbnails.default?.url,
-                    r2_video_url: r2Url,
-                    duration,
-                    view_count: views,
-                    category: categorizeVideo(snippet.title),
-                    published_at: snippet.publishedAt,
-                };
-
+                // Update only the r2_video_url
                 const { error } = await supabase
                     .from('video_archive')
-                    .upsert(videoData, { onConflict: 'youtube_id' });
+                    .update({ r2_video_url: r2Url })
+                    .eq('youtube_id', videoId);
 
                 if (error) throw error;
 
-                console.log(`✨ Successfully synced ${videoId} to R2 and Database!`);
+                console.log(`✨ Successfully uploaded ${videoId} to R2!`);
 
                 // Cleanup temp file
                 fs.unlinkSync(videoFile);
 
             } catch (err: any) {
-                console.error(`❌ Failed to sync ${videoId}:`, err.message);
+                console.error(`❌ Failed to process ${videoId} for R2:`, err.message);
             }
         }
 
-        console.log("\n🏁 Sync complete!");
+        console.log("\n🏁 All sync phases complete!");
 
     } catch (err: any) {
         console.error("❌ Sync failed:", err.message);
