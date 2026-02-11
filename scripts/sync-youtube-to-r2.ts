@@ -118,9 +118,9 @@ async function downloadVideo(videoId: string): Promise<string | null> {
     console.log(`📥 Downloading video ${videoId} (Bypass v1.5 - THE FINAL FRONTIER)...`);
 
     return new Promise((resolve, reject) => {
-        const extractorArgs = cookiesEnv
-            ? 'youtube:player_skip=configs,js;skip=hls,dash'
-            : 'youtube:player_client=web,ios;player_skip=configs,js;skip=hls,dash';
+        // Use android and ios clients as they are often more resilient to "page reload" errors
+        // Removed player_skip=configs,js as they help solve challenges
+        const extractorArgs = 'youtube:player_client=android,web,ios';
 
         const args = [
             `https://www.youtube.com/watch?v=${videoId}`,
@@ -135,7 +135,8 @@ async function downloadVideo(videoId: string): Promise<string | null> {
             '--sleep-requests', '3',
             '--sleep-interval', '5',
             '--no-check-certificates',
-            '--prefer-free-formats'
+            '--prefer-free-formats',
+            '--impersonate', 'chrome'
         ];
 
         if (cookiesEnv) {
