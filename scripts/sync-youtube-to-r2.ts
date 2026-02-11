@@ -71,25 +71,54 @@ function categorizeVideo(title: string): string {
     return "sermon"; // default
 }
 
-async function fetchLatestVideosFromYouTube() {
-    console.log("📺 Fetching latest videos from YouTube API...");
-    const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${YOUTUBE_CHANNEL_ID}&type=video&order=date&maxResults=50&key=${YOUTUBE_API_KEY}`;
+async function fetchAllVideosFromChannel() {
+    console.log("📺 Fetching all videos from YouTube uploads playlist...");
+    // The "uploads" playlist ID is usually the channel ID with 'UU' instead of 'UC'
+    const uploadsPlaylistId = YOUTUBE_CHANNEL_ID.replace(/^UC/, 'UU');
+    let allItems: any[] = [];
+    let nextPageToken = "";
 
-    const response = await fetch(url);
-    const data = await response.json();
+    do {
+        const url = `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&playlistId=${uploadsPlaylistId}&maxResults=50&pageToken=${nextPageToken}&key=${YOUTUBE_API_KEY}`;
+        const response = await fetch(url);
+        const data = await response.json() as any;
 
-    if (data.error) {
-        throw new Error(`YouTube API Error: ${data.error.message}`);
-    }
+        if (data.error) {
+            throw new Error(`YouTube API Error: ${data.error.message}`);
+        }
 
-    return data.items || [];
+        if (data.items) {
+            // Map playlist items to match the expected structure of search results if necessary
+            // playlistItem has snippet.resourceId.videoId
+            allItems = allItems.concat(data.items.map((item: any) => ({
+                id: { videoId: item.snippet.resourceId.videoId },
+                snippet: item.snippet
+            })));
+        }
+        nextPageToken = data.nextPageToken || "";
+        console.log(`📡 Fetched ${allItems.length} videos so far...`);
+    } while (nextPageToken);
+
+    return allItems;
 }
 
-async function getVideoDetails(videoIds: string[]) {
-    const url = `https://www.googleapis.com/youtube/v3/videos?part=contentDetails,statistics&id=${videoIds.join(',')}&key=${YOUTUBE_API_KEY}`;
-    const response = await fetch(url);
-    const data = await response.json();
-    return data.items || [];
+async function getVideoDetailsInBatches(videoIds: string[]) {
+    console.log(`🔍 Fetching details for ${videoIds.length} videos in batches...`);
+    let allDetails: any[] = [];
+    const batchSize = 50;
+
+    for (let i = 0; i < videoIds.length; i += batchSize) {
+        const batch = videoIds.slice(i, i + batchSize);
+        const url = `https://www.googleapis.com/youtube/v3/videos?part=contentDetails,statistics&id=${batch.join(',')}&key=${YOUTUBE_API_KEY}`;
+        const response = await fetch(url);
+        const data = await response.json() as any;
+        if (data.items) {
+            allDetails = allDetails.concat(data.items);
+        }
+        process.stdout.write('.');
+    }
+    console.log(`\n✅ Details fetched for ${allDetails.length} videos.`);
+    return allDetails;
 }
 
 function parseISO8601Duration(iso: string): string {
@@ -115,7 +144,7 @@ async function downloadVideo(videoId: string): Promise<string | null> {
         fs.writeFileSync(cookiesPath, cookiesEnv);
     }
 
-    console.log(`📥 Downloading video ${videoId} (Bypass v1.5 - THE FINAL FRONTIER)...`);
+    console.log(`📥 Downloading video ${videoId} (Resilient Sync)...`);
 
     return new Promise((resolve, reject) => {
         const poToken = process.env.YOUTUBE_PO_TOKEN;
@@ -153,8 +182,6 @@ async function downloadVideo(videoId: string): Promise<string | null> {
             args.push('--cookies', cookiesPath);
         }
 
-        console.log(`DEBUG: Executing ${YT_DLP_CMD} ${args.join(' ')}`);
-
         const proc = spawn(YT_DLP_CMD, args);
         let errorOutput = '';
 
@@ -162,29 +189,25 @@ async function downloadVideo(videoId: string): Promise<string | null> {
             const line = data.toString();
             if (line.includes('[download]')) {
                 process.stdout.write(`\r${line.trim()}`);
-            } else {
-                console.log(line.trim());
             }
         });
 
         proc.stderr.on('data', (data) => {
             const line = data.toString();
             errorOutput += line;
-            console.error(`yt-dlp stderr: ${line.trim()}`);
         });
 
         proc.on('close', (code) => {
-            console.log('\n');
             if (code === 0) {
                 resolve(outputPath);
             } else {
                 // Ignore "Premiere" errors
                 if (errorOutput.includes('Premieres in') || errorOutput.includes('this video is available for premiere')) {
                     console.log(`⏳ Video ${videoId} is a premiere. Skipping for now...`);
-                    resolve(null); // Skip without error
+                    resolve(null);
                     return;
                 }
-                console.error(`❌ yt-dlp failed with code ${code}. Stderr: ${errorOutput}`);
+                console.error(`❌ yt-dlp failed with code ${code}.`);
                 if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath);
                 reject(new Error(`yt-dlp exited with code ${code}`));
             }
@@ -236,31 +259,30 @@ async function upsertVideoMetadata(videoId: string, snippet: any, detailsMap: Ma
 async function sync() {
     const hasYtDlp = await checkYtDlp();
     if (!hasYtDlp) {
-        console.error("❌ yt-dlp not found! Please install it to use this script.");
+        console.error("❌ yt-dlp not found!");
         return;
     }
 
     try {
-        const youtubeVideos = await fetchLatestVideosFromYouTube();
+        const youtubeVideos = await fetchAllVideosFromChannel();
         if (youtubeVideos.length === 0) {
             console.log("No videos found on channel.");
             return;
         }
 
         const videoIds = youtubeVideos.map((v: any) => v.id.videoId);
-        const details = await getVideoDetails(videoIds);
+        const details = await getVideoDetailsInBatches(videoIds);
         const detailsMap = new Map<string, any>(details.map((d: any) => [d.id, d]));
 
         console.log(`🚀 Phase 1: Fast Syncing Metadata for ${youtubeVideos.length} videos...`);
         for (const ytVideo of youtubeVideos) {
             try {
                 await upsertVideoMetadata(ytVideo.id.videoId, ytVideo.snippet, detailsMap);
-                process.stdout.write('.');
             } catch (err: any) {
                 console.error(`\n❌ Failed to upsert metadata for ${ytVideo.id.videoId}:`, err.message);
             }
         }
-        console.log("\n✅ Phase 1 complete! All videos are now visible on production (with YouTube fallbacks).");
+        console.log("\n✅ Phase 1 complete! All videos are now visible on production.");
 
         console.log(`\n🚀 Phase 2: Syncing High-Quality Videos to R2...`);
 
@@ -268,7 +290,6 @@ async function sync() {
             const videoId = ytVideo.id.videoId;
             const snippet = ytVideo.snippet;
 
-            // Check if R2 version already exists
             const { data: existing } = await supabase
                 .from('video_archive')
                 .select('r2_video_url')
@@ -276,7 +297,6 @@ async function sync() {
                 .single();
 
             if (existing?.r2_video_url) {
-                console.log(`✅ ${videoId} already has R2 video. Skipping.`);
                 continue;
             }
 
@@ -284,24 +304,17 @@ async function sync() {
 
             try {
                 const videoFile = await downloadVideo(videoId);
-
-                if (videoFile === null) {
-                    continue;
-                }
+                if (videoFile === null) continue;
 
                 const r2Url = await uploadToR2(videoFile, videoId);
 
-                // Update only the r2_video_url
                 const { error } = await supabase
                     .from('video_archive')
                     .update({ r2_video_url: r2Url })
                     .eq('youtube_id', videoId);
 
                 if (error) throw error;
-
                 console.log(`✨ Successfully uploaded ${videoId} to R2!`);
-
-                // Cleanup temp file
                 fs.unlinkSync(videoFile);
 
             } catch (err: any) {
