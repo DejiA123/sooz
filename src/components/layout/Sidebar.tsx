@@ -27,6 +27,7 @@ export const Sidebar = () => {
 
     const navItems = [
         { icon: Home, label: "Home", path: "/" },
+        { icon: Search, label: "Discover", path: "/discover" },
         { icon: MessageCircle, label: "Messages", path: "/chat" },
         { icon: Heart, label: "Notifications", path: "/activity" },
         { icon: PlusSquare, label: "Create", path: "#", isCreate: true },
