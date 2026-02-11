@@ -115,7 +115,7 @@ async function downloadVideo(videoId: string): Promise<string> {
         fs.writeFileSync(cookiesPath, cookiesEnv);
     }
 
-    console.log(`📥 Downloading video ${videoId} (Bypass v1.4 - EXTREME)...`);
+    console.log(`📥 Downloading video ${videoId} (Bypass v1.5 - THE FINAL FRONTIER)...`);
 
     return new Promise((resolve, reject) => {
         const args = [
@@ -124,8 +124,8 @@ async function downloadVideo(videoId: string): Promise<string> {
             '-o', outputPath,
             '--no-playlist',
             '--no-part',
-            '--extractor-args', 'youtube:player_client=android_vr,ios,mweb;player_skip=configs,js;skip=hls,dash',
-            '--add-header', 'User-Agent:Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1',
+            '--extractor-args', 'youtube:player_client=web,ios;player_skip=configs,js;skip=hls,dash',
+            '--add-header', 'User-Agent:Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
             '--add-header', 'Accept-Language:en-US,en;q=0.9',
             '--force-ipv4',
             '--sleep-requests', '3',
@@ -161,6 +161,12 @@ async function downloadVideo(videoId: string): Promise<string> {
             if (code === 0) {
                 resolve(outputPath);
             } else {
+                // Ignore "Premiere" errors
+                if (errorOutput.includes('Premieres in')) {
+                    console.log(`⏳ Video ${videoId} is a premiere. Skipping for now...`);
+                    resolve(''); // Skip without error
+                    return;
+                }
                 console.error(`❌ yt-dlp failed with code ${code}. Stderr: ${errorOutput}`);
                 if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath);
                 reject(new Error(`yt-dlp exited with code ${code}`));
