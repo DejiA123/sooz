@@ -52,4 +52,5 @@ jobs:
           VITE_R2_BUCKET_NAME: ${{ secrets.VITE_R2_BUCKET_NAME }}
           VITE_PUBLIC_R2_URL: ${{ secrets.VITE_PUBLIC_R2_URL }}
           YOUTUBE_COOKIES: ${{ secrets.YOUTUBE_COOKIES }}
+          YOUTUBE_PO_TOKEN: ${{ secrets.YOUTUBE_PO_TOKEN }}
         run: npx tsx scripts/sync-youtube-to-r2.ts

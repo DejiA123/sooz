@@ -118,8 +118,17 @@ async function downloadVideo(videoId: string): Promise<string | null> {
     console.log(`📥 Downloading video ${videoId} (Bypass v1.5 - THE FINAL FRONTIER)...`);
 
     return new Promise((resolve, reject) => {
-        // Use ios and mweb clients as they often have different detection thresholds
-        const extractorArgs = 'youtube:player_client=ios,mweb';
+        // Use ios and mweb clients. These require a PO Token for high-quality formats.
+        // If YOUTUBE_PO_TOKEN is not provided, it may fall back to lower quality.
+        const poToken = process.env.YOUTUBE_PO_TOKEN;
+        let extractorArgs = 'youtube:player_client=ios,mweb';
+
+        if (poToken) {
+            // Apply the token to both clients to maximize success
+            extractorArgs += `;po_token=mweb.gvs+${poToken},ios.gvs+${poToken}`;
+            console.log("🔑 Using provided YOUTUBE_PO_TOKEN for high-quality formats.");
+        }
+
         const mobileUA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1';
 
         const args = [
