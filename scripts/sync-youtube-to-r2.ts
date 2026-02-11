@@ -120,7 +120,7 @@ async function downloadVideo(videoId: string): Promise<string> {
     return new Promise((resolve, reject) => {
         const args = [
             `https://www.youtube.com/watch?v=${videoId}`,
-            '-f', 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
+            '-f', 'bestvideo[ext=mp4][height<=1080]+bestaudio[ext=m4a]/best[ext=mp4]/best',
             '-o', outputPath,
             '--no-playlist',
             '--no-part',
@@ -234,6 +234,12 @@ async function sync() {
 
             try {
                 const videoFile = await downloadVideo(videoId);
+
+                // If it's a premiere or empty, skip this video
+                if (!videoFile) {
+                    continue;
+                }
+
                 const r2Url = await uploadToR2(videoFile, videoId);
 
                 const videoDetail = detailsMap.get(videoId) as any;
