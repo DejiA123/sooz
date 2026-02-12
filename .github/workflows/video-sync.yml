@@ -49,4 +49,5 @@ jobs:
           VITE_PUBLIC_R2_URL: ${{ secrets.VITE_PUBLIC_R2_URL }}
           YOUTUBE_COOKIES: ${{ secrets.YOUTUBE_COOKIES }}
           YOUTUBE_PO_TOKEN: ${{ secrets.YOUTUBE_PO_TOKEN }}
+          YOUTUBE_PROXY: ${{ secrets.YOUTUBE_PROXY }}
         run: npx tsx scripts/sync-youtube-to-r2.ts

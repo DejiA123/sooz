@@ -28,7 +28,8 @@ const REQUIRED_VARS = [
     { name: 'SUPABASE_SERVICE_ROLE_KEY', val: SUPABASE_SERVICE_ROLE_KEY },
     { name: 'VITE_R2_ENDPOINT', val: R2_ENDPOINT },
     { name: 'VITE_R2_ACCESS_KEY_ID', val: R2_ACCESS_KEY_ID },
-    { name: 'VITE_R2_SECRET_ACCESS_KEY', val: R2_SECRET_ACCESS_KEY }
+    { name: 'VITE_R2_SECRET_ACCESS_KEY', val: R2_SECRET_ACCESS_KEY },
+    { name: 'YOUTUBE_PROXY', val: process.env.YOUTUBE_PROXY } // Optional but recommended
 ];
 
 const missing = REQUIRED_VARS.filter(v => !v.val);
@@ -178,6 +179,12 @@ async function downloadVideo(videoId: string): Promise<string | null> {
             '--geo-bypass'
         ];
 
+        const proxy = process.env.YOUTUBE_PROXY;
+        if (proxy) {
+            args.push('--proxy', proxy);
+            console.log(`🌐 Using Proxy: ${proxy.replace(/:.*@/, ':****@')}`);
+        }
+
         if (cookiesEnv) {
             args.push('--cookies', cookiesPath);
         }
@@ -208,8 +215,9 @@ async function downloadVideo(videoId: string): Promise<string | null> {
                     return;
                 }
                 console.error(`❌ yt-dlp failed with code ${code}.`);
+                console.error(`📝 Error Output: ${errorOutput}`);
                 if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath);
-                reject(new Error(`yt-dlp exited with code ${code}`));
+                reject(new Error(`yt-dlp exited with code ${code}: ${errorOutput.split('\n')[0]}`));
             }
         });
     });
