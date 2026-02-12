@@ -36,11 +36,6 @@ jobs:
           ffmpeg -version
           aria2c --version
 
-      - name: Verify Sync Script Version
-        run: grep "Bypass" scripts/sync-youtube-to-r2.ts
-
-      - name: Verify Sync Script Version
-        run: grep "Bypass" scripts/sync-youtube-to-r2.ts
 
       - name: Run Sync Script
         env:
