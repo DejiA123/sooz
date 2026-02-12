@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { Play, Clock, Eye, Cloud } from "lucide-react";
 import { VideoItem, formatViewCount, formatPublishedDate } from "@/services/videoArchiveService";
 
@@ -7,7 +8,7 @@ interface VideoCardProps {
     layout?: "grid" | "featured";
 }
 
-export const VideoCard = ({ video, onClick, layout = "grid" }: VideoCardProps) => {
+export const VideoCard = memo(({ video, onClick, layout = "grid" }: VideoCardProps) => {
     const thumbnailUrl =
         video.thumbnail_url ||
         `https://img.youtube.com/vi/${video.youtube_id}/hqdefault.jpg`;
@@ -16,22 +17,22 @@ export const VideoCard = ({ video, onClick, layout = "grid" }: VideoCardProps) =
         return (
             <div
                 onClick={onClick}
-                className="relative group cursor-pointer rounded-2xl overflow-hidden bg-gradient-to-br from-primary/5 to-primary/10 border border-white/5 hover:border-primary/30 transition-all duration-500 hover:shadow-xl hover:shadow-primary/5 min-w-[300px] md:min-w-[400px] snap-start"
+                className="relative group cursor-pointer rounded-2xl overflow-hidden bg-gradient-to-br from-primary/5 to-primary/10 border border-white/5 transition-colors duration-300 sm:hover:border-primary/30 sm:hover:shadow-xl sm:hover:shadow-primary/5 min-w-[300px] md:min-w-[400px] snap-start"
             >
                 {/* Thumbnail */}
-                <div className="relative aspect-video overflow-hidden">
+                <div className="relative aspect-video overflow-hidden bg-muted/20">
                     <img
                         src={thumbnailUrl}
                         alt={video.title}
-                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                        className="w-full h-full object-cover sm:transition-transform sm:duration-700 sm:group-hover:scale-105"
                         loading="lazy"
                     />
                     {/* Gradient Overlay */}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
 
-                    {/* Play Button */}
-                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                        <div className="w-16 h-16 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/30 shadow-lg transform group-hover:scale-110 transition-transform duration-300">
+                    {/* Play Button - Only on devices that support hover or desktop */}
+                    <div className="absolute inset-0 flex items-center justify-center opacity-0 sm:group-hover:opacity-100 transition-opacity duration-300">
+                        <div className="w-16 h-16 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/30 shadow-lg transform sm:group-hover:scale-110 transition-transform duration-300">
                             <Play className="w-7 h-7 text-white ml-1" fill="white" />
                         </div>
                     </div>
@@ -78,20 +79,20 @@ export const VideoCard = ({ video, onClick, layout = "grid" }: VideoCardProps) =
     return (
         <div
             onClick={onClick}
-            className="group cursor-pointer rounded-xl overflow-hidden bg-card/50 border border-white/5 hover:border-primary/20 transition-all duration-300 hover:shadow-lg hover:shadow-primary/5 hover:-translate-y-0.5"
+            className="group cursor-pointer rounded-xl overflow-hidden bg-card/50 border border-white/5 transition-colors duration-300 sm:hover:border-primary/20 sm:hover:shadow-lg sm:hover:shadow-primary/5 sm:hover:-translate-y-0.5"
         >
             {/* Thumbnail */}
             <div className="relative aspect-video overflow-hidden bg-muted">
                 <img
                     src={thumbnailUrl}
                     alt={video.title}
-                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    className="w-full h-full object-cover sm:transition-transform sm:duration-500 sm:group-hover:scale-105"
                     loading="lazy"
                 />
 
                 {/* Play Overlay */}
-                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors duration-300 flex items-center justify-center">
-                    <div className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 transform scale-75 group-hover:scale-100 border border-white/30">
+                <div className="absolute inset-0 bg-black/0 sm:group-hover:bg-black/30 transition-colors duration-300 flex items-center justify-center">
+                    <div className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center opacity-0 sm:group-hover:opacity-100 transition-all duration-300 transform scale-75 sm:group-hover:scale-100 border border-white/30">
                         <Play className="w-5 h-5 text-white ml-0.5" fill="white" />
                     </div>
                 </div>
@@ -119,7 +120,7 @@ export const VideoCard = ({ video, onClick, layout = "grid" }: VideoCardProps) =
 
             {/* Info */}
             <div className="p-3 space-y-1.5">
-                <h3 className="text-sm font-semibold text-foreground line-clamp-2 leading-snug group-hover:text-primary transition-colors">
+                <h3 className="text-sm font-semibold text-foreground line-clamp-2 leading-snug sm:group-hover:text-primary transition-colors">
                     {video.title}
                 </h3>
                 <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
@@ -132,4 +133,6 @@ export const VideoCard = ({ video, onClick, layout = "grid" }: VideoCardProps) =
             </div>
         </div>
     );
-};
+});
+
+VideoCard.displayName = "VideoCard";

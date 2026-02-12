@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Search, Play, ChevronRight, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useInView } from "react-intersection-observer";
 import {
     fetchVideos,
     fetchFeaturedVideos,
@@ -18,6 +19,7 @@ export default function VideoArchive() {
     const [searchQuery, setSearchQuery] = useState("");
     const [activeCategory, setActiveCategory] = useState("all");
     const [selectedVideo, setSelectedVideo] = useState<VideoItem | null>(null);
+    const [displayLimit, setDisplayLimit] = useState(12);
 
     const loadVideos = useCallback(async () => {
         setLoading(true);
@@ -37,7 +39,20 @@ export default function VideoArchive() {
 
     useEffect(() => {
         loadVideos();
+        setDisplayLimit(12); // Reset on filter change
     }, [loadVideos]);
+
+    // Infinite scroll observer
+    const { ref: loadMoreRef, inView } = useInView({
+        threshold: 0,
+        rootMargin: "600px",
+    });
+
+    useEffect(() => {
+        if (inView && displayLimit < videos.length) {
+            setDisplayLimit(prev => prev + 12);
+        }
+    }, [inView, displayLimit, videos.length]);
 
     // Close modal on escape
     useEffect(() => {
@@ -97,8 +112,8 @@ export default function VideoArchive() {
                             key={cat.value}
                             onClick={() => setActiveCategory(cat.value)}
                             className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold whitespace-nowrap transition-all duration-300 ${activeCategory === cat.value
-                                    ? "bg-primary text-primary-foreground shadow-lg shadow-primary/25 scale-105"
-                                    : "bg-muted/50 text-muted-foreground hover:bg-muted border border-white/5"
+                                ? "bg-primary text-primary-foreground shadow-lg shadow-primary/25 scale-105"
+                                : "bg-muted/50 text-muted-foreground hover:bg-muted border border-white/5"
                                 }`}
                         >
                             <span>{cat.emoji}</span>
@@ -109,25 +124,35 @@ export default function VideoArchive() {
             </div>
 
             {loading ? (
-                <div className="px-4 space-y-6">
+                <div className="px-4 space-y-8 animate-pulse">
                     {/* Featured Skeleton */}
-                    <div className="flex gap-4 overflow-hidden">
-                        {[1, 2].map((i) => (
-                            <Skeleton
-                                key={i}
-                                className="min-w-[300px] aspect-video rounded-2xl bg-muted/30"
-                            />
-                        ))}
-                    </div>
-                    {/* Grid Skeleton */}
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                        {[1, 2, 3, 4, 5, 6].map((i) => (
-                            <div key={i} className="space-y-2">
-                                <Skeleton className="aspect-video rounded-xl bg-muted/30" />
-                                <Skeleton className="h-4 w-3/4 bg-muted/20" />
-                                <Skeleton className="h-3 w-1/2 bg-muted/20" />
+                    {activeCategory === "all" && !searchQuery && (
+                        <div className="space-y-4">
+                            <Skeleton className="h-6 w-32 bg-muted/30 rounded-lg" />
+                            <div className="flex gap-4 overflow-hidden">
+                                {[1, 2].map((i) => (
+                                    <Skeleton
+                                        key={i}
+                                        className="min-w-[300px] md:min-w-[400px] aspect-video rounded-2xl bg-muted/30"
+                                    />
+                                ))}
                             </div>
-                        ))}
+                        </div>
+                    )}
+                    {/* Grid Skeleton */}
+                    <div className="space-y-4">
+                        <Skeleton className="h-6 w-40 bg-muted/30 rounded-lg" />
+                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                            {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+                                <div key={i} className="space-y-3">
+                                    <Skeleton className="aspect-video rounded-xl bg-muted/30" />
+                                    <div className="space-y-2">
+                                        <Skeleton className="h-4 w-full bg-muted/30" />
+                                        <Skeleton className="h-3 w-2/3 bg-muted/20" />
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
                     </div>
                 </div>
             ) : (
@@ -181,15 +206,22 @@ export default function VideoArchive() {
                                 </p>
                             </div>
                         ) : (
-                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 pb-4">
-                                {videos.map((video) => (
-                                    <VideoCard
-                                        key={video.id}
-                                        video={video}
-                                        onClick={() => setSelectedVideo(video)}
-                                    />
-                                ))}
-                            </div>
+                            <>
+                                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 pb-4">
+                                    {videos.slice(0, displayLimit).map((video) => (
+                                        <VideoCard
+                                            key={video.id}
+                                            video={video}
+                                            onClick={() => setSelectedVideo(video)}
+                                        />
+                                    ))}
+                                </div>
+                                {displayLimit < videos.length && (
+                                    <div ref={loadMoreRef} className="py-10 flex justify-center">
+                                        <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                                    </div>
+                                )}
+                            </>
                         )}
                     </div>
 
