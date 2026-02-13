@@ -1,20 +1,63 @@
 
 
-## Mirror Front Camera Preview
+## Enhance Discover Page with Video Archive and Download Feature
 
-**What**: When using the front (selfie) camera in the Create modal's Camera view, the video preview should be mirrored horizontally — matching how users expect to see themselves (like a mirror). The back camera remains unmirrored.
+### What We're Building
 
-**Technical Details**
+1. **Add Video Archive content to the Discover page** -- mix video archive videos alongside user posts for a richer discovery experience
+2. **Add a Download button** so users can save videos to their phone
 
-The fix is in `src/components/create/CameraCapture.tsx`:
+### Current State
 
-1. Apply a CSS `scaleX(-1)` transform to the `<video>` element when `facingMode` is `"user"` (front camera).
+- The Discover page only shows user-created posts (from the `posts` table)
+- You have 1,904 videos in `video_archive` (20 synced to R2 with direct video files)
+- The Video Archive page (`/archive`) exists separately but isn't integrated into Discover
 
-2. For **photo capture**, flip the canvas horizontally before drawing the image so the saved photo matches the mirrored preview.
+---
 
-3. **Video recording** does not need changes — MediaRecorder captures the raw stream (unmirrored), which is standard behavior for selfie videos.
+### Changes
 
-**Changes**:
-- **Video element** (line ~148): Add conditional class `scale-x-[-1]` when `facingMode === "user"`
-- **capturePhoto function**: When `facingMode === "user"`, apply `ctx.translate(canvas.width, 0)` and `ctx.scale(-1, 1)` before drawing, so the captured photo matches the mirrored preview
+#### 1. Discover Page -- Add Video Archive Section
+
+Add a "Videos" section to the Discover page that shows video archive thumbnails in a horizontal scrollable rail at the top (above user posts), plus a mixed grid below. Tapping a video opens the `VideoPlayerModal`.
+
+- Import `fetchVideos`, `VideoItem`, and `VideoPlayerModal` into `src/pages/Discover.tsx`
+- Fetch video archive data alongside posts
+- Show a horizontal "Videos" rail near the top with thumbnails
+- Tapping opens the video player modal
+
+#### 2. Download Button in VideoPlayerModal
+
+Add a download button to `src/components/videoArchive/VideoPlayerModal.tsx`:
+
+- For **R2-synced videos** (`r2_video_url` exists): Use a direct download link (`<a href="..." download>`)
+- For **non-synced videos**: Link to YouTube (since we can't force-download YouTube embeds from the browser)
+- Show a Download icon button in the modal's video info section
+
+#### 3. Download Button on VideoCard
+
+Add a small download icon on each `VideoCard` so users can download directly from the grid without opening the modal.
+
+---
+
+### Technical Details
+
+**Files to modify:**
+
+1. **`src/pages/Discover.tsx`**
+   - Add state for `archiveVideos` and `selectedVideo`
+   - Fetch from `fetchVideos()` in `fetchData()`
+   - Render a horizontal scrollable rail of video thumbnails above the posts grid
+   - Render `VideoPlayerModal` when a video is selected
+
+2. **`src/components/videoArchive/VideoPlayerModal.tsx`**
+   - Add a `Download` lucide icon button next to the "Watch on YouTube" link
+   - For R2 videos: `<a href={video.r2_video_url} download>` triggers native download
+   - For YouTube-only videos: open YouTube link (with a tooltip explaining it's YouTube-only)
+
+3. **`src/components/videoArchive/VideoCard.tsx`**
+   - Add an optional `onDownload` callback prop
+   - Show a small download icon overlay on hover/tap
+
+**No database changes needed** -- all data already exists in `video_archive`.
 
