@@ -101,6 +101,10 @@ export const CameraCapture = ({ mode, onCapture, onClose }: CameraCaptureProps) 
         const ctx = canvas.getContext("2d");
         if (!ctx) return;
 
+        if (facingMode === "user") {
+            ctx.translate(canvas.width, 0);
+            ctx.scale(-1, 1);
+        }
         ctx.drawImage(videoRef.current, 0, 0);
 
         canvas.toBlob((blob) => {
@@ -181,7 +185,7 @@ export const CameraCapture = ({ mode, onCapture, onClose }: CameraCaptureProps) 
                 autoPlay
                 playsInline
                 muted
-                className="w-full h-full object-cover"
+                className={cn("w-full h-full object-cover", facingMode === "user" && "scale-x-[-1]")}
             />
 
             {/* Overlay Controls */}
