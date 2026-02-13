@@ -1,14 +1,15 @@
 import { memo } from "react";
-import { Play, Clock, Eye, Cloud } from "lucide-react";
+import { Play, Clock, Eye, Cloud, Download } from "lucide-react";
 import { VideoItem, formatViewCount, formatPublishedDate } from "@/services/videoArchiveService";
 
 interface VideoCardProps {
     video: VideoItem;
     onClick: () => void;
+    onDownload?: (video: VideoItem) => void;
     layout?: "grid" | "featured";
 }
 
-export const VideoCard = memo(({ video, onClick, layout = "grid" }: VideoCardProps) => {
+export const VideoCard = memo(({ video, onClick, onDownload, layout = "grid" }: VideoCardProps) => {
     const thumbnailUrl =
         video.thumbnail_url ||
         `https://img.youtube.com/vi/${video.youtube_id}/hqdefault.jpg`;
@@ -116,6 +117,16 @@ export const VideoCard = memo(({ video, onClick, layout = "grid" }: VideoCardPro
                         </div>
                     )}
                 </div>
+
+                {/* Download Button */}
+                {onDownload && (
+                    <button
+                        onClick={(e) => { e.stopPropagation(); onDownload(video); }}
+                        className="absolute top-2 right-2 p-1.5 rounded-full bg-black/50 backdrop-blur-sm text-white opacity-0 sm:group-hover:opacity-100 transition-opacity"
+                    >
+                        <Download className="w-3.5 h-3.5" />
+                    </button>
+                )}
             </div>
 
             {/* Info */}

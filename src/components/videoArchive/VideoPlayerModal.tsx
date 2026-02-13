@@ -1,12 +1,32 @@
-import { X, ExternalLink, Clock, Eye, Calendar } from "lucide-react";
+import { X, ExternalLink, Clock, Eye, Calendar, Download } from "lucide-react";
 import { VideoItem, getYouTubeEmbedUrl, getYouTubeWatchUrl, formatViewCount, formatPublishedDate } from "@/services/videoArchiveService";
 
 interface VideoPlayerModalProps {
     video: VideoItem;
     onClose: () => void;
+    onDownload?: (video: VideoItem) => void;
 }
 
-export const VideoPlayerModal = ({ video, onClose }: VideoPlayerModalProps) => {
+export const VideoPlayerModal = ({ video, onClose, onDownload }: VideoPlayerModalProps) => {
+    const handleDownload = () => {
+        if (onDownload) {
+            onDownload(video);
+            return;
+        }
+        if (video.r2_video_url) {
+            const a = document.createElement("a");
+            a.href = video.r2_video_url;
+            a.download = `${video.title}.mp4`;
+            a.target = "_blank";
+            a.rel = "noopener noreferrer";
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        } else {
+            window.open(getYouTubeWatchUrl(video.youtube_id), "_blank");
+        }
+    };
+
     return (
         <div
             className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-sm"
@@ -91,16 +111,28 @@ export const VideoPlayerModal = ({ video, onClose }: VideoPlayerModalProps) => {
                         </p>
                     )}
 
-                    {/* Watch on YouTube Link */}
-                    <a
-                        href={getYouTubeWatchUrl(video.youtube_id)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-2 text-sm font-medium text-red-500 hover:text-red-400 transition-colors"
-                    >
-                        <ExternalLink className="w-4 h-4" />
-                        Watch on YouTube
-                    </a>
+                    {/* Action Links */}
+                    <div className="flex items-center gap-4 flex-wrap">
+                        {/* Download Button */}
+                        <button
+                            onClick={handleDownload}
+                            className="inline-flex items-center gap-2 text-sm font-medium text-primary hover:text-primary/80 transition-colors"
+                        >
+                            <Download className="w-4 h-4" />
+                            {video.r2_video_url ? "Download Video" : "Watch on YouTube"}
+                        </button>
+
+                        {/* Watch on YouTube Link */}
+                        <a
+                            href={getYouTubeWatchUrl(video.youtube_id)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-2 text-sm font-medium text-red-500 hover:text-red-400 transition-colors"
+                        >
+                            <ExternalLink className="w-4 h-4" />
+                            Watch on YouTube
+                        </a>
+                    </div>
                 </div>
             </div>
         </div>

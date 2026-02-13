@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Search, Loader2 } from "lucide-react";
+import { Search, Play } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
@@ -7,6 +7,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { LazyImage } from "@/components/feed/LazyImage";
 import { LazyVideo } from "@/components/feed/LazyVideo";
+import { fetchVideos, VideoItem, getYouTubeWatchUrl } from "@/services/videoArchiveService";
+import { VideoPlayerModal } from "@/components/videoArchive/VideoPlayerModal";
 
 interface DiscoverPost {
     id: string;
@@ -24,6 +26,8 @@ interface DiscoverUser {
 export default function Discover() {
     const [posts, setPosts] = useState<DiscoverPost[]>([]);
     const [users, setUsers] = useState<DiscoverUser[]>([]);
+    const [archiveVideos, setArchiveVideos] = useState<VideoItem[]>([]);
+    const [selectedVideo, setSelectedVideo] = useState<VideoItem | null>(null);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState("");
     const navigate = useNavigate();
@@ -31,6 +35,21 @@ export default function Discover() {
     useEffect(() => {
         fetchData();
     }, [searchQuery]);
+
+    const handleDownload = (video: VideoItem) => {
+        if (video.r2_video_url) {
+            const a = document.createElement("a");
+            a.href = video.r2_video_url;
+            a.download = `${video.title}.mp4`;
+            a.target = "_blank";
+            a.rel = "noopener noreferrer";
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        } else {
+            window.open(getYouTubeWatchUrl(video.youtube_id), "_blank");
+        }
+    };
 
     const fetchData = async () => {
         setLoading(true);
@@ -64,6 +83,10 @@ export default function Discover() {
             } else {
                 setUsers([]);
             }
+
+            // 3. Fetch Video Archive
+            const videos = await fetchVideos(undefined, searchQuery.trim() || undefined);
+            setArchiveVideos(videos);
 
         } catch (error) {
             console.error("Error fetching discover data:", error);
@@ -108,13 +131,55 @@ export default function Discover() {
                 </div>
             )}
 
+            {/* Video Archive Rail */}
+            {archiveVideos.length > 0 && (
+                <div className="px-4 py-3 border-b border-white/5 mb-2">
+                    <h3 className="text-sm font-semibold text-foreground mb-3">📺 Videos</h3>
+                    <div className="flex gap-3 overflow-x-auto pb-3 no-scrollbar snap-x snap-mandatory">
+                        {archiveVideos.slice(0, 20).map(video => {
+                            const thumb = video.thumbnail_url || `https://img.youtube.com/vi/${video.youtube_id}/hqdefault.jpg`;
+                            return (
+                                <div
+                                    key={video.id}
+                                    className="relative min-w-[160px] w-[160px] aspect-[9/16] rounded-xl overflow-hidden cursor-pointer group snap-start flex-shrink-0 bg-muted"
+                                    onClick={() => setSelectedVideo(video)}
+                                >
+                                    <img
+                                        src={thumb}
+                                        alt={video.title}
+                                        className="w-full h-full object-cover sm:transition-transform sm:duration-500 sm:group-hover:scale-110"
+                                        loading="lazy"
+                                    />
+                                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
+                                    <div className="absolute inset-0 flex items-center justify-center opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                                        <div className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
+                                            <Play className="w-5 h-5 text-white ml-0.5" fill="white" />
+                                        </div>
+                                    </div>
+                                    <div className="absolute bottom-2 left-2 right-2">
+                                        <p className="text-white text-[11px] font-medium line-clamp-2 leading-tight drop-shadow-lg">
+                                            {video.title}
+                                        </p>
+                                    </div>
+                                    {video.r2_video_url && (
+                                        <div className="absolute top-2 right-2 px-1.5 py-0.5 rounded-full bg-primary/80 text-[9px] text-white font-bold">
+                                            HD
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            )}
+
             {loading ? (
                 <div className="grid grid-cols-3 gap-0.5 px-0.5">
                     {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((i) => (
                         <Skeleton key={i} className="aspect-[3/4] w-full bg-muted/30" />
                     ))}
                 </div>
-            ) : posts.length === 0 && users.length === 0 ? (
+            ) : posts.length === 0 && users.length === 0 && archiveVideos.length === 0 ? (
                 <div className="text-center text-muted-foreground py-20">
                     <p>No results found</p>
                 </div>
@@ -144,6 +209,15 @@ export default function Discover() {
                         </div>
                     ))}
                 </div>
+            )}
+
+            {/* Video Player Modal */}
+            {selectedVideo && (
+                <VideoPlayerModal
+                    video={selectedVideo}
+                    onClose={() => setSelectedVideo(null)}
+                    onDownload={handleDownload}
+                />
             )}
         </div>
     );
