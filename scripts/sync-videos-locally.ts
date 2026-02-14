@@ -72,10 +72,14 @@ async function downloadVideo(videoId: string, hasFfmpeg: boolean): Promise<strin
     }
 }
 
-async function uploadToR2(filePath: string, videoId: string): Promise<string> {
+async function uploadToR2(filePath: string, videoId: string, title: string): Promise<string> {
     const fileContent = fs.readFileSync(filePath);
     const ext = path.extname(filePath).replace(".", "");
     const key = `videos/${videoId}.mp4`; // Always store as mp4 structure if possible
+
+    // Sanitize title for filename
+    const safeTitle = title.replace(/[^a-z0-9]/gi, "_").substring(0, 50);
+    const filename = `${safeTitle}.mp4`;
 
     console.log(`☁️ Uploading ${filePath} to R2 as ${key}...`);
 
@@ -83,7 +87,8 @@ async function uploadToR2(filePath: string, videoId: string): Promise<string> {
         Bucket: R2_BUCKET_NAME,
         Key: key,
         Body: fileContent,
-        ContentType: `video/${ext === "mkv" ? "x-matroska" : ext}`,
+        ContentType: "video/mp4",
+        ContentDisposition: `attachment; filename="${filename}"`,
     }));
 
     return `${R2_PUBLIC_URL_BASE}/${key}`;
@@ -124,7 +129,7 @@ async function main() {
             localFile = await downloadVideo(video.youtube_id, hasFfmpeg);
             console.log(`✅ Downloaded to ${localFile}`);
 
-            const r2Url = await uploadToR2(localFile, video.youtube_id);
+            const r2Url = await uploadToR2(localFile, video.youtube_id, video.title);
             console.log(`✅ Uploaded to ${r2Url}`);
 
             // Update DB

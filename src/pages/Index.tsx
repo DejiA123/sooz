@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef, useCallback } from "react";
+import { LiveBanner } from "@/components/live/LiveBanner";
 import { StoryRail } from "@/components/feed/StoryRail";
 import { PostCard } from "@/components/feed/PostCard";
 import { supabase } from "@/integrations/supabase/client";
@@ -31,8 +32,6 @@ interface PostWithUser {
   user_likes: { id: string }[];
   is_saved_by_user?: boolean;
 }
-
-
 
 export default function Index() {
   const { user } = useAuth();
@@ -84,8 +83,6 @@ export default function Index() {
   const isLoading = status === 'pending';
 
   // Enable aggressive video preloading for the feed
-  // This handles specific "keep X behind, preload Y ahead" logic
-  // and partial content fetching for instant playback
   useVideoPreloader(posts);
 
   return (
@@ -93,19 +90,10 @@ export default function Index() {
       <div className="flex justify-center items-start">
         {/* Feed Column */}
         <div className="w-full md:max-w-md">
+          <LiveBanner />
           <StoryRail />
 
           {isLoading ? (
-            /* User explicitly said "I don't want that skeleton posts thing" and "I don't want to see that loading circle".
-               The best "Instagram-like" behavior when absolutely nothing is loaded yet is usually a spinner, 
-               but since they hate it, showing nothing (transparent) until load might be preferred, 
-               or just the StoryRail (which might also load).
-               
-               Actually, the best bet if they hate visual loaders is to show NOTHING or a very minimal loader.
-               Let's stick to NO loader if they are switching tabs (since cache handles it).
-               But for FIRST load... we need something. 
-               I will show a minimal spinner but ONLY if there is no data at all.
-            */
             <div className="flex justify-center pt-20">
               {/* Minimal loader only if strictly necessary */}
               <Loader2 className="w-8 h-8 animate-spin text-primary opacity-50" />
