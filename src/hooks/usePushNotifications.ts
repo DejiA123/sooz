@@ -12,8 +12,8 @@ export const usePushNotifications = () => {
     useEffect(() => {
         // Check local status
         if ('serviceWorker' in navigator && 'PushManager' in window) {
-            navigator.serviceWorker.ready.then(registration => {
-                registration.pushManager.getSubscription().then(sub => {
+            navigator.serviceWorker.ready.then((registration: any) => {
+                registration.pushManager.getSubscription().then((sub: PushSubscription | null) => {
                     if (sub) {
                         setSubscription(sub);
                         setIsSubscribed(true);
@@ -35,7 +35,7 @@ export const usePushNotifications = () => {
         }
 
         try {
-            const registration = await navigator.serviceWorker.ready;
+            const registration: any = await navigator.serviceWorker.ready;
             console.log('Service Worker ready:', registration);
 
             // Check if permission is granted

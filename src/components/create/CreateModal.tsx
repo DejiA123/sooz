@@ -33,7 +33,7 @@ export const CreateModal = ({ isOpen, onClose, onPostCreated }: CreateModalProps
     const [cameraMediaType, setCameraMediaType] = useState<"photo" | "video">("photo");
     const [streamConfig, setStreamConfig] = useState<{ id?: string; playback_url: string; status: string } | null>(null);
 
-    // ... refs
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     const fetchStreamConfig = async () => {
         try {

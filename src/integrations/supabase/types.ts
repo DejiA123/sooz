@@ -218,6 +218,42 @@ export type Database = {
           },
         ]
       }
+      live_stream_config: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean | null
+          playback_url: string | null
+          rtmp_url: string | null
+          status: string | null
+          stream_key: string | null
+          stream_uid: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          playback_url?: string | null
+          rtmp_url?: string | null
+          status?: string | null
+          stream_key?: string | null
+          stream_uid?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          playback_url?: string | null
+          rtmp_url?: string | null
+          status?: string | null
+          stream_key?: string | null
+          stream_uid?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       messages: {
         Row: {
           content: string
@@ -482,6 +518,7 @@ export type Database = {
           category: string | null
           created_at: string | null
           description: string | null
+          download_attempts: number | null
           duration: string | null
           id: string
           is_featured: boolean | null
@@ -497,6 +534,7 @@ export type Database = {
           category?: string | null
           created_at?: string | null
           description?: string | null
+          download_attempts?: number | null
           duration?: string | null
           id?: string
           is_featured?: boolean | null
@@ -512,6 +550,7 @@ export type Database = {
           category?: string | null
           created_at?: string | null
           description?: string | null
+          download_attempts?: number | null
           duration?: string | null
           id?: string
           is_featured?: boolean | null
