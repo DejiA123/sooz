@@ -163,14 +163,14 @@ async function getVideoDownloadUrl(youtubeId: string): Promise<{ url: string; co
 async function hmacSha256(key: ArrayBuffer | Uint8Array, data: string): Promise<ArrayBuffer> {
     const keyData = key instanceof ArrayBuffer ? new Uint8Array(key) : key;
     const cryptoKey = await crypto.subtle.importKey(
-        "raw", keyData, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]
+        "raw", keyData.buffer as ArrayBuffer, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]
     );
     return await crypto.subtle.sign("HMAC", cryptoKey, new TextEncoder().encode(data));
 }
 
 async function sha256hex(data: Uint8Array | string): Promise<string> {
     const buf = typeof data === "string" ? new TextEncoder().encode(data) : data;
-    const hash = await crypto.subtle.digest("SHA-256", buf);
+    const hash = await crypto.subtle.digest("SHA-256", buf.buffer as ArrayBuffer);
     return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, "0")).join("");
 }
 
@@ -217,7 +217,7 @@ async function uploadToR2(
             "X-Amz-Date": dateStamp,
             "Authorization": authorization,
         },
-        body: videoData,
+        body: videoData.buffer as ArrayBuffer,
     });
 
     if (!resp.ok) {
