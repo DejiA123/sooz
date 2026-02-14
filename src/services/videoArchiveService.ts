@@ -258,59 +258,67 @@ async function getAllVideos(): Promise<VideoItem[]> {
         return cachedVideos;
     }
 
-    // 1. Try YouTube API
-    const apiVideos = await fetchFromYouTubeAPI();
+    console.log("📂 Fetching videos from database (Synced Source)...");
 
-    // 2. Try Supabase database for R2 links
-    let dbVideos: Record<string, string> = {};
-    try {
-        const { data } = await supabase
-            .from("video_archive" as any)
-            .select("youtube_id, r2_video_url")
-            .not("r2_video_url", "is", null);
-
-        if (data) {
-            data.forEach((v: any) => {
-                dbVideos[v.youtube_id] = v.r2_video_url;
-            });
-        }
-    } catch (e) {
-        console.warn("Could not fetch R2 links from database:", e);
-    }
-
-    // 3. Merge or fallback
-    if (apiVideos.length > 0) {
-        // Enrich API results with R2 links from DB
-        const enriched = apiVideos.map(v => ({
-            ...v,
-            r2_video_url: dbVideos[v.youtube_id] || null
-        }));
-        cachedVideos = enriched;
-        cacheTimestamp = Date.now();
-        return enriched;
-    }
-
-    // 4. Full DB fallback if API fails
+    // 1. Primary: Fetch from Supabase database (synced by Edge Function)
     try {
         const { data, error } = await supabase
-            .from("video_archive" as any)
+            .from("video_archive")
             .select("*")
             .order("published_at", { ascending: false });
 
         if (!error && data && data.length > 0) {
+            console.log(`✅ Loaded ${data.length} videos from database.`);
             const videos = data as unknown as VideoItem[];
             cachedVideos = videos;
             cacheTimestamp = Date.now();
             return videos;
         }
-    } catch {
-        // table doesn't exist yet
+        if (error) console.warn("Database fetch error:", error.message);
+    } catch (e) {
+        console.warn("Database may not be ready:", e);
     }
 
-    // Fallback to samples
+    // 2. Fallback: Try client-side YouTube API if DB is empty/fails
+    console.log("📡 DB empty or failed. Falling back to client-side YouTube API...");
+    const apiVideos = await fetchFromYouTubeAPI();
+
+    if (apiVideos.length > 0) {
+        cachedVideos = apiVideos;
+        cacheTimestamp = Date.now();
+        return apiVideos;
+    }
+
+    // 3. Last Resort: Fallback to samples
+    console.log("⚠️ All sources failed. Using sample data.");
     cachedVideos = SAMPLE_VIDEOS;
     cacheTimestamp = Date.now();
     return SAMPLE_VIDEOS;
+}
+
+/**
+ * Manually trigger the server-side sync function
+ */
+export async function triggerSync(): Promise<{ success: boolean; message: string }> {
+    try {
+        const { data, error } = await supabase.functions.invoke('sync-youtube-archive');
+        if (error) throw error;
+
+        // Clear cache so next fetch gets fresh data
+        cachedVideos = null;
+        cacheTimestamp = 0;
+
+        return {
+            success: true,
+            message: data.message || "Sync triggered successfully"
+        };
+    } catch (error: any) {
+        console.error("Manual sync failed:", error);
+        return {
+            success: false,
+            message: error.message || "Failed to trigger sync"
+        };
+    }
 }
 
 export async function fetchVideos(

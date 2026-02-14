@@ -8,9 +8,12 @@ import {
     fetchFeaturedVideos,
     VideoItem,
     VIDEO_CATEGORIES,
+    triggerSync,
 } from "@/services/videoArchiveService";
 import { VideoCard } from "@/components/videoArchive/VideoCard";
 import { VideoPlayerModal } from "@/components/videoArchive/VideoPlayerModal";
+import { RefreshCw, CheckCircle2 } from "lucide-react";
+import { toast } from "sonner";
 
 export default function VideoArchive() {
     const [videos, setVideos] = useState<VideoItem[]>([]);
@@ -20,6 +23,8 @@ export default function VideoArchive() {
     const [activeCategory, setActiveCategory] = useState("all");
     const [selectedVideo, setSelectedVideo] = useState<VideoItem | null>(null);
     const [displayLimit, setDisplayLimit] = useState(12);
+    const [isSyncing, setIsSyncing] = useState(false);
+    const [lastSynced, setLastSynced] = useState<Date | null>(null);
 
     const loadVideos = useCallback(async () => {
         setLoading(true);
@@ -36,6 +41,34 @@ export default function VideoArchive() {
             setLoading(false);
         }
     }, [activeCategory, searchQuery]);
+
+    const handleSync = async () => {
+        setIsSyncing(true);
+        toast.info("Updating archive from YouTube...");
+
+        try {
+            const result = await triggerSync();
+            if (result.success) {
+                toast.success("Archive updated successfully!");
+                setLastSynced(new Date());
+                await loadVideos();
+            } else {
+                toast.error(`Sync failed: ${result.message}`);
+            }
+        } catch (error) {
+            toast.error("An unexpected error occurred during sync");
+        } finally {
+            setIsSyncing(false);
+        }
+    };
+
+    const handleDownload = (video: VideoItem) => {
+        if (video.r2_video_url) {
+            // Open in new tab to trigger native browser behavior
+            window.open(video.r2_video_url, "_blank");
+            toast.success("Download started");
+        }
+    };
 
     useEffect(() => {
         loadVideos();
@@ -79,15 +112,38 @@ export default function VideoArchive() {
                             <h1 className="text-2xl md:text-3xl font-black text-foreground tracking-tight">
                                 Video Archive
                             </h1>
-                            <p className="text-xs text-muted-foreground font-medium">
-                                The Power House International
-                            </p>
+                            <div className="flex items-center gap-2">
+                                <p className="text-xs text-muted-foreground font-medium">
+                                    The Power House International
+                                </p>
+                                {lastSynced && (
+                                    <div className="flex items-center gap-1 text-[10px] text-green-500/80 font-bold">
+                                        <CheckCircle2 className="w-3 h-3" />
+                                        <span>JUST UPDATED</span>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </div>
-                    <p className="text-sm text-muted-foreground mt-3 max-w-lg leading-relaxed">
-                        Watch sermons, worship sessions, and special events. God meets with
-                        you at the points of your need and beyond. 🔥
-                    </p>
+
+                    <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+                        <p className="text-sm text-muted-foreground mt-3 max-w-lg leading-relaxed">
+                            Watch sermons, worship sessions, and special events. God meets with
+                            you at the points of your need and beyond. 🔥
+                        </p>
+
+                        <button
+                            onClick={handleSync}
+                            disabled={isSyncing}
+                            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all duration-300 ${isSyncing
+                                ? "bg-primary/20 text-primary cursor-not-allowed"
+                                : "bg-primary/10 text-primary hover:bg-primary/20 border border-primary/20"
+                                }`}
+                        >
+                            <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? "animate-spin" : ""}`} />
+                            {isSyncing ? "Syncing..." : "Refresh Archive"}
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -173,6 +229,7 @@ export default function VideoArchive() {
                                         video={video}
                                         layout="featured"
                                         onClick={() => setSelectedVideo(video)}
+                                        onDownload={handleDownload}
                                     />
                                 ))}
                             </div>
@@ -213,6 +270,7 @@ export default function VideoArchive() {
                                             key={video.id}
                                             video={video}
                                             onClick={() => setSelectedVideo(video)}
+                                            onDownload={handleDownload}
                                         />
                                     ))}
                                 </div>

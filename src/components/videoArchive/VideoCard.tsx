@@ -59,6 +59,20 @@ export const VideoCard = memo(({ video, onClick, onDownload, layout = "grid" }: 
                         )}
                     </div>
 
+                    {/* Download Button */}
+                    {onDownload && video.r2_video_url && (
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onDownload(video);
+                            }}
+                            className="absolute top-3 right-3 p-2 rounded-full bg-black/60 backdrop-blur-md text-white hover:bg-black/80 transition-all active:scale-95 z-20 shadow-lg"
+                            title="Download Video"
+                        >
+                            <Download className="w-5 h-5" />
+                        </button>
+                    )}
+
                     {/* Title on overlay */}
                     <div className="absolute bottom-3 left-3 right-16">
                         <h3 className="text-white font-semibold text-sm md:text-base line-clamp-2 drop-shadow-lg">
@@ -119,12 +133,16 @@ export const VideoCard = memo(({ video, onClick, onDownload, layout = "grid" }: 
                 </div>
 
                 {/* Download Button */}
-                {onDownload && (
+                {onDownload && video.r2_video_url && (
                     <button
-                        onClick={(e) => { e.stopPropagation(); onDownload(video); }}
-                        className="absolute top-2 right-2 p-1.5 rounded-full bg-black/50 backdrop-blur-sm text-white opacity-0 sm:group-hover:opacity-100 transition-opacity"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onDownload(video);
+                        }}
+                        className="absolute top-2 right-2 p-2 rounded-full bg-black/60 backdrop-blur-md text-white hover:bg-black/80 transition-all active:scale-95 z-20 shadow-lg"
+                        title="Download Video"
                     >
-                        <Download className="w-3.5 h-3.5" />
+                        <Download className="w-4 h-4" />
                     </button>
                 )}
             </div>
