@@ -267,8 +267,17 @@ async function downloadVideo(videoId: string, hasFfmpeg: boolean): Promise<strin
             "--youtube-skip-dash-manifest",
             "--geo-bypass",
             "--sleep-requests", "1",
+            "--downloader", "aria2c",
+            "--downloader-args", "aria2c:-x 16 -s 16 -k 1M",
             "--no-part"
         ].filter(arg => arg !== "");
+
+        if (hasCookies) {
+            const content = fs.readFileSync(cookieFile, "utf8");
+            if (!content.includes("Netscape") && content.includes("Value")) {
+                console.warn("⚠️ cookies.txt might be in JSON/wrong format. yt-dlp requires Netscape format.");
+            }
+        }
 
         console.log(`🎬 Arguments: ${args.join(" ")}`);
 
