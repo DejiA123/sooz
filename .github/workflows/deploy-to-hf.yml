@@ -21,6 +21,7 @@ jobs:
           mkdir deploy_tmp
           cp -r scripts deploy_tmp/
           cp Dockerfile .dockerignore package.json package-lock.json deploy_tmp/
+          cp README.hf.md deploy_tmp/README.md
           cd deploy_tmp
           
           # Initialize fresh git with no history
