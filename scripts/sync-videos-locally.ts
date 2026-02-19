@@ -236,7 +236,8 @@ async function downloadVideo(videoId: string, hasFfmpeg: boolean): Promise<strin
             proxy: `http://127.0.0.1:${PROXY_PORT}`, // Use our local DNS proxy
             cookies: hasCookies ? cookieFile : undefined,
             userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-            extractorArgs: "youtube:player-client=android_vr,web_embedded",
+            extractorArgs: "youtube:player-client=ios,web",
+            noCheckCertificates: true,
         } as any);
 
         // Find the downloaded file
