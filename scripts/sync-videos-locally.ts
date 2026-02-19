@@ -16,9 +16,10 @@ dotenv.config();
 // Helper to get and trim env vars, including stripping quotes and trailing slashes
 const getEnv = (name: string) => {
     let val = (process.env[name] || "").trim();
-    val = val.replace(/^["'](.*)["']$/, '$1').trim(); // Strip quotes
+    // Aggressively strip any surrounding quotes (single or double)
+    val = val.replace(/^["']+/, '').replace(/["']+$/, '');
     val = val.replace(/\/$/, ''); // Strip trailing slash
-    return val;
+    return val.trim();
 };
 
 let SUPABASE_URL = getEnv("VITE_SUPABASE_URL");
