@@ -2,7 +2,7 @@
 title: Video Sync Runner
 emoji: 🎬
 colorFrom: blue
-colorTo: black
+colorTo: gray
 sdk: docker
 pinned: false
 ---
