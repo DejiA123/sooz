@@ -87,14 +87,22 @@ async function checkFfmpeg() {
 
 async function runDiagnostics() {
     console.log("🔍 Running Network Diagnostics...");
-    const hosts = ["google.com", "youtube.com", "xhqpojnmcibkaydidnex.supabase.co"];
+    const hosts = ["google.com", "youtube.com", "www.youtube.com", "xhqpojnmcibkaydidnex.supabase.co"];
     for (const host of hosts) {
         try {
             const start = Date.now();
+            // Try both getent and ping to see if anything works
             execSync(`getent hosts ${host}`, { stdio: "pipe" });
             console.log(`  ✅ DNS: ${host} resolved in ${Date.now() - start}ms`);
         } catch (e: any) {
             console.error(`  ❌ DNS: ${host} failed to resolve: ${e.message}`);
+            // Fallback test with ping
+            try {
+                execSync(`ping -c 1 -W 2 ${host}`, { stdio: "pipe" });
+                console.log(`  ✅ PING: ${host} worked (DNS might be tricky)`);
+            } catch (p: any) {
+                console.error(`  ❌ PING: ${host} also failed`);
+            }
         }
     }
 }
