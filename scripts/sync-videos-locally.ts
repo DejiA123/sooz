@@ -206,11 +206,25 @@ async function downloadVideo(videoId: string, hasFfmpeg: boolean): Promise<strin
         : "best[height<=720][ext=mp4]/best";
 
     const cookieFile = "cookies.txt";
+    const currentDir = process.cwd();
     const hasCookies = fs.existsSync(cookieFile);
+
+    console.log(`📂 Current directory: ${currentDir}`);
+    // console.log(`📁 Files in directory: ${fs.readdirSync('.').join(', ')}`);
+
     if (hasCookies) {
-        console.log(`🍪 Using cookies from ${cookieFile}`);
+        console.log(`🍪 Using cookies from ${path.resolve(cookieFile)}`);
     } else {
-        console.warn(`⚠️ No cookies.txt found. Download might fail if bot-detected.`);
+        console.warn(`⚠️ No cookies.txt found in ${path.resolve(cookieFile)}. Files present: ${fs.readdirSync('.').filter(f => !f.startsWith('.')).join(', ')}`);
+    }
+
+    if (hasCookies) {
+        try {
+            const stats = fs.statSync(cookieFile);
+            console.log(`📊 cookies.txt size: ${stats.size} bytes`);
+        } catch (e) {
+            console.error(`❌ Could not get stats for cookies.txt: ${e}`);
+        }
     }
 
     try {
