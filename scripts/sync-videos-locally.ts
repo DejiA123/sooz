@@ -94,6 +94,7 @@ async function runDiagnostics() {
     const hosts = [
         "google.com",
         "youtube.com",
+        "youtube.com.", // Trailing dot bypass
         "www.youtube.com",
         "m.youtube.com",
         "youtu.be",
