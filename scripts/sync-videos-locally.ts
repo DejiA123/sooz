@@ -234,20 +234,34 @@ async function downloadVideo(videoId: string, hasFfmpeg: boolean): Promise<strin
     }
 
     try {
+        const poToken = process.env.YOUTUBE_PO_TOKEN;
+
+        // Balanced client list. Android/iOS are often more lenient.
+        let extractorArgs = "youtube:player-client=ios,android,web,tv,mweb;player-skip=ios,android,android_vr,mweb";
+
+        if (poToken) {
+            extractorArgs += `;po_token=ios.gvs+${poToken},android.gvs+${poToken},web.gvs+${poToken},mweb.gvs+${poToken},tv.gvs+${poToken}`;
+            console.log("🔑 Using provided YOUTUBE_PO_TOKEN");
+        }
+
+        const formatStr = hasFfmpeg
+            ? "bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/best[height<=720][ext=mp4]/best"
+            : "best[height<=720][ext=mp4]/best";
+
         await youtubedl(url, {
-            format: format,
+            format: formatStr,
             output: outputTemplate,
             noPlaylist: true,
             forceIpv4: true, // Crucial for cloud environments with broken IPv6
             proxy: `http://127.0.0.1:${PROXY_PORT}`, // Use our local DNS proxy
             cookies: hasCookies ? cookieFile : undefined,
             userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-            extractorArgs: "youtube:player-client=web;player-skip=ios,android,android_vr,mweb",
+            extractorArgs: extractorArgs,
             noCheckCertificates: true,
             preferFreeFormats: true,
         } as any, {
             executablePath: useSystemYtDlp ? systemYtDlp : undefined
-        });
+        } as any);
 
         // Find the downloaded file
         const files = fs.readdirSync(".").filter(f => f.startsWith(`temp_${videoId}.`));

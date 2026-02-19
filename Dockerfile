@@ -7,6 +7,7 @@ RUN apt-get update && apt-get install -y \
     python-is-python3 \
     ffmpeg \
     curl \
+    aria2 \
     && rm -rf /var/lib/apt/lists/*
 
 # Install yt-dlp
