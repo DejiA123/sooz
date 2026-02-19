@@ -5,7 +5,7 @@ import { NodeHttpHandler } from "@smithy/node-http-handler";
 import fs from "fs";
 import path from "path";
 import dotenv from "dotenv";
-import { execSync } from "child_process";
+import { execSync, spawn } from "child_process";
 import * as dns from "dns";
 import { promisify } from "util";
 
@@ -282,7 +282,6 @@ async function downloadVideo(videoId: string, hasFfmpeg: boolean): Promise<strin
         console.log(`🎬 Arguments: ${args.join(" ")}`);
 
         const localFile: string = await new Promise((resolve, reject) => {
-            const { spawn } = require("child_process");
             const proc = spawn(ytDlpPath, args);
             let errorOutput = "";
 
