@@ -237,43 +237,64 @@ async function downloadVideo(videoId: string, hasFfmpeg: boolean): Promise<strin
     }
 
     const systemYtDlp = "/usr/local/bin/yt-dlp";
-    const useSystemYtDlp = fs.existsSync(systemYtDlp);
-    if (useSystemYtDlp) {
-        console.log(`🚀 Using system yt-dlp at ${systemYtDlp}`);
+    const ytDlpPath = fs.existsSync(systemYtDlp) ? systemYtDlp : "yt-dlp";
+
+    const poToken = getEnv("YOUTUBE_PO_TOKEN");
+    const visitorData = getEnv("YOUTUBE_VISITOR_DATA");
+
+    if (!poToken) {
+        console.warn("⚠️ YOUTUBE_PO_TOKEN is MISSING. Cloud downloads will likely fail without it.");
     }
 
-    try {
-        const poToken = process.env.YOUTUBE_PO_TOKEN;
-        if (poToken) {
-            console.log(`🔑 YOUTUBE_PO_TOKEN detected (length: ${poToken.length})`);
-        } else {
-            console.warn("⚠️ YOUTUBE_PO_TOKEN is MISSING. This is often required for signed signature (n-challenge) bypass.");
+    // Stages: 
+    // 1. Recommended (Web/TV + Cookies + PO Token)
+    // 2. Mobile (iOS + Cookies)
+    // 3. Fallback (Android + No Cookies)
+    const stages = [
+        {
+            name: "Stage 1: Recommended (Web/TV + Cookies)",
+            clients: "web,tv",
+            useCookies: true,
+            format: hasFfmpeg ? "bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best" : "best[ext=mp4]/best"
+        },
+        {
+            name: "Stage 2: Mobile (iOS + Cookies)",
+            clients: "ios,mweb",
+            useCookies: true,
+            format: "best[height<=720][ext=mp4]/best"
+        },
+        {
+            name: "Stage 3: Fallback (Android/Embedded - No Cookies)",
+            clients: "android,web_embedded",
+            useCookies: false,
+            format: "best"
         }
+    ];
 
-        console.log(`🎬 Target URL: ${url}`);
+    for (let i = 0; i < stages.length; i++) {
+        const stage = stages[i];
+        console.log(`\n🔄 [Download Stage ${i + 1}] ${stage.name}`);
 
-        // Focus on web and tv as they are more likely to work with browser cookies.
-        let extractorArgs = "youtube:player-client=web,tv;js_runtime=node";
+        const clientList = stage.clients.split(",");
+        let extractorArgs = `youtube:player-client=${stage.clients};js_runtime=node`;
 
         if (poToken) {
-            extractorArgs += `;po_token=web.gvs+${poToken},tv.gvs+${poToken}`;
+            const poMappings = clientList.map(c => `${c.trim()}.gvs+${poToken}`).join(",");
+            extractorArgs += `;po_token=${poMappings}`;
         }
-
-        const formatStr = hasFfmpeg
-            ? "bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best"
-            : "best[ext=mp4]/best";
-
-        const ytDlpPath = fs.existsSync(systemYtDlp) ? systemYtDlp : "yt-dlp";
-        console.log(`🚀 Executing: ${ytDlpPath}`);
+        if (visitorData) {
+            extractorArgs += `;visitor_data=${visitorData}`;
+        }
 
         const args = [
             url,
-            "--format", formatStr,
+            "--format", stage.format,
             "--output", outputTemplate,
             "--no-playlist",
             "--force-ipv4",
             "--proxy", `http://127.0.0.1:${PROXY_PORT}`,
-            "--cookies", hasCookies ? cookieFile : "",
+            stage.useCookies && hasCookies ? "--cookies" : "",
+            stage.useCookies && hasCookies ? cookieFile : "",
             "--user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
             "--extractor-args", extractorArgs,
             "--no-check-certificates",
@@ -285,51 +306,40 @@ async function downloadVideo(videoId: string, hasFfmpeg: boolean): Promise<strin
             "--no-part"
         ].filter(arg => arg !== "");
 
-        if (hasCookies) {
-            const content = fs.readFileSync(cookieFile, "utf8");
-            if (!content.includes("Netscape") && content.includes("Value")) {
-                console.warn("⚠️ cookies.txt might be in JSON/wrong format. yt-dlp requires Netscape format.");
-            }
-        }
+        try {
+            const localFile = await new Promise<string>((resolve, reject) => {
+                const proc = spawn(ytDlpPath, args, { env: process.env });
+                let errorOutput = "";
 
-        console.log(`🎬 Arguments: ${args.join(" ")}`);
+                proc.stdout.on("data", (data: any) => {
+                    const line = data.toString().trim();
+                    if (line.includes("[download]")) process.stdout.write(`\r${line}`);
+                });
 
-        const localFile: string = await new Promise((resolve, reject) => {
-            const proc = spawn(ytDlpPath, args, { env: process.env });
-            let errorOutput = "";
+                proc.stderr.on("data", (data: any) => {
+                    errorOutput += data.toString();
+                });
 
-            proc.stdout.on("data", (data: any) => {
-                const line = data.toString().trim();
-                if (line.includes("[download]")) {
-                    process.stdout.write(`\r${line}`);
-                }
-            });
-
-            proc.stderr.on("data", (data: any) => {
-                errorOutput += data.toString();
-            });
-
-            proc.on("close", (code: number) => {
-                process.stdout.write("\n");
-                if (code === 0) {
-                    const files = fs.readdirSync(".").filter(f => f.startsWith(`temp_${videoId}.`));
-                    if (files.length === 0) {
-                        reject(new Error("File not found after download"));
+                proc.on("close", (code: number) => {
+                    process.stdout.write("\n");
+                    if (code === 0) {
+                        const files = fs.readdirSync(".").filter(f => f.startsWith(`temp_${videoId}.`));
+                        if (files.length === 0) reject(new Error("File not found"));
+                        else resolve(files[0]);
                     } else {
-                        resolve(files[0]);
+                        reject(new Error(errorOutput.split("\n")[0] || `Exit ${code}`));
                     }
-                } else {
-                    console.error(`❌ yt-dlp failed with code ${code}`);
-                    console.error(`📝 Error details: ${errorOutput}`);
-                    reject(new Error(`Download failed with code ${code}: ${errorOutput.split('\n')[0]}`));
-                }
+                });
             });
-        });
 
-        return localFile;
-    } catch (e: any) {
-        throw new Error(`Download failed: ${e.message}`);
+            return localFile;
+        } catch (e: any) {
+            console.warn(`⚠️ Stage ${i + 1} failed: ${e.message}`);
+            if (i === stages.length - 1) throw new Error("All download stages failed");
+            console.log("⏭️  Trying next stage...");
+        }
     }
+    throw new Error("Download failed");
 }
 
 async function uploadToR2(filePath: string, videoId: string, title: string): Promise<string> {
