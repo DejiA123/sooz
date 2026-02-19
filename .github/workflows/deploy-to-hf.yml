@@ -17,12 +17,20 @@ jobs:
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
-          git config --global user.email "bot@example.com"
-          git config --global user.name "HF Sync Bot"
-          rm -rf public
+          # Create a clean deployment directory to avoid history/large file issues
+          mkdir deploy_tmp
+          cp -r scripts deploy_tmp/
+          cp Dockerfile .dockerignore package.json package-lock.json deploy_tmp/
+          cd deploy_tmp
+          
+          # Initialize fresh git with no history
+          git init -b main
+          git config user.email "bot@example.com"
+          git config user.name "HF Sync Bot"
           git add .
-          git commit -m "chore: remove frontend files for sync-runner" || echo "No changes to commit"
-          # Retry logic for transient server errors (like 504)
+          git commit -m "deploy: sync-runner (clean build)"
+          
+          # Retry logic for transient server errors
           for i in {1..3}; do
             git push --force https://dejiaug:$HF_TOKEN@huggingface.co/spaces/dejiaug/video-sync-runner main && break || \
             (echo "Push failed, retrying in 30s..." && sleep 30)
