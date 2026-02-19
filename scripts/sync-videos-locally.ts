@@ -126,12 +126,13 @@ async function runDiagnostics() {
 
 async function downloadVideo(videoId: string, hasFfmpeg: boolean): Promise<string> {
     const outputTemplate = `temp_${videoId}.%(ext)s`;
-    const url = `https://www.youtube.com/watch?v=${videoId}`;
+    // Use youtu.be short link because diagnostics show youtube.com is blocked via DNS on HF
+    const url = `https://youtu.be/${videoId}`;
 
     // Format selection
     const format = hasFfmpeg
         ? "bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/best[height<=720][ext=mp4]/best[height<=720]"
-        : "best[height<=720][ext=mp4]/best[height<=720]";
+        : "best[height<=720][ext=mp4]/best";
 
     console.log(`📥 Downloading ${videoId}... (ffmpeg: ${hasFfmpeg})`);
 
