@@ -237,11 +237,11 @@ async function downloadVideo(videoId: string, hasFfmpeg: boolean): Promise<strin
         const poToken = process.env.YOUTUBE_PO_TOKEN;
         console.log(`🎬 Target URL: ${url}`);
 
-        // Use web and tv as primary clients. Avoid skipping them.
-        let extractorArgs = "youtube:player-client=web,tv,mweb;js_runtime=node";
+        // Use a wide range of clients to increase success chance.
+        let extractorArgs = "youtube:player-client=web,tv,mweb,web_embedded;js_runtime=node";
 
         if (poToken) {
-            extractorArgs += `;po_token=web.gvs+${poToken},mweb.gvs+${poToken},tv.gvs+${poToken}`;
+            extractorArgs += `;po_token=web.gvs+${poToken},mweb.gvs+${poToken},tv.gvs+${poToken},web_embedded.gvs+${poToken}`;
             console.log("🔑 Using provided YOUTUBE_PO_TOKEN");
         }
 
@@ -265,6 +265,8 @@ async function downloadVideo(videoId: string, hasFfmpeg: boolean): Promise<strin
             "--no-check-certificates",
             "--prefer-free-formats",
             "--youtube-skip-dash-manifest",
+            "--geo-bypass",
+            "--sleep-requests", "1",
             "--no-part"
         ].filter(arg => arg !== "");
 
