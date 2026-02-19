@@ -13,10 +13,12 @@ import http from "http";
 dotenv.config();
 
 // --- Configuration ---
-// Helper to get and trim env vars, including stripping quotes
+// Helper to get and trim env vars, including stripping quotes and trailing slashes
 const getEnv = (name: string) => {
-    const val = (process.env[name] || "").trim();
-    return val.replace(/^["'](.*)["']$/, '$1').trim(); // Strip quotes then trim again
+    let val = (process.env[name] || "").trim();
+    val = val.replace(/^["'](.*)["']$/, '$1').trim(); // Strip quotes
+    val = val.replace(/\/$/, ''); // Strip trailing slash
+    return val;
 };
 
 let SUPABASE_URL = getEnv("VITE_SUPABASE_URL");
@@ -33,9 +35,13 @@ if (SUPABASE_URL && !SUPABASE_URL.startsWith("http")) {
     SUPABASE_URL = `https://${SUPABASE_URL}`;
 }
 
-// Debug logging (Safe: only shows existence and length)
+// Debug logging (Safe: only shows existence, length, and hex of suspicious chars)
 console.log("🛠️ Environment Check:");
 console.log(`  Supabase URL: ${SUPABASE_URL ? "✅ Detected" : "❌ Missing"} (${SUPABASE_URL.length} chars)`);
+if (SUPABASE_URL) {
+    const hex = Buffer.from(SUPABASE_URL).toString('hex').match(/.{1,2}/g)?.join(' ') || "";
+    console.log(`  URL Hex: ${hex.substring(hex.length - 12)} (tail)`);
+}
 console.log(`  Supabase Key: ${SUPABASE_KEY ? "✅ Detected" : "❌ Missing"} (${SUPABASE_KEY.length} chars)`);
 console.log(`  R2 Endpoint:  ${R2_ENDPOINT ? "✅ Detected" : "❌ Missing"}`);
 
