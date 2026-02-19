@@ -12,20 +12,19 @@ RUN apt-get update && apt-get install -y \
 RUN curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp \
     && chmod a+rx /usr/local/bin/yt-dlp
 
-# Set up a non-root user (required by Hugging Face)
-RUN useradd -m -u 1000 user
-USER user
-ENV PATH="/home/user/.local/bin:$PATH"
+# Avoid creating a new user, use existing 'node' user (UID 1000)
+USER node
+ENV PATH="/home/node/.local/bin:$PATH"
 
 # Set working directory
 WORKDIR /app
 
 # Copy package files and install dependencies
-COPY --chown=user package*.json ./
+COPY --chown=node package*.json ./
 RUN npm install
 
 # Copy source code
-COPY --chown=user . .
+COPY --chown=node . .
 
 # Hugging Face Spaces port
 EXPOSE 7860
