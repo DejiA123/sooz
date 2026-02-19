@@ -116,6 +116,15 @@ async function runDiagnostics() {
         }
     }
 
+    // Check for node (required for n-challenge)
+    try {
+        const nodePath = execSync("which node || where node", { encoding: "utf8" }).trim();
+        const nodeVer = execSync("node -v", { encoding: "utf8" }).trim();
+        console.log(`  ✅ Node: ${nodePath} (${nodeVer})`);
+    } catch (e: any) {
+        console.error("  ❌ Node: Not found in PATH. n-challenge solving will fail.");
+    }
+
     // Try custom DNS resolver (bypass provider)
     console.log(`📡 Testing Custom DNS (${CUSTOM_DNS})...`);
     try {
@@ -237,17 +246,17 @@ async function downloadVideo(videoId: string, hasFfmpeg: boolean): Promise<strin
         const poToken = process.env.YOUTUBE_PO_TOKEN;
         console.log(`🎬 Target URL: ${url}`);
 
-        // Android client often has simpler/no n-challenges.
-        let extractorArgs = "youtube:player-client=android,web,tv,mweb;js_runtime=node";
+        // Use ios instead of android as it supports cookies.
+        let extractorArgs = "youtube:player-client=ios,web,tv,mweb;js_runtime=node";
 
         if (poToken) {
-            extractorArgs += `;po_token=web.gvs+${poToken},mweb.gvs+${poToken},tv.gvs+${poToken},android.gvs+${poToken}`;
+            extractorArgs += `;po_token=web.gvs+${poToken},mweb.gvs+${poToken},tv.gvs+${poToken},ios.gvs+${poToken}`;
             console.log("🔑 Using provided YOUTUBE_PO_TOKEN");
         }
 
         const formatStr = hasFfmpeg
-            ? "bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/best[height<=720][ext=mp4]/bestvideo[ext=mp4]+bestaudio[ext=m4a]/best"
-            : "best[height<=720][ext=mp4]/best";
+            ? "bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best"
+            : "best[ext=mp4]/best";
 
         const ytDlpPath = fs.existsSync(systemYtDlp) ? systemYtDlp : "yt-dlp";
         console.log(`🚀 Executing: ${ytDlpPath}`);
@@ -281,7 +290,7 @@ async function downloadVideo(videoId: string, hasFfmpeg: boolean): Promise<strin
         console.log(`🎬 Arguments: ${args.join(" ")}`);
 
         const localFile: string = await new Promise((resolve, reject) => {
-            const proc = spawn(ytDlpPath, args);
+            const proc = spawn(ytDlpPath, args, { env: process.env });
             let errorOutput = "";
 
             proc.stdout.on("data", (data: any) => {
