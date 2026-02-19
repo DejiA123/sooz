@@ -16,6 +16,7 @@ RUN curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o 
 # Avoid creating a new user, use existing 'node' user (UID 1000)
 USER node
 ENV PATH="/home/node/.local/bin:$PATH"
+ENV YT_DLP_JS_RUNTIME="node"
 
 # Set working directory
 WORKDIR /app

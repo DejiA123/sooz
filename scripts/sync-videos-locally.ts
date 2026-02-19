@@ -205,7 +205,13 @@ async function downloadVideo(videoId: string, hasFfmpeg: boolean): Promise<strin
         ? "bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/best[height<=720][ext=mp4]/best[height<=720]"
         : "best[height<=720][ext=mp4]/best";
 
-    console.log(`📥 Downloading ${videoId}... (ffmpeg: ${hasFfmpeg})`);
+    const cookieFile = "cookies.txt";
+    const hasCookies = fs.existsSync(cookieFile);
+    if (hasCookies) {
+        console.log(`🍪 Using cookies from ${cookieFile}`);
+    } else {
+        console.warn(`⚠️ No cookies.txt found. Download might fail if bot-detected.`);
+    }
 
     try {
         await youtubedl(url, {
@@ -214,7 +220,10 @@ async function downloadVideo(videoId: string, hasFfmpeg: boolean): Promise<strin
             noPlaylist: true,
             forceIpv4: true, // Crucial for cloud environments with broken IPv6
             proxy: `http://127.0.0.1:${PROXY_PORT}`, // Use our local DNS proxy
-        });
+            cookies: hasCookies ? cookieFile : undefined,
+            userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            extractorArgs: "youtube:player-client=android_vr,web_embedded",
+        } as any);
 
         // Find the downloaded file
         const files = fs.readdirSync(".").filter(f => f.startsWith(`temp_${videoId}.`));
