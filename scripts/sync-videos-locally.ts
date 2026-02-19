@@ -117,10 +117,12 @@ async function runDiagnostics() {
         const resolver = new dns.Resolver();
         resolver.setServers(['8.8.8.8']);
         const resolveAsync = promisify(resolver.resolve4.bind(resolver));
-        const ips = await resolveAsync('youtube.com');
-        console.log(`  ✅ Custom DNS: youtube.com -> ${ips[0]}`);
+        const ips = await resolveAsync('www.youtube.com');
+        console.log(`  ✅ Custom DNS: www.youtube.com -> ${ips[0]}`);
+        return ips[0]; // Return the first IP for potential use
     } catch (e: any) {
         console.error(`  ❌ Custom DNS: Failed to resolve youtube.com via 8.8.8.8: ${e.message}`);
+        return null;
     }
 }
 
