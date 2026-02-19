@@ -13,16 +13,25 @@ import http from "http";
 dotenv.config();
 
 // --- Configuration ---
-// Helper to get and trim env vars
-const getEnv = (name: string) => (process.env[name] || "").trim();
+// Helper to get and trim env vars, including stripping quotes
+const getEnv = (name: string) => {
+    const val = (process.env[name] || "").trim();
+    return val.replace(/^["'](.*)["']$/, '$1').trim(); // Strip quotes then trim again
+};
 
-const SUPABASE_URL = getEnv("VITE_SUPABASE_URL");
+let SUPABASE_URL = getEnv("VITE_SUPABASE_URL");
 const SUPABASE_KEY = getEnv("SUPABASE_SERVICE_ROLE_KEY") || getEnv("VITE_SUPABASE_SERVICE_ROLE_KEY");
 const R2_ENDPOINT = getEnv("VITE_R2_ENDPOINT");
 const R2_ACCESS_KEY_ID = getEnv("VITE_R2_ACCESS_KEY_ID");
 const R2_SECRET_ACCESS_KEY = getEnv("VITE_R2_SECRET_ACCESS_KEY");
 const R2_BUCKET_NAME = "media";
 const R2_PUBLIC_URL_BASE = "https://pub-e59dafe72724404d8ae7af425d1dfbdc.r2.dev";
+
+// Ensure URL has protocol
+if (SUPABASE_URL && !SUPABASE_URL.startsWith("http")) {
+    console.log(`⚠️ Adding missing https:// to Supabase URL`);
+    SUPABASE_URL = `https://${SUPABASE_URL}`;
+}
 
 // Debug logging (Safe: only shows existence and length)
 console.log("🛠️ Environment Check:");
