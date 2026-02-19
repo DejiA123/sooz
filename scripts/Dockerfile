@@ -12,20 +12,23 @@ RUN apt-get update && apt-get install -y \
 RUN curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp \
     && chmod a+rx /usr/local/bin/yt-dlp
 
+# Set up a non-root user (required by Hugging Face)
+RUN useradd -m -u 1000 user
+USER user
+ENV PATH="/home/user/.local/bin:$PATH"
+
 # Set working directory
 WORKDIR /app
 
-# Copy package files
-COPY package*.json ./
-
-# Install dependencies
+# Copy package files and install dependencies
+COPY --chown=user package*.json ./
 RUN npm install
 
 # Copy source code
-COPY . .
+COPY --chown=user . .
 
-# Environment variables will be supplied by the cloud platform (Railway)
-# No need to copy .env in the image for security
+# Hugging Face Spaces port
+EXPOSE 7860
 
 # Default command to run the sync script
 CMD ["npx", "tsx", "scripts/sync-videos-locally.ts"]

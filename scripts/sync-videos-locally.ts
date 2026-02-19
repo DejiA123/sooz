@@ -7,6 +7,7 @@ import path from "path";
 import dotenv from "dotenv";
 import { execSync } from "child_process";
 import youtubedl from "yt-dlp-exec";
+import http from "http";
 
 // Configure dotenv
 dotenv.config();
@@ -144,9 +145,18 @@ async function uploadToR2(filePath: string, videoId: string, title: string): Pro
 
 
 const SYNC_POLLING_INTERVAL_MS = process.env.SYNC_POLLING_INTERVAL_MS ? parseInt(process.env.SYNC_POLLING_INTERVAL_MS) : null;
+const PORT = process.env.PORT || 7860; // Default for Hugging Face
 
 async function main() {
     console.log(`🚀 Starting ${SYNC_POLLING_INTERVAL_MS ? "cloud" : "local"} video sync...`);
+
+    // Basic HTTP server to satisfy Cloud platform health checks (like Hugging Face)
+    http.createServer((req, res) => {
+        res.writeHead(200, { "Content-Type": "text/plain" });
+        res.end("Sync Runner is Active\n");
+    }).listen(PORT, () => {
+        console.log(`📡 Health check server listening on port ${PORT}`);
+    });
 
     const hasFfmpeg = await checkFfmpeg();
     if (!hasFfmpeg) console.warn("⚠️ ffmpeg not found. Quality might be limited.");
