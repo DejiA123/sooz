@@ -235,12 +235,13 @@ async function downloadVideo(videoId: string, hasFfmpeg: boolean): Promise<strin
 
     try {
         const poToken = process.env.YOUTUBE_PO_TOKEN;
+        console.log(`🎬 Target URL: ${url}`);
 
-        // Balanced client list. Android/iOS are often more lenient.
-        let extractorArgs = "youtube:player-client=ios,android,web,tv,mweb;player-skip=ios,android,android_vr,mweb";
+        // Use web and tv as primary clients. Avoid skipping them.
+        let extractorArgs = "youtube:player-client=web,tv,mweb;js_runtime=node";
 
         if (poToken) {
-            extractorArgs += `;po_token=ios.gvs+${poToken},android.gvs+${poToken},web.gvs+${poToken},mweb.gvs+${poToken},tv.gvs+${poToken}`;
+            extractorArgs += `;po_token=web.gvs+${poToken},mweb.gvs+${poToken},tv.gvs+${poToken}`;
             console.log("🔑 Using provided YOUTUBE_PO_TOKEN");
         }
 
@@ -248,26 +249,61 @@ async function downloadVideo(videoId: string, hasFfmpeg: boolean): Promise<strin
             ? "bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/best[height<=720][ext=mp4]/best"
             : "best[height<=720][ext=mp4]/best";
 
-        await youtubedl(url, {
-            format: formatStr,
-            output: outputTemplate,
-            noPlaylist: true,
-            forceIpv4: true, // Crucial for cloud environments with broken IPv6
-            proxy: `http://127.0.0.1:${PROXY_PORT}`, // Use our local DNS proxy
-            cookies: hasCookies ? cookieFile : undefined,
-            userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-            extractorArgs: extractorArgs,
-            noCheckCertificates: true,
-            preferFreeFormats: true,
-        } as any, {
-            executablePath: useSystemYtDlp ? systemYtDlp : undefined
-        } as any);
+        const ytDlpPath = fs.existsSync(systemYtDlp) ? systemYtDlp : "yt-dlp";
+        console.log(`🚀 Executing: ${ytDlpPath}`);
 
-        // Find the downloaded file
-        const files = fs.readdirSync(".").filter(f => f.startsWith(`temp_${videoId}.`));
-        if (files.length === 0) throw new Error("File not found after download");
+        const args = [
+            url,
+            "--format", formatStr,
+            "--output", outputTemplate,
+            "--no-playlist",
+            "--force-ipv4",
+            "--proxy", `http://127.0.0.1:${PROXY_PORT}`,
+            "--cookies", hasCookies ? cookieFile : "",
+            "--user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "--extractor-args", extractorArgs,
+            "--no-check-certificates",
+            "--prefer-free-formats",
+            "--youtube-skip-dash-manifest",
+            "--no-part"
+        ].filter(arg => arg !== "");
 
-        return files[0];
+        console.log(`🎬 Arguments: ${args.join(" ")}`);
+
+        const localFile: string = await new Promise((resolve, reject) => {
+            const { spawn } = require("child_process");
+            const proc = spawn(ytDlpPath, args);
+            let errorOutput = "";
+
+            proc.stdout.on("data", (data: any) => {
+                const line = data.toString().trim();
+                if (line.includes("[download]")) {
+                    process.stdout.write(`\r${line}`);
+                }
+            });
+
+            proc.stderr.on("data", (data: any) => {
+                errorOutput += data.toString();
+            });
+
+            proc.on("close", (code: number) => {
+                process.stdout.write("\n");
+                if (code === 0) {
+                    const files = fs.readdirSync(".").filter(f => f.startsWith(`temp_${videoId}.`));
+                    if (files.length === 0) {
+                        reject(new Error("File not found after download"));
+                    } else {
+                        resolve(files[0]);
+                    }
+                } else {
+                    console.error(`❌ yt-dlp failed with code ${code}`);
+                    console.error(`📝 Error details: ${errorOutput}`);
+                    reject(new Error(`Download failed with code ${code}: ${errorOutput.split('\n')[0]}`));
+                }
+            });
+        });
+
+        return localFile;
     } catch (e: any) {
         throw new Error(`Download failed: ${e.message}`);
     }
