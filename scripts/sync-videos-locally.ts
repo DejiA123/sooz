@@ -237,16 +237,16 @@ async function downloadVideo(videoId: string, hasFfmpeg: boolean): Promise<strin
         const poToken = process.env.YOUTUBE_PO_TOKEN;
         console.log(`🎬 Target URL: ${url}`);
 
-        // Use a wide range of clients to increase success chance.
-        let extractorArgs = "youtube:player-client=web,tv,mweb,web_embedded;js_runtime=node";
+        // Android client often has simpler/no n-challenges.
+        let extractorArgs = "youtube:player-client=android,web,tv,mweb;js_runtime=node";
 
         if (poToken) {
-            extractorArgs += `;po_token=web.gvs+${poToken},mweb.gvs+${poToken},tv.gvs+${poToken},web_embedded.gvs+${poToken}`;
+            extractorArgs += `;po_token=web.gvs+${poToken},mweb.gvs+${poToken},tv.gvs+${poToken},android.gvs+${poToken}`;
             console.log("🔑 Using provided YOUTUBE_PO_TOKEN");
         }
 
         const formatStr = hasFfmpeg
-            ? "bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/best[height<=720][ext=mp4]/best"
+            ? "bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/best[height<=720][ext=mp4]/bestvideo[ext=mp4]+bestaudio[ext=m4a]/best"
             : "best[height<=720][ext=mp4]/best";
 
         const ytDlpPath = fs.existsSync(systemYtDlp) ? systemYtDlp : "yt-dlp";
