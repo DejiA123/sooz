@@ -313,6 +313,9 @@ const PORT = process.env.PORT || 7860; // Default for Hugging Face
 async function main() {
     console.log(`🚀 Starting ${SYNC_POLLING_INTERVAL_MS ? "Cloud" : "local"} video sync...`);
 
+    // Ensure yt-dlp uses node for JS challenges
+    process.env.YT_DLP_JS_RUNTIME = "node";
+
     // Basic HTTP server to satisfy Cloud platform health checks (like Hugging Face)
     http.createServer((req, res) => {
         res.writeHead(200, { "Content-Type": "text/plain" });
