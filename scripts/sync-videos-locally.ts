@@ -12,6 +12,10 @@ import { promisify } from "util";
 const resolve4 = promisify(dns.resolve4);
 import youtubedl from "yt-dlp-exec";
 import http from "http";
+import net from "net";
+
+const PROXY_PORT = 3001;
+const CUSTOM_DNS = '8.8.8.8';
 
 // Configure dotenv
 dotenv.config();
@@ -113,18 +117,82 @@ async function runDiagnostics() {
     }
 
     // Try custom DNS resolver (bypass provider)
-    console.log("📡 Testing Custom DNS (8.8.8.8)...");
+    console.log(`📡 Testing Custom DNS (${CUSTOM_DNS})...`);
     try {
         const resolver = new dns.Resolver();
-        resolver.setServers(['8.8.8.8']);
+        resolver.setServers([CUSTOM_DNS]);
         const resolveAsync = promisify(resolver.resolve4.bind(resolver));
         const ips = await resolveAsync('www.youtube.com');
         console.log(`  ✅ Custom DNS: www.youtube.com -> ${ips[0]}`);
-        return ips[0]; // Return the first IP for potential use
+        return ips[0];
     } catch (e: any) {
-        console.error(`  ❌ Custom DNS: Failed to resolve youtube.com via 8.8.8.8: ${e.message}`);
+        console.error(`  ❌ Custom DNS: Failed to resolve youtube.com via ${CUSTOM_DNS}: ${e.message}`);
         return null;
     }
+}
+
+/**
+ * Creates a local HTTP proxy that uses a custom DNS resolver.
+ * This bypasses broken system DNS in environments like Hugging Face.
+ */
+function startLocalDnsProxy() {
+    const resolver = new dns.Resolver();
+    resolver.setServers([CUSTOM_DNS]);
+    const resolve4Async = promisify(resolver.resolve4.bind(resolver));
+
+    const server = http.createServer((req, res) => {
+        res.writeHead(405);
+        res.end("Method not allowed. Use CONNECT for SSL tunneling.");
+    });
+
+    server.on('connect', async (req, clientSocket, head) => {
+        const url = req.url || "";
+        const [host, port] = url.split(':');
+        const targetPort = parseInt(port || '443');
+
+        try {
+            // Resolve host via custom DNS
+            let targetIp = host;
+            if (!net.isIP(host)) {
+                try {
+                    const ips = await resolve4Async(host);
+                    targetIp = ips[0];
+                    // console.log(`[Proxy] Resolved ${host} -> ${targetIp}`);
+                } catch (err: any) {
+                    console.error(`[Proxy] DNS Error for ${host}: ${err.message}`);
+                    clientSocket.end();
+                    return;
+                }
+            }
+
+            const serverSocket = net.connect(targetPort, targetIp, () => {
+                clientSocket.write('HTTP/1.1 200 Connection Established\r\n\r\n');
+                serverSocket.write(head);
+                serverSocket.pipe(clientSocket);
+                clientSocket.pipe(serverSocket);
+            });
+
+            serverSocket.on('error', (err) => {
+                console.error(`[Proxy] Target Connection Error: ${err.message}`);
+                clientSocket.end();
+            });
+
+            clientSocket.on('error', (err) => {
+                // console.error(`[Proxy] Client Connection Error: ${err.message}`);
+                serverSocket.end();
+            });
+
+        } catch (e: any) {
+            console.error(`[Proxy] CONNECT error: ${e.message}`);
+            clientSocket.end();
+        }
+    });
+
+    server.listen(PROXY_PORT, '127.0.0.1', () => {
+        console.log(`📡 Local DNS Proxy started on http://127.0.0.1:${PROXY_PORT} (DNS: ${CUSTOM_DNS})`);
+    });
+
+    return server;
 }
 
 async function downloadVideo(videoId: string, hasFfmpeg: boolean): Promise<string> {
@@ -145,6 +213,7 @@ async function downloadVideo(videoId: string, hasFfmpeg: boolean): Promise<strin
             output: outputTemplate,
             noPlaylist: true,
             forceIpv4: true, // Crucial for cloud environments with broken IPv6
+            proxy: `http://127.0.0.1:${PROXY_PORT}`, // Use our local DNS proxy
         });
 
         // Find the downloaded file
@@ -231,6 +300,7 @@ async function main() {
     if (!hasFfmpeg) console.warn("⚠️ ffmpeg not found. Quality might be limited.");
 
     await runDiagnostics();
+    startLocalDnsProxy();
 
     while (true) {
         // Fetch pending videos
