@@ -244,14 +244,19 @@ async function downloadVideo(videoId: string, hasFfmpeg: boolean): Promise<strin
 
     try {
         const poToken = process.env.YOUTUBE_PO_TOKEN;
+        if (poToken) {
+            console.log(`🔑 YOUTUBE_PO_TOKEN detected (length: ${poToken.length})`);
+        } else {
+            console.warn("⚠️ YOUTUBE_PO_TOKEN is MISSING. This is often required for signed signature (n-challenge) bypass.");
+        }
+
         console.log(`🎬 Target URL: ${url}`);
 
-        // Use ios instead of android as it supports cookies.
-        let extractorArgs = "youtube:player-client=ios,web,tv,mweb;js_runtime=node";
+        // Focus on web and tv as they are more likely to work with browser cookies.
+        let extractorArgs = "youtube:player-client=web,tv;js_runtime=node";
 
         if (poToken) {
-            extractorArgs += `;po_token=web.gvs+${poToken},mweb.gvs+${poToken},tv.gvs+${poToken},ios.gvs+${poToken}`;
-            console.log("🔑 Using provided YOUTUBE_PO_TOKEN");
+            extractorArgs += `;po_token=web.gvs+${poToken},tv.gvs+${poToken}`;
         }
 
         const formatStr = hasFfmpeg
