@@ -13,13 +13,22 @@ import http from "http";
 dotenv.config();
 
 // --- Configuration ---
-const SUPABASE_URL = process.env.VITE_SUPABASE_URL;
-const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_SERVICE_ROLE_KEY; // Prefer service role key for writes
-const R2_ENDPOINT = process.env.VITE_R2_ENDPOINT;
-const R2_ACCESS_KEY_ID = process.env.VITE_R2_ACCESS_KEY_ID;
-const R2_SECRET_ACCESS_KEY = process.env.VITE_R2_SECRET_ACCESS_KEY;
-const R2_BUCKET_NAME = "media"; // Hardcoded corresponding to bucket setup
+// Helper to get and trim env vars
+const getEnv = (name: string) => (process.env[name] || "").trim();
+
+const SUPABASE_URL = getEnv("VITE_SUPABASE_URL");
+const SUPABASE_KEY = getEnv("SUPABASE_SERVICE_ROLE_KEY") || getEnv("VITE_SUPABASE_SERVICE_ROLE_KEY");
+const R2_ENDPOINT = getEnv("VITE_R2_ENDPOINT");
+const R2_ACCESS_KEY_ID = getEnv("VITE_R2_ACCESS_KEY_ID");
+const R2_SECRET_ACCESS_KEY = getEnv("VITE_R2_SECRET_ACCESS_KEY");
+const R2_BUCKET_NAME = "media";
 const R2_PUBLIC_URL_BASE = "https://pub-e59dafe72724404d8ae7af425d1dfbdc.r2.dev";
+
+// Debug logging (Safe: only shows existence and length)
+console.log("🛠️ Environment Check:");
+console.log(`  Supabase URL: ${SUPABASE_URL ? "✅ Detected" : "❌ Missing"} (${SUPABASE_URL.length} chars)`);
+console.log(`  Supabase Key: ${SUPABASE_KEY ? "✅ Detected" : "❌ Missing"} (${SUPABASE_KEY.length} chars)`);
+console.log(`  R2 Endpoint:  ${R2_ENDPOINT ? "✅ Detected" : "❌ Missing"}`);
 
 // Upload tuning — generous timeouts for large video files
 const PART_SIZE = 10 * 1024 * 1024;           // 10 MB per part (smaller for better stability)
