@@ -279,7 +279,9 @@ async function downloadVideo(videoId: string, hasFfmpeg: boolean): Promise<strin
         let extractorArgs = `youtube:player-client=${stage.clients};js_runtime=node`;
 
         if (poToken) {
-            const poMappings = clientList.map(c => `${c.trim()}.gvs+${poToken}`).join(",");
+            // Map PO_TOKEN to multiple possible clients for maximum compatibility
+            const commonClients = ["web", "ios", "android", "mweb", "tv"];
+            const poMappings = commonClients.map(c => `${c}.gvs+${poToken}`).join(",");
             extractorArgs += `;po_token=${poMappings}`;
         }
         if (visitorData) {
@@ -303,7 +305,8 @@ async function downloadVideo(videoId: string, hasFfmpeg: boolean): Promise<strin
             "--sleep-requests", "1",
             "--downloader", "aria2c",
             "--downloader-args", "aria2c:-x 16 -s 16 -k 1M",
-            "--no-part"
+            "--no-part",
+            "--verbose" // Added for better debugging in logs
         ].filter(arg => arg !== "");
 
         try {

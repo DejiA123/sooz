@@ -4,15 +4,15 @@ FROM node:20-slim
 # Install system dependencies: python3, ffmpeg, curl, and python-is-python3 for yt-dlp compatibility
 RUN apt-get update && apt-get install -y \
     python3 \
+    python3-pip \
     python-is-python3 \
     ffmpeg \
     curl \
     aria2 \
     && rm -rf /var/lib/apt/lists/*
 
-# Install yt-dlp
-RUN curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp \
-    && chmod a+rx /usr/local/bin/yt-dlp
+# Install yt-dlp via pip for latest version and better dependency management
+RUN pip3 install -U yt-dlp
 
 # Avoid creating a new user, use existing 'node' user (UID 1000)
 USER node
