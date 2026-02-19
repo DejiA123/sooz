@@ -227,6 +227,12 @@ async function downloadVideo(videoId: string, hasFfmpeg: boolean): Promise<strin
         }
     }
 
+    const systemYtDlp = "/usr/local/bin/yt-dlp";
+    const useSystemYtDlp = fs.existsSync(systemYtDlp);
+    if (useSystemYtDlp) {
+        console.log(`🚀 Using system yt-dlp at ${systemYtDlp}`);
+    }
+
     try {
         await youtubedl(url, {
             format: format,
@@ -236,10 +242,12 @@ async function downloadVideo(videoId: string, hasFfmpeg: boolean): Promise<strin
             proxy: `http://127.0.0.1:${PROXY_PORT}`, // Use our local DNS proxy
             cookies: hasCookies ? cookieFile : undefined,
             userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-            extractorArgs: "youtube:player-client=web,mweb,android;player-skip=ios,android_vr",
+            extractorArgs: "youtube:player-client=web;player-skip=ios,android,android_vr,mweb",
             noCheckCertificates: true,
             preferFreeFormats: true,
-        } as any);
+        } as any, {
+            executablePath: useSystemYtDlp ? systemYtDlp : undefined
+        });
 
         // Find the downloaded file
         const files = fs.readdirSync(".").filter(f => f.startsWith(`temp_${videoId}.`));
