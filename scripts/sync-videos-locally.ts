@@ -264,7 +264,6 @@ async function downloadVideo(videoId: string, hasFfmpeg: boolean): Promise<strin
             "--extractor-args", extractorArgs,
             "--no-check-certificates",
             "--prefer-free-formats",
-            "--youtube-skip-dash-manifest",
             "--geo-bypass",
             "--sleep-requests", "1",
             "--downloader", "aria2c",
