@@ -6,6 +6,10 @@ import fs from "fs";
 import path from "path";
 import dotenv from "dotenv";
 import { execSync } from "child_process";
+import * as dns from "dns";
+import { promisify } from "util";
+
+const resolve4 = promisify(dns.resolve4);
 import youtubedl from "yt-dlp-exec";
 import http from "http";
 
@@ -87,23 +91,36 @@ async function checkFfmpeg() {
 
 async function runDiagnostics() {
     console.log("🔍 Running Network Diagnostics...");
-    const hosts = ["google.com", "youtube.com", "www.youtube.com", "xhqpojnmcibkaydidnex.supabase.co"];
+    const hosts = [
+        "google.com",
+        "youtube.com",
+        "www.youtube.com",
+        "m.youtube.com",
+        "youtu.be",
+        "huggingface.co",
+        "xhqpojnmcibkaydidnex.supabase.co"
+    ];
+
     for (const host of hosts) {
         try {
             const start = Date.now();
-            // Try both getent and ping to see if anything works
             execSync(`getent hosts ${host}`, { stdio: "pipe" });
             console.log(`  ✅ DNS: ${host} resolved in ${Date.now() - start}ms`);
         } catch (e: any) {
-            console.error(`  ❌ DNS: ${host} failed to resolve: ${e.message}`);
-            // Fallback test with ping
-            try {
-                execSync(`ping -c 1 -W 2 ${host}`, { stdio: "pipe" });
-                console.log(`  ✅ PING: ${host} worked (DNS might be tricky)`);
-            } catch (p: any) {
-                console.error(`  ❌ PING: ${host} also failed`);
-            }
+            console.error(`  ❌ DNS: ${host} failed to resolve`);
         }
+    }
+
+    // Try custom DNS resolver (bypass provider)
+    console.log("📡 Testing Custom DNS (8.8.8.8)...");
+    try {
+        const resolver = new dns.Resolver();
+        resolver.setServers(['8.8.8.8']);
+        const resolveAsync = promisify(resolver.resolve4.bind(resolver));
+        const ips = await resolveAsync('youtube.com');
+        console.log(`  ✅ Custom DNS: youtube.com -> ${ips[0]}`);
+    } catch (e: any) {
+        console.error(`  ❌ Custom DNS: Failed to resolve youtube.com via 8.8.8.8: ${e.message}`);
     }
 }
 
