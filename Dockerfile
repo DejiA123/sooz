@@ -1,9 +1,10 @@
-# Use Node.js as the base image
-FROM node:18-slim
+# Use Node.js 20 (required by Supabase packages)
+FROM node:20-slim
 
-# Install system dependencies: python3, ffmpeg, and curl
+# Install system dependencies: python3, ffmpeg, curl, and python-is-python3 for yt-dlp compatibility
 RUN apt-get update && apt-get install -y \
     python3 \
+    python-is-python3 \
     ffmpeg \
     curl \
     && rm -rf /var/lib/apt/lists/*
