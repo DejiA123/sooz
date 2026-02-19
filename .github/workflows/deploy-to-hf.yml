@@ -16,4 +16,10 @@ jobs:
       - name: Push to hub
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
-        run: git push --force https://dejiaug:$HF_TOKEN@huggingface.co/spaces/dejiaug/video-sync-runner main
+        run: |
+          git config --global user.email "bot@example.com"
+          git config --global user.name "HF Sync Bot"
+          rm -rf public
+          git add .
+          git commit -m "chore: remove frontend files for sync-runner" || echo "No changes to commit"
+          git push --force https://dejiaug:$HF_TOKEN@huggingface.co/spaces/dejiaug/video-sync-runner main
