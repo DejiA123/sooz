@@ -1,5 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
-import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+import { S3Client } from "@aws-sdk/client-s3";
+import { Upload } from "@aws-sdk/lib-storage";
+import { NodeHttpHandler } from "@smithy/node-http-handler";
 import fs from "fs";
 import path from "path";
 import dotenv from "dotenv";
@@ -18,6 +20,13 @@ const R2_SECRET_ACCESS_KEY = process.env.VITE_R2_SECRET_ACCESS_KEY;
 const R2_BUCKET_NAME = "media"; // Hardcoded corresponding to bucket setup
 const R2_PUBLIC_URL_BASE = "https://pub-e59dafe72724404d8ae7af425d1dfbdc.r2.dev";
 
+// Upload tuning — generous timeouts for large video files
+const PART_SIZE = 10 * 1024 * 1024;           // 10 MB per part (smaller for better stability)
+const QUEUE_SIZE = 1;                          // 1 concurrent part upload (minimize connection pressure)
+const REQUEST_TIMEOUT_MS = 15 * 60 * 1000;     // 15 minutes per HTTP request
+const CONNECTION_TIMEOUT_MS = 60 * 1000;       // 60 seconds to establish connection
+const SOCKET_TIMEOUT_MS = 15 * 60 * 1000;      // 15 minutes socket idle timeout
+
 if (!SUPABASE_URL || !SUPABASE_KEY || !R2_ENDPOINT || !R2_ACCESS_KEY_ID || !R2_SECRET_ACCESS_KEY) {
     console.error("❌ Missing environment variables. Please check .env file.");
     process.exit(1);
@@ -32,6 +41,13 @@ const s3Client = new S3Client({
         accessKeyId: R2_ACCESS_KEY_ID,
         secretAccessKey: R2_SECRET_ACCESS_KEY,
     },
+    requestHandler: new NodeHttpHandler({
+        requestTimeout: REQUEST_TIMEOUT_MS,
+        connectionTimeout: CONNECTION_TIMEOUT_MS,
+        socketTimeout: SOCKET_TIMEOUT_MS,
+    }),
+    maxAttempts: 5,
+    forcePathStyle: true, // Required for Cloudflare R2 DNS stability
 });
 
 async function checkFfmpeg() {
@@ -59,7 +75,6 @@ async function downloadVideo(videoId: string, hasFfmpeg: boolean): Promise<strin
             format: format,
             output: outputTemplate,
             noPlaylist: true,
-            // Add other flags if needed
         });
 
         // Find the downloaded file
@@ -73,82 +88,120 @@ async function downloadVideo(videoId: string, hasFfmpeg: boolean): Promise<strin
 }
 
 async function uploadToR2(filePath: string, videoId: string, title: string): Promise<string> {
-    const fileContent = fs.readFileSync(filePath);
-    const ext = path.extname(filePath).replace(".", "");
-    const key = `videos/${videoId}.mp4`; // Always store as mp4 structure if possible
+    const fileSize = fs.statSync(filePath).size;
+    const key = `videos/${videoId}.mp4`;
 
     // Sanitize title for filename
     const safeTitle = title.replace(/[^a-z0-9]/gi, "_").substring(0, 50);
     const filename = `${safeTitle}.mp4`;
+    const sizeMB = (fileSize / (1024 * 1024)).toFixed(1);
 
-    console.log(`☁️ Uploading ${filePath} to R2 as ${key}...`);
+    console.log(`☁️ Uploading ${filePath} (${sizeMB} MB) to R2 as ${key}...`);
 
-    await s3Client.send(new PutObjectCommand({
-        Bucket: R2_BUCKET_NAME,
-        Key: key,
-        Body: fileContent,
-        ContentType: "video/mp4",
-        ContentDisposition: `attachment; filename="${filename}"`,
-    }));
+    let attempt = 0;
+    const maxAttempts = 3;
 
-    return `${R2_PUBLIC_URL_BASE}/${key}`;
-}
-
-async function main() {
-    console.log("🚀 Starting local video sync...");
-
-    const hasFfmpeg = await checkFfmpeg();
-    if (!hasFfmpeg) console.warn("⚠️ ffmpeg not found. Quality might be limited to 720p/360p single files.");
-
-    // Fetch pending videos
-    // Only fetching 1 at a time to keep it simple and stable
-    const { data: videos, error } = await supabase
-        .from("video_archive")
-        .select("id, youtube_id, title")
-        .is("r2_video_url", null)
-        .order("published_at", { ascending: false })
-        .limit(10);
-
-    if (error) {
-        console.error("❌ Database error:", error.message);
-        process.exit(1);
-    }
-
-    if (videos.length === 0) {
-        console.log("✅ No pending videos found.");
-        process.exit(0);
-    }
-
-    console.log(`📋 Found ${videos.length} pending videos.`);
-
-    for (const video of videos) {
-        console.log(`\n🎬 Processing: ${video.title} (${video.youtube_id})`);
-        let localFile = "";
+    while (attempt < maxAttempts) {
+        attempt++;
+        const fileStream = fs.createReadStream(filePath);
 
         try {
-            localFile = await downloadVideo(video.youtube_id, hasFfmpeg);
-            console.log(`✅ Downloaded to ${localFile}`);
+            const upload = new Upload({
+                client: s3Client,
+                params: {
+                    Bucket: R2_BUCKET_NAME,
+                    Key: key,
+                    Body: fileStream,
+                    ContentType: "video/mp4",
+                    ContentDisposition: `attachment; filename="${filename}"`,
+                },
+                partSize: PART_SIZE,
+                queueSize: QUEUE_SIZE,
+                leavePartsOnError: false,
+            });
 
-            const r2Url = await uploadToR2(localFile, video.youtube_id, video.title);
-            console.log(`✅ Uploaded to ${r2Url}`);
+            upload.on("httpUploadProgress", (progress) => {
+                if (progress.loaded && progress.total) {
+                    const pct = ((progress.loaded / progress.total) * 100).toFixed(1);
+                    const loadedMB = (progress.loaded / (1024 * 1024)).toFixed(1);
+                    const totalMB = (progress.total / (1024 * 1024)).toFixed(1);
+                    console.log(`   ⬆️  ${loadedMB} / ${totalMB} MB (${pct}%) — part ${progress.part || "?"}`);
+                }
+            });
 
-            // Update DB
-            const { error: updateError } = await supabase
-                .from("video_archive")
-                .update({ r2_video_url: r2Url })
-                .eq("id", video.id);
-
-            if (updateError) throw updateError;
-            console.log(`✅ Database updated!`);
-
+            await upload.done();
+            return `${R2_PUBLIC_URL_BASE}/${key}`;
         } catch (e: any) {
-            console.error(`❌ Failed to process ${video.title}:`, e.message);
-        } finally {
-            if (localFile && fs.existsSync(localFile)) {
-                fs.unlinkSync(localFile);
-                console.log(`🧹 Cleaned up ${localFile}`);
-            }
+            console.error(`   ⚠️ Attempt ${attempt} failed: ${e.message}`);
+            if (attempt >= maxAttempts) throw e;
+            console.log(`   🔄 Retrying in 5 seconds...`);
+            await new Promise(resolve => setTimeout(resolve, 5000));
         }
+    }
+
+    throw new Error("Upload failed after maximum retries");
+}
+
+
+const SYNC_POLLING_INTERVAL_MS = process.env.SYNC_POLLING_INTERVAL_MS ? parseInt(process.env.SYNC_POLLING_INTERVAL_MS) : null;
+
+async function main() {
+    console.log(`🚀 Starting ${SYNC_POLLING_INTERVAL_MS ? "cloud" : "local"} video sync...`);
+
+    const hasFfmpeg = await checkFfmpeg();
+    if (!hasFfmpeg) console.warn("⚠️ ffmpeg not found. Quality might be limited.");
+
+    while (true) {
+        // Fetch pending videos
+        const { data: videos, error } = await supabase
+            .from("video_archive")
+            .select("id, youtube_id, title")
+            .is("r2_video_url", null)
+            .order("published_at", { ascending: false })
+            .limit(10);
+
+        if (error) {
+            console.error("❌ Database error:", error.message);
+            if (!SYNC_POLLING_INTERVAL_MS) process.exit(1);
+        } else if (videos && videos.length > 0) {
+            console.log(`📋 Found ${videos.length} pending videos.`);
+
+            for (const video of videos) {
+                console.log(`\n🎬 Processing: ${video.title} (${video.youtube_id})`);
+                let localFile = "";
+
+                try {
+                    localFile = await downloadVideo(video.youtube_id, hasFfmpeg);
+                    console.log(`✅ Downloaded to ${localFile}`);
+
+                    const r2Url = await uploadToR2(localFile, video.youtube_id, video.title);
+                    console.log(`✅ Uploaded to ${r2Url}`);
+
+                    const { error: updateError } = await supabase
+                        .from("video_archive")
+                        .update({ r2_video_url: r2Url, updated_at: new Date().toISOString() })
+                        .eq("id", video.id);
+
+                    if (updateError) throw updateError;
+                    console.log(`✅ Database updated!`);
+
+                } catch (e: any) {
+                    console.error(`❌ Failed to process ${video.title}:`, e.message);
+                } finally {
+                    if (localFile && fs.existsSync(localFile)) {
+                        fs.unlinkSync(localFile);
+                        console.log(`🧹 Cleaned up ${localFile}`);
+                    }
+                }
+            }
+        } else {
+            console.log("✅ No pending videos found.");
+        }
+
+        if (!SYNC_POLLING_INTERVAL_MS) break;
+
+        console.log(`\n💤 Sleeping for ${SYNC_POLLING_INTERVAL_MS / 1000 / 60} minutes...`);
+        await new Promise(resolve => setTimeout(resolve, SYNC_POLLING_INTERVAL_MS));
     }
 }
 

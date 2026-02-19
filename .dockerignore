@@ -1,0 +1,10 @@
+node_modules
+npm-debug.log
+.env
+.git
+.github
+temp_*
+dist
+*.mp4
+*.m4a
+*.part
