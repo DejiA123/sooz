@@ -148,7 +148,7 @@ const SYNC_POLLING_INTERVAL_MS = process.env.SYNC_POLLING_INTERVAL_MS ? parseInt
 const PORT = process.env.PORT || 7860; // Default for Hugging Face
 
 async function main() {
-    console.log(`🚀 Starting ${SYNC_POLLING_INTERVAL_MS ? "cloud" : "local"} video sync...`);
+    console.log(`🚀 Starting ${SYNC_POLLING_INTERVAL_MS ? "Cloud" : "local"} video sync...`);
 
     // Basic HTTP server to satisfy Cloud platform health checks (like Hugging Face)
     http.createServer((req, res) => {
