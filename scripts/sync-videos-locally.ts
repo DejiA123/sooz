@@ -341,8 +341,9 @@ async function downloadVideo(videoId: string, hasFfmpeg: boolean): Promise<strin
             "--no-check-certificates",
             "--geo-bypass",
             "--sleep-requests", "1",
-            "--downloader", "aria2c",
-            "--downloader-args", "aria2c:-x 16 -s 16 -k 1M",
+            // Using yt-dlp's built-in downloader (no aria2c) because aria2c's 16 parallel
+            // connections through the HTTP CONNECT proxy cause ECONNRESET on googlevideo.com
+            "--concurrent-fragments", "1",
             "--no-part",
             ...stage.extraArgs,
             "--verbose"
