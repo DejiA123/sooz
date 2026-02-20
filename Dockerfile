@@ -1,7 +1,8 @@
 # Use Node.js 20 (required by Supabase packages)
 FROM node:20-slim
 
-# Install system dependencies: python3, ffmpeg, curl, and python-is-python3 for yt-dlp compatibility
+# Install system dependencies
+# Adding git and build-essential for any native npm dependencies
 RUN apt-get update && apt-get install -y \
     python3 \
     python3-pip \
@@ -9,25 +10,33 @@ RUN apt-get update && apt-get install -y \
     ffmpeg \
     curl \
     aria2 \
+    git \
+    build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-# Install yt-dlp via pip for latest version and better dependency management
+# Install yt-dlp via pip for latest version
 RUN pip3 install -U yt-dlp
-
-# Avoid creating a new user, use existing 'node' user (UID 1000)
-USER node
-ENV PATH="/home/node/.local/bin:$PATH"
-ENV YT_DLP_JS_RUNTIME="node"
 
 # Set working directory
 WORKDIR /app
 
-# Copy package files and install dependencies
-COPY --chown=node package*.json ./
-RUN npm install
+# Copy package files first for better caching
+COPY package*.json ./
 
-# Copy source code
-COPY --chown=node . .
+# Install dependencies as root to avoid permission issues during build
+# Using --include=dev to ensure tsx/typescript are available for the CMD
+RUN npm install --include=dev
+
+# Copy the rest of the application
+COPY . .
+
+# Set permissions for the node user
+RUN chown -R node:node /app
+
+# Switch to non-root user for security and HF compatibility
+USER node
+ENV PATH="/home/node/.local/bin:$PATH"
+ENV YT_DLP_JS_RUNTIME="node"
 
 # Hugging Face Spaces port
 EXPOSE 7860
