@@ -95,6 +95,21 @@ async function checkFfmpeg() {
 
 async function runDiagnostics() {
     console.log("🔍 Running Network Diagnostics...");
+    console.log(`  Path: ${process.env.PATH}`);
+
+    // Check for node (required for n-challenge)
+    try {
+        const nodePath = execSync("which node || where node", { encoding: "utf8" }).trim();
+        const nodeVer = execSync("node -v", { encoding: "utf8" }).trim();
+        console.log(`  ✅ Node: ${nodePath} (${nodeVer})`);
+
+        // Detailed check: can we actually spawn node?
+        const canSpawn = execSync("node -e \"console.log('spawn_ok')\"", { encoding: "utf8" }).trim();
+        console.log(`  ✅ Node Spawn: ${canSpawn}`);
+    } catch (e: any) {
+        console.error("  ❌ Node: Not found in PATH. n-challenge solving will fail.");
+    }
+
     const hosts = [
         "google.com",
         "youtube.com",
@@ -105,25 +120,7 @@ async function runDiagnostics() {
         "huggingface.co",
         "xhqpojnmcibkaydidnex.supabase.co"
     ];
-
-    for (const host of hosts) {
-        try {
-            const start = Date.now();
-            execSync(`getent hosts ${host}`, { stdio: "pipe" });
-            console.log(`  ✅ DNS: ${host} resolved in ${Date.now() - start}ms`);
-        } catch (e: any) {
-            console.error(`  ❌ DNS: ${host} failed to resolve`);
-        }
-    }
-
-    // Check for node (required for n-challenge)
-    try {
-        const nodePath = execSync("which node || where node", { encoding: "utf8" }).trim();
-        const nodeVer = execSync("node -v", { encoding: "utf8" }).trim();
-        console.log(`  ✅ Node: ${nodePath} (${nodeVer})`);
-    } catch (e: any) {
-        console.error("  ❌ Node: Not found in PATH. n-challenge solving will fail.");
-    }
+    // ...
 
     // Try custom DNS resolver (bypass provider)
     console.log(`📡 Testing Custom DNS (${CUSTOM_DNS})...`);
