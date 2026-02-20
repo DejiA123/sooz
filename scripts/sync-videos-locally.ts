@@ -332,6 +332,8 @@ async function downloadVideo(videoId: string, hasFfmpeg: boolean): Promise<strin
             "--output", outputTemplate,
             "--no-playlist",
             "--force-ipv4",
+            "--js-runtimes", "node:/usr/local/bin/node",   // Node must be explicitly enabled for EJS
+            "--remote-components", "ejs:github",            // Download EJS solver scripts if not bundled
             "--proxy", `http://127.0.0.1:${PROXY_PORT}`,
             ...(stage.useCookies && hasCookies ? ["--cookies", cookieFile] : []),
             "--user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",

@@ -18,10 +18,16 @@ RUN ln -sf /usr/local/bin/node /usr/bin/node && \
     ln -sf /usr/local/bin/node /usr/bin/nodejs && \
     ln -sf /usr/local/bin/node /usr/local/bin/nodejs
 
-# Install yt-dlp with jsinterp extras to enable Node.js JS challenge solving
-# The [default-jsinterp] extra installs the node/bun/deno JS provider plugins
-# Without this, yt-dlp reports 'JS runtimes: none' even if node is installed
-RUN pip3 install -U "yt-dlp[default-jsinterp]" --break-system-packages
+# Install yt-dlp with [default] extra which includes yt-dlp-ejs
+# (the EJS challenge solver scripts required for n-challenge solving)
+# See: https://github.com/yt-dlp/yt-dlp/wiki/EJS
+RUN pip3 install -U "yt-dlp[default]" --break-system-packages
+
+# Create yt-dlp config that enables Node.js runtime and GitHub EJS fallback
+# Node must be explicitly enabled (unlike deno, it's opt-in)
+RUN mkdir -p /etc/yt-dlp && \
+    echo "--js-runtimes node:/usr/local/bin/node" > /etc/yt-dlp.conf && \
+    echo "--remote-components ejs:github" >> /etc/yt-dlp.conf
 
 # Set working directory
 WORKDIR /app
