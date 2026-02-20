@@ -34,6 +34,6 @@ jobs:
           
           # Retry logic for transient server errors
           for i in {1..3}; do
-            git push --force https://dejiaug:$HF_TOKEN@huggingface.co/spaces/dejiaug/video-sync-runner main && break || \
+            git push --force https://dejiaug:$HF_TOKEN@huggingface.co/spaces/dejiaug/video-sync-runner-prod main && break || \
             (echo "Push failed, retrying in 30s..." && sleep 30)
           done
