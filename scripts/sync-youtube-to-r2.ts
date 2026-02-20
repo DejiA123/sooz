@@ -152,10 +152,10 @@ async function downloadVideo(videoId: string): Promise<string | null> {
 
         // Try a more balanced client list. Android is often the most lenient.
         // We include web and tv as fallbacks.
-        let extractorArgs = 'youtube:player_client=android,web,tv,ios,mweb';
+        let extractorArgs = 'youtube:player_client=android,web,tv,ios,mweb;js_runtime=node;skip=hls,dash';
 
         if (poToken) {
-            extractorArgs += `;po_token=mweb.gvs+${poToken},ios.gvs+${poToken},android.gvs+${poToken},web.gvs+${poToken}`;
+            extractorArgs += `;po_token=mweb.gvs+${poToken},ios.gvs+${poToken},android.gvs+${poToken},web.gvs+${poToken},tv.gvs+${poToken}`;
             console.log("🔑 Using provided YOUTUBE_PO_TOKEN.");
         }
 

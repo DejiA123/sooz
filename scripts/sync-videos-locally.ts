@@ -115,19 +115,17 @@ async function runDiagnostics() {
         const ytVersion = execSync("yt-dlp --version", { encoding: "utf8" }).trim();
         console.log(`  📊 yt-dlp version: ${ytVersion}`);
 
-        // Check for quickjs (qjs)
+        // Check for quickjs (deprecated/broken on HF, using node instead)
         try {
-            const qjsVer = execSync("qjs -v 2>&1 | head -n 1", { encoding: "utf8" }).trim();
-            console.log(`  📊 QuickJS: ${qjsVer}`);
+            const qjsPath = execSync("which qjs || where qjs", { encoding: "utf8" }).trim();
+            console.log(`  📊 QuickJS found at: ${qjsPath} (Warning: Using node for JS challenges)`);
         } catch (e) {
-            console.error("  ❌ QuickJS: Not found in PATH.");
+            // console.log("  ℹ️ QuickJS: Not found (Expected, using node)");
         }
 
-        // Let's see if python can find node/qjs (this is what yt-dlp uses internally)
+        // Let's see if python can find node (this is what yt-dlp uses internally)
         const pyNode = execSync("python3 -c \"import shutil; print(shutil.which('node') or 'not found')\"", { encoding: "utf8" }).trim();
         console.log(`  📊 Python sees node at: ${pyNode}`);
-        const pyQjs = execSync("python3 -c \"import shutil; print(shutil.which('qjs') or 'not found')\"", { encoding: "utf8" }).trim();
-        console.log(`  📊 Python sees qjs at:  ${pyQjs}`);
     } catch (e: any) {
         console.error("  ❌ yt-dlp: Failed to get version info");
     }
@@ -288,15 +286,15 @@ async function downloadVideo(videoId: string, hasFfmpeg: boolean): Promise<strin
             format: hasFfmpeg ? "bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best" : "best[ext=mp4]/best"
         },
         {
-            name: "Stage 2: Web/TV Hybrid (QuickJS)",
+            name: "Stage 2: Web/TV Hybrid (Node.js)",
             clients: "web,tv",
             useCookies: true,
             format: hasFfmpeg ? "bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best" : "best[ext=mp4]/best"
         },
         {
-            name: "Stage 3: Fallback (Mobile/Android)",
-            clients: "ios,mweb,android",
-            useCookies: false,
+            name: "Stage 3: Fallback (Mobile/Android + Cookies)",
+            clients: "web,tv,ios,mweb,android",
+            useCookies: true,
             format: "best"
         }
     ];
@@ -306,7 +304,7 @@ async function downloadVideo(videoId: string, hasFfmpeg: boolean): Promise<strin
         console.log(`\n🔄 [Download Stage ${i + 1}] ${stage.name}`);
 
         const clientList = stage.clients.split(",");
-        let extractorArgs = `youtube:player-client=${stage.clients};js_runtime=quickjs;skip=hls,dash`;
+        let extractorArgs = `youtube:player-client=${stage.clients};js_runtime=node;skip=hls,dash`;
 
         if (poToken) {
             // Apply PO_TOKEN to ALL clients in the current stage
@@ -442,8 +440,8 @@ const PORT = process.env.PORT || 7860; // Default for Hugging Face
 async function main() {
     console.log(`🚀 Starting ${SYNC_POLLING_INTERVAL_MS ? "Cloud" : "local"} video sync...`);
 
-    // Ensure yt-dlp uses quickjs for reliable JS challenges
-    process.env.YT_DLP_JS_RUNTIME = "quickjs";
+    // Ensure yt-dlp uses node for reliable JS challenges (QuickJS is broken on HF)
+    process.env.YT_DLP_JS_RUNTIME = "node";
 
     // Basic HTTP server to satisfy Cloud platform health checks (like Hugging Face)
     http.createServer((req, res) => {
