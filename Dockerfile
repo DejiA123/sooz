@@ -13,8 +13,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     procps \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Fix: Ensure node is globally accessible as 'node' in /usr/bin for yt-dlp
-RUN ln -s /usr/local/bin/node /usr/bin/node
+# Fix: Ensure node is globally accessible under all common names for yt-dlp
+RUN ln -s /usr/local/bin/node /usr/bin/node && \
+    ln -s /usr/local/bin/node /usr/bin/nodejs && \
+    ln -s /usr/local/bin/node /usr/local/bin/nodejs
 
 # Install yt-dlp via pip for latest version
 # Using --break-system-packages because this is a container and we need a global install

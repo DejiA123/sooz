@@ -110,6 +110,15 @@ async function runDiagnostics() {
         console.error("  ❌ Node: Not found in PATH. n-challenge solving will fail.");
     }
 
+    // Check yt-dlp's view of the world
+    try {
+        const ytInfo = execSync("yt-dlp --print-debug-info", { encoding: "utf8" });
+        const jsRuntime = ytInfo.split('\n').find(l => l.includes('JS runtimes:'))?.trim();
+        console.log(`  📊 yt-dlp ${jsRuntime || "JS unknown"}`);
+    } catch (e: any) {
+        console.error("  ❌ yt-dlp: Failed to get debug info");
+    }
+
     const hosts = [
         "google.com",
         "youtube.com",
@@ -120,7 +129,15 @@ async function runDiagnostics() {
         "huggingface.co",
         "xhqpojnmcibkaydidnex.supabase.co"
     ];
-    // ...
+    for (const host of hosts) {
+        try {
+            const start = Date.now();
+            execSync(`getent hosts ${host}`, { stdio: "pipe" });
+            console.log(`  ✅ DNS: ${host} resolved in ${Date.now() - start}ms`);
+        } catch (e: any) {
+            console.error(`  ❌ DNS: ${host} failed to resolve`);
+        }
+    }
 
     // Try custom DNS resolver (bypass provider)
     console.log(`📡 Testing Custom DNS (${CUSTOM_DNS})...`);
@@ -279,15 +296,13 @@ async function downloadVideo(videoId: string, hasFfmpeg: boolean): Promise<strin
         let extractorArgs = `youtube:player-client=${stage.clients};js_runtime=node`;
 
         if (poToken) {
-            // Only add po_token if we have it. 
-            // If it starts with 'web.gvs+', use it as is. Otherwise, map to current stage client.
-            if (poToken.includes('.')) {
-                extractorArgs += `;po_token=${poToken}`;
-            } else {
-                // Map to the first client in the list for this stage
-                const primaryClient = clientList[0];
-                extractorArgs += `;po_token=${primaryClient}.gvs+${poToken}`;
-            }
+            // Apply PO_TOKEN to ALL clients in the current stage
+            const stageClients = stage.clients.split(",");
+            const poMappings = stageClients.map(c => {
+                if (poToken.includes('.')) return poToken; // Already prefixed
+                return `${c.trim()}.gvs+${poToken}`;
+            }).join(",");
+            extractorArgs += `;po_token=${poMappings}`;
         }
         if (visitorData) {
             extractorArgs += `;visitor_data=${visitorData}`;
@@ -308,6 +323,8 @@ async function downloadVideo(videoId: string, hasFfmpeg: boolean): Promise<strin
             "--prefer-free-formats",
             "--geo-bypass",
             "--sleep-requests", "1",
+            "--youtube-skip-hls-manifests",
+            "--youtube-skip-dash-manifests",
             "--downloader", "aria2c",
             "--downloader-args", "aria2c:-x 16 -s 16 -k 1M",
             "--no-part",
