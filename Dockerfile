@@ -13,7 +13,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Install yt-dlp via pip for latest version
-RUN pip3 install -U yt-dlp
+# Using --break-system-packages because this is a container and we need a global install
+RUN pip3 install -U yt-dlp --break-system-packages
 
 # Set working directory
 WORKDIR /app
