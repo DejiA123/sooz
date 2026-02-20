@@ -115,9 +115,19 @@ async function runDiagnostics() {
         const ytVersion = execSync("yt-dlp --version", { encoding: "utf8" }).trim();
         console.log(`  📊 yt-dlp version: ${ytVersion}`);
 
-        // Let's see if python can find node (this is what yt-dlp uses internally)
+        // Check for quickjs (qjs)
+        try {
+            const qjsVer = execSync("qjs -v 2>&1 | head -n 1", { encoding: "utf8" }).trim();
+            console.log(`  📊 QuickJS: ${qjsVer}`);
+        } catch (e) {
+            console.error("  ❌ QuickJS: Not found in PATH.");
+        }
+
+        // Let's see if python can find node/qjs (this is what yt-dlp uses internally)
         const pyNode = execSync("python3 -c \"import shutil; print(shutil.which('node') or 'not found')\"", { encoding: "utf8" }).trim();
         console.log(`  📊 Python sees node at: ${pyNode}`);
+        const pyQjs = execSync("python3 -c \"import shutil; print(shutil.which('qjs') or 'not found')\"", { encoding: "utf8" }).trim();
+        console.log(`  📊 Python sees qjs at:  ${pyQjs}`);
     } catch (e: any) {
         console.error("  ❌ yt-dlp: Failed to get version info");
     }
@@ -272,20 +282,20 @@ async function downloadVideo(videoId: string, hasFfmpeg: boolean): Promise<strin
     // 3. Fallback (Android + No Cookies)
     const stages = [
         {
-            name: "Stage 1: Recommended (Web/TV + Cookies)",
+            name: "Stage 1: TV Client (No n-challenge)",
+            clients: "tv",
+            useCookies: true,
+            format: hasFfmpeg ? "bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best" : "best[ext=mp4]/best"
+        },
+        {
+            name: "Stage 2: Web/TV Hybrid (QuickJS)",
             clients: "web,tv",
             useCookies: true,
             format: hasFfmpeg ? "bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best" : "best[ext=mp4]/best"
         },
         {
-            name: "Stage 2: Mobile (iOS + Cookies)",
-            clients: "ios,mweb",
-            useCookies: true,
-            format: "best[height<=720][ext=mp4]/best"
-        },
-        {
-            name: "Stage 3: Fallback (Android/Embedded - No Cookies)",
-            clients: "android,web_embedded",
+            name: "Stage 3: Fallback (Mobile/Android)",
+            clients: "ios,mweb,android",
             useCookies: false,
             format: "best"
         }
@@ -296,7 +306,7 @@ async function downloadVideo(videoId: string, hasFfmpeg: boolean): Promise<strin
         console.log(`\n🔄 [Download Stage ${i + 1}] ${stage.name}`);
 
         const clientList = stage.clients.split(",");
-        let extractorArgs = `youtube:player-client=${stage.clients};js_runtime=node;skip=hls,dash`;
+        let extractorArgs = `youtube:player-client=${stage.clients};js_runtime=quickjs;skip=hls,dash`;
 
         if (poToken) {
             // Apply PO_TOKEN to ALL clients in the current stage
@@ -432,8 +442,8 @@ const PORT = process.env.PORT || 7860; // Default for Hugging Face
 async function main() {
     console.log(`🚀 Starting ${SYNC_POLLING_INTERVAL_MS ? "Cloud" : "local"} video sync...`);
 
-    // Ensure yt-dlp uses node for JS challenges
-    process.env.YT_DLP_JS_RUNTIME = "node";
+    // Ensure yt-dlp uses quickjs for reliable JS challenges
+    process.env.YT_DLP_JS_RUNTIME = "quickjs";
 
     // Basic HTTP server to satisfy Cloud platform health checks (like Hugging Face)
     http.createServer((req, res) => {

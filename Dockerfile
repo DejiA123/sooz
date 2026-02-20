@@ -22,6 +22,12 @@ RUN ln -sf /usr/local/bin/node /usr/bin/node && \
 # Using --break-system-packages because this is a container and we need a global install
 RUN pip3 install -U yt-dlp --break-system-packages
 
+# Add a guaranteed-to-work JS runtime (QuickJS static)
+# This fixes the "JS runtimes: none" issue reliably for yt-dlp
+RUN curl -L -o /usr/local/bin/qjs https://github.com/horos-t/quickjs-static/releases/download/2021-03-27/qjs-linux-x86_64 && \
+    chmod +x /usr/local/bin/qjs && \
+    ln -sf /usr/local/bin/qjs /usr/bin/qjs
+
 # Set working directory
 WORKDIR /app
 
@@ -40,7 +46,7 @@ COPY --chown=node:node . .
 # Switch to non-root user for security and HF compatibility
 USER node
 ENV PATH="/home/node/.local/bin:/app/node_modules/.bin:$PATH"
-ENV YT_DLP_JS_RUNTIME="node"
+ENV YT_DLP_JS_RUNTIME="quickjs"
 
 # Hugging Face Spaces port
 EXPOSE 7860
