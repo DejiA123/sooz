@@ -114,8 +114,12 @@ async function runDiagnostics() {
     try {
         const ytVersion = execSync("yt-dlp --version", { encoding: "utf8" }).trim();
         console.log(`  📊 yt-dlp version: ${ytVersion}`);
+
+        // Let's see if python can find node (this is what yt-dlp uses internally)
+        const pyNode = execSync("python3 -c \"import shutil; print(shutil.which('node') or 'not found')\"", { encoding: "utf8" }).trim();
+        console.log(`  📊 Python sees node at: ${pyNode}`);
     } catch (e: any) {
-        console.error("  ❌ yt-dlp: Failed to get version");
+        console.error("  ❌ yt-dlp: Failed to get version info");
     }
 
     const hosts = [
