@@ -1,19 +1,16 @@
 # Use Node.js 20 (required by Supabase packages)
 FROM node:20-slim
 
-# Install system dependencies
-# Adding git, build-essential, and common libraries for native modules
-RUN apt-get update && apt-get install -y \
+# Install essential system dependencies only
+# Using --no-install-recommends to keep the image small and build fast
+RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 \
     python3-pip \
     python-is-python3 \
     ffmpeg \
     curl \
     aria2 \
-    git \
-    build-essential \
-    libssl-dev \
-    && rm -rf /var/lib/apt/lists/*
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Install yt-dlp via pip for latest version
 RUN pip3 install -U yt-dlp
@@ -22,19 +19,16 @@ RUN pip3 install -U yt-dlp
 WORKDIR /app
 
 # Copy package files first for better caching
-# We have both package-lock.json and bun.lockb, but we use npm to be safe
 COPY package*.json ./
 
 # Install dependencies as root
-# Using 'npm ci' for more reliable/reproducible builds
-# Added --loglevel=verbose to catch exact failure if OOM or network error occurs
-RUN npm ci --include=dev --loglevel=verbose || npm install --include=dev --loglevel=verbose
+# Using 'npm install' as it's more flexible with mixed bun/npm environments
+# Added --loglevel=info for cleaner logs while still being diagnostic
+RUN npm install --include=dev --loglevel=info
 
-# Copy the rest of the application
-COPY . .
-
-# Set permissions for the node user
-RUN chown -R node:node /app
+# Copy the rest of the application with correct ownership in one step
+# This is much faster than a separate RUN chown
+COPY --chown=node:node . .
 
 # Switch to non-root user for security and HF compatibility
 USER node
@@ -45,5 +39,5 @@ ENV YT_DLP_JS_RUNTIME="node"
 EXPOSE 7860
 
 # Default command to run the sync script
-# Use npx tsx directly
+# No 'npx' prefix needed as we added node_modules/.bin to PATH
 CMD ["tsx", "scripts/sync-videos-locally.ts"]
