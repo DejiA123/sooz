@@ -112,11 +112,10 @@ async function runDiagnostics() {
 
     // Check yt-dlp's view of the world
     try {
-        const ytInfo = execSync("yt-dlp --print-debug-info", { encoding: "utf8" });
-        const jsRuntime = ytInfo.split('\n').find(l => l.includes('JS runtimes:'))?.trim();
-        console.log(`  📊 yt-dlp ${jsRuntime || "JS unknown"}`);
+        const ytVersion = execSync("yt-dlp --version", { encoding: "utf8" }).trim();
+        console.log(`  📊 yt-dlp version: ${ytVersion}`);
     } catch (e: any) {
-        console.error("  ❌ yt-dlp: Failed to get debug info");
+        console.error("  ❌ yt-dlp: Failed to get version");
     }
 
     const hosts = [
@@ -293,7 +292,7 @@ async function downloadVideo(videoId: string, hasFfmpeg: boolean): Promise<strin
         console.log(`\n🔄 [Download Stage ${i + 1}] ${stage.name}`);
 
         const clientList = stage.clients.split(",");
-        let extractorArgs = `youtube:player-client=${stage.clients};js_runtime=node`;
+        let extractorArgs = `youtube:player-client=${stage.clients};js_runtime=node;skip=hls,dash`;
 
         if (poToken) {
             // Apply PO_TOKEN to ALL clients in the current stage
@@ -323,8 +322,6 @@ async function downloadVideo(videoId: string, hasFfmpeg: boolean): Promise<strin
             "--prefer-free-formats",
             "--geo-bypass",
             "--sleep-requests", "1",
-            "--youtube-skip-hls-manifests",
-            "--youtube-skip-dash-manifests",
             "--downloader", "aria2c",
             "--downloader-args", "aria2c:-x 16 -s 16 -k 1M",
             "--no-part",
