@@ -175,6 +175,7 @@ function startLocalDnsProxy() {
             }
 
             const serverSocket = net.connect(targetPort, targetIp, () => {
+                // console.log(`[Proxy] Connected to ${host} (${targetIp}):${targetPort}`);
                 clientSocket.write('HTTP/1.1 200 Connection Established\r\n\r\n');
                 serverSocket.write(head);
                 serverSocket.pipe(clientSocket);
@@ -182,7 +183,9 @@ function startLocalDnsProxy() {
             });
 
             serverSocket.on('error', (err) => {
-                console.error(`[Proxy] Target Connection Error: ${err.message}`);
+                if (host.includes('youtube') || host.includes('googlevideo') || host.includes('youtu.be')) {
+                    console.error(`[Proxy] Target Connection Error for ${host}: ${err.message}`);
+                }
                 clientSocket.end();
             });
 
@@ -279,10 +282,15 @@ async function downloadVideo(videoId: string, hasFfmpeg: boolean): Promise<strin
         let extractorArgs = `youtube:player-client=${stage.clients};js_runtime=node`;
 
         if (poToken) {
-            // Map PO_TOKEN to multiple possible clients for maximum compatibility
-            const commonClients = ["web", "ios", "android", "mweb", "tv"];
-            const poMappings = commonClients.map(c => `${c}.gvs+${poToken}`).join(",");
-            extractorArgs += `;po_token=${poMappings}`;
+            // Only add po_token if we have it. 
+            // If it starts with 'web.gvs+', use it as is. Otherwise, map to current stage client.
+            if (poToken.includes('.')) {
+                extractorArgs += `;po_token=${poToken}`;
+            } else {
+                // Map to the first client in the list for this stage
+                const primaryClient = clientList[0];
+                extractorArgs += `;po_token=${primaryClient}.gvs+${poToken}`;
+            }
         }
         if (visitorData) {
             extractorArgs += `;visitor_data=${visitorData}`;
@@ -330,7 +338,9 @@ async function downloadVideo(videoId: string, hasFfmpeg: boolean): Promise<strin
                         if (files.length === 0) reject(new Error("File not found"));
                         else resolve(files[0]);
                     } else {
-                        reject(new Error(errorOutput.split("\n")[0] || `Exit ${code}`));
+                        console.error(`\n❌ yt-dlp failed (Stage ${i + 1}):`);
+                        console.error(errorOutput);
+                        reject(new Error(`Exit ${code}`));
                     }
                 });
             });
