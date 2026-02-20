@@ -115,17 +115,18 @@ async function runDiagnostics() {
         const ytVersion = execSync("yt-dlp --version", { encoding: "utf8" }).trim();
         console.log(`  📊 yt-dlp version: ${ytVersion}`);
 
-        // Check for quickjs (deprecated/broken on HF, using node instead)
-        try {
-            const qjsPath = execSync("which qjs || where qjs", { encoding: "utf8" }).trim();
-            console.log(`  📊 QuickJS found at: ${qjsPath} (Warning: Using node for JS challenges)`);
-        } catch (e) {
-            // console.log("  ℹ️ QuickJS: Not found (Expected, using node)");
-        }
-
-        // Let's see if python can find node (this is what yt-dlp uses internally)
+        // Let's see if python can find node (this is what yt-dlp uses internally via shutil.which)
         const pyNode = execSync("python3 -c \"import shutil; print(shutil.which('node') or 'not found')\"", { encoding: "utf8" }).trim();
         console.log(`  📊 Python sees node at: ${pyNode}`);
+
+        // Verify yt-dlp actually detects JS runtimes — critical for n-challenge solving
+        try {
+            const jsCheck = execSync(
+                `yt-dlp --list-extractors 2>&1 | head -1; python3 -c "import yt_dlp.jsinterp.jsinterp as ji; print('JSInterp OK')" 2>/dev/null || echo 'JSInterp not found'`,
+                { encoding: "utf8", shell: '/bin/sh' }
+            ).trim();
+            console.log(`  📊 JSInterp: ${jsCheck}`);
+        } catch (e) { /* non-critical */ }
     } catch (e: any) {
         console.error("  ❌ yt-dlp: Failed to get version info");
     }
@@ -274,28 +275,34 @@ async function downloadVideo(videoId: string, hasFfmpeg: boolean): Promise<strin
         console.warn("⚠️ YOUTUBE_PO_TOKEN is MISSING. Cloud downloads will likely fail without it.");
     }
 
-    // Stages: 
-    // 1. Recommended (Web/TV + Cookies + PO Token)
-    // 2. Mobile (iOS + Cookies)
-    // 3. Fallback (Android + No Cookies)
+    // Download stages — ordered by reliability.
+    // IMPORTANT: Do NOT use skip=hls,dash. When n-challenge fails, YouTube falls back to
+    // HLS/DASH formats. Skipping those leaves only thumbnail images, causing the
+    // "Only images are available" error. Let yt-dlp pick from whatever is available.
     const stages = [
         {
-            name: "Stage 1: TV Client (No n-challenge)",
+            // TV client doesn't require n-challenge solving at all — most reliable
+            name: "Stage 1: TV Client (No n-challenge needed)",
             clients: "tv",
             useCookies: true,
+            extraArgs: [] as string[],
             format: hasFfmpeg ? "bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best" : "best[ext=mp4]/best"
         },
         {
-            name: "Stage 2: Web/TV Hybrid (Node.js)",
+            // Web+TV hybrid — uses Node.js for n-challenge if available
+            name: "Stage 2: Web/TV Hybrid",
             clients: "web,tv",
             useCookies: true,
+            extraArgs: [] as string[],
             format: hasFfmpeg ? "bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best" : "best[ext=mp4]/best"
         },
         {
-            name: "Stage 3: Fallback (Mobile/Android + Cookies)",
-            clients: "web,tv,ios,mweb,android",
+            // Broad fallback — try all non-cookie clients plus mweb, accept any format
+            name: "Stage 3: Broad Fallback (all clients)",
+            clients: "tv,mweb,web",
             useCookies: true,
-            format: "best"
+            extraArgs: ["--compat-options", "no-youtube-unavailable-videos"],
+            format: "b" // 'b' = best pre-merged, suppresses the -f best warning
         }
     ];
 
@@ -303,14 +310,14 @@ async function downloadVideo(videoId: string, hasFfmpeg: boolean): Promise<strin
         const stage = stages[i];
         console.log(`\n🔄 [Download Stage ${i + 1}] ${stage.name}`);
 
-        const clientList = stage.clients.split(",");
-        let extractorArgs = `youtube:player-client=${stage.clients};js_runtime=node;skip=hls,dash`;
+        // Build extractor args. Note: NO skip=hls,dash — that strips valid formats.
+        let extractorArgs = `youtube:player-client=${stage.clients};js_runtime=node`;
 
         if (poToken) {
             // Apply PO_TOKEN to ALL clients in the current stage
             const stageClients = stage.clients.split(",");
             const poMappings = stageClients.map(c => {
-                if (poToken.includes('.')) return poToken; // Already prefixed
+                if (poToken.includes('.')) return poToken; // Already prefixed (e.g. tv.gvs+TOKEN)
                 return `${c.trim()}.gvs+${poToken}`;
             }).join(",");
             extractorArgs += `;po_token=${poMappings}`;
@@ -326,19 +333,18 @@ async function downloadVideo(videoId: string, hasFfmpeg: boolean): Promise<strin
             "--no-playlist",
             "--force-ipv4",
             "--proxy", `http://127.0.0.1:${PROXY_PORT}`,
-            stage.useCookies && hasCookies ? "--cookies" : "",
-            stage.useCookies && hasCookies ? cookieFile : "",
+            ...(stage.useCookies && hasCookies ? ["--cookies", cookieFile] : []),
             "--user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
             "--extractor-args", extractorArgs,
             "--no-check-certificates",
-            "--prefer-free-formats",
             "--geo-bypass",
             "--sleep-requests", "1",
             "--downloader", "aria2c",
             "--downloader-args", "aria2c:-x 16 -s 16 -k 1M",
             "--no-part",
-            "--verbose" // Added for better debugging in logs
-        ].filter(arg => arg !== "");
+            ...stage.extraArgs,
+            "--verbose"
+        ];
 
         try {
             const localFile = await new Promise<string>((resolve, reject) => {

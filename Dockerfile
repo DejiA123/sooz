@@ -18,9 +18,10 @@ RUN ln -sf /usr/local/bin/node /usr/bin/node && \
     ln -sf /usr/local/bin/node /usr/bin/nodejs && \
     ln -sf /usr/local/bin/node /usr/local/bin/nodejs
 
-# Install yt-dlp via pip for latest version
-# Using --break-system-packages because this is a container and we need a global install
-RUN pip3 install -U yt-dlp --break-system-packages
+# Install yt-dlp with jsinterp extras to enable Node.js JS challenge solving
+# The [default-jsinterp] extra installs the node/bun/deno JS provider plugins
+# Without this, yt-dlp reports 'JS runtimes: none' even if node is installed
+RUN pip3 install -U "yt-dlp[default-jsinterp]" --break-system-packages
 
 # Set working directory
 WORKDIR /app
@@ -39,8 +40,9 @@ COPY --chown=node:node . .
 
 # Switch to non-root user for security and HF compatibility
 USER node
-ENV PATH="/home/node/.local/bin:/app/node_modules/.bin:$PATH"
-ENV YT_DLP_JS_RUNTIME="node"
+ENV PATH="/home/node/.local/bin:/app/node_modules/.bin:/usr/local/bin:/usr/bin:$PATH"
+# NODE_PATH helps yt-dlp's Python subprocess find node via shutil.which()
+ENV YTDLP_USE_NODE=1
 
 # Hugging Face Spaces port
 EXPOSE 7860
