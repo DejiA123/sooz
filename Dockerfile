@@ -44,6 +44,10 @@ RUN npm install --include=dev --loglevel=info
 # This is much faster than a separate RUN chown
 COPY --chown=node:node . .
 
+# Ensure /app is writable by the node user (WORKDIR creates it as root)
+# This is needed for yt-dlp to write temp download files
+RUN chown node:node /app && mkdir -p /tmp/downloads && chown node:node /tmp/downloads
+
 # Switch to non-root user for security and HF compatibility
 USER node
 ENV PATH="/home/node/.local/bin:/app/node_modules/.bin:/usr/local/bin:/usr/bin:$PATH"

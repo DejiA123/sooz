@@ -234,7 +234,10 @@ function startLocalDnsProxy() {
 }
 
 async function downloadVideo(videoId: string, hasFfmpeg: boolean): Promise<string> {
-    const outputTemplate = `temp_${videoId}.%(ext)s`;
+    // Use /tmp/downloads for temp files — /app may not be writable by the node user
+    const downloadDir = '/tmp/downloads';
+    if (!fs.existsSync(downloadDir)) fs.mkdirSync(downloadDir, { recursive: true });
+    const outputTemplate = `${downloadDir}/temp_${videoId}.%(ext)s`;
     // Use youtu.be short link because diagnostics show youtube.com is blocked via DNS on HF
     const url = `https://youtu.be/${videoId}`;
 
@@ -366,9 +369,9 @@ async function downloadVideo(videoId: string, hasFfmpeg: boolean): Promise<strin
                 proc.on("close", (code: number) => {
                     process.stdout.write("\n");
                     if (code === 0) {
-                        const files = fs.readdirSync(".").filter(f => f.startsWith(`temp_${videoId}.`));
+                        const files = fs.readdirSync(downloadDir).filter(f => f.startsWith(`temp_${videoId}.`));
                         if (files.length === 0) reject(new Error("File not found"));
-                        else resolve(files[0]);
+                        else resolve(path.join(downloadDir, files[0]));
                     } else {
                         console.error(`\n❌ yt-dlp failed (Stage ${i + 1}):`);
                         console.error(errorOutput);
