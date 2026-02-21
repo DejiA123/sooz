@@ -317,7 +317,7 @@ export const PostCard = ({
               <button
                 className="hover:opacity-70 transition-opacity focus:outline-none"
                 onClick={async () => {
-                  const appDomain = import.meta.env.VITE_APP_DOMAIN || 'https://sooz.lovable.app';
+                  const appDomain = import.meta.env.VITE_APP_DOMAIN || 'https://sooz.vercel.app';
                   const postUrl = `${appDomain}/share/${id}`;
 
                   try {

@@ -22,7 +22,7 @@ Deno.serve(async (req) => {
     // Init Supabase
     const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
     const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY') || '';
-    const appDomain = Deno.env.get('APP_DOMAIN') || 'https://sooz.lovable.app';
+    const appDomain = Deno.env.get('APP_DOMAIN') || 'https://sooz.vercel.app';
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     // Fetch post data
@@ -112,11 +112,13 @@ Deno.serve(async (req) => {
             <meta property="og:image:type" content="image/jpeg" />
             <meta property="og:image:width" content="1200" />
             <meta property="og:image:height" content="630" />
+            <meta property="og:site_name" content="SOOZ" />
             ${videoMetaTags}
             <meta name="twitter:card" content="${post.media_type === 'video' ? 'player' : 'summary_large_image'}" />
             <meta name="twitter:title" content="${title.replace(/"/g, '&quot;')}" />
             <meta name="twitter:description" content="${description.replace(/"/g, '&quot;')}" />
             <meta name="twitter:image" content="${image}" />
+            <meta name="twitter:image:alt" content="Preview" />
           </head>
           <body>
             <h1>${title}</h1>
