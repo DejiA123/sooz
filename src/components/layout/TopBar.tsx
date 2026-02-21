@@ -37,7 +37,7 @@ export const TopBar = () => {
 
   return (
     <div className={cn(
-      "fixed top-0 left-0 right-0 z-50 bg-white flex items-center justify-between px-4 py-2 pt-[calc(0.5rem+env(safe-area-inset-top,0px))] md:px-6 md:pt-2 transition-transform duration-300 border-b border-border/50",
+      "fixed top-0 left-0 right-0 z-50 bg-white flex items-center justify-between px-4 py-2 pt-[calc(0.5rem+env(safe-area-inset-top,0px))] md:px-6 md:pt-2 transition-transform duration-300",
       shouldHide ? "-translate-y-full" : "translate-y-0"
     )}>
       <Link to="/" className="flex items-center">
