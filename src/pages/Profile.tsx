@@ -28,30 +28,7 @@ const GridVideo = ({ src, poster, className, priority = false }: { src: string, 
   const [videoReady, setVideoReady] = useState(false);
   const [hasError, setHasError] = useState(false);
 
-  // Smart Thumbnail Strategy:
-  // Try to derive a thumbnail from the video filename if no explicit poster
-  const derivedThumbnail = useMemo(() => {
-    if (poster) return poster;
-    if (!src) return null;
-
-    try {
-      // Handle URLs with query params or different cases
-      const url = new URL(src);
-      const pathname = url.pathname;
-      const lastDotIndex = pathname.lastIndexOf('.');
-      if (lastDotIndex !== -1) {
-        const ext = pathname.substring(lastDotIndex + 1).toLowerCase();
-        if (['mp4', 'mov', 'webm', 'quicktime'].includes(ext)) {
-          // Replace extension with jpg (standard convention for many storage Buckets)
-          return src.substring(0, src.lastIndexOf('.')) + '.jpg';
-        }
-      }
-    } catch (e) {
-    }
-    return null;
-  }, [src, poster]);
-
-  const finalPoster = derivedThumbnail || poster;
+  const finalPoster = poster; // Only use explicit poster, stop guessing .jpg to avoid 404s
 
   // Add a small seek time to the video URL to force mobile browsers 
   // to render the first frame as a "poster" if an image is missing.
@@ -63,20 +40,21 @@ const GridVideo = ({ src, poster, className, priority = false }: { src: string, 
     return cachedSrc.includes('#') ? cachedSrc : `${cachedSrc}#t=0.001`;
   }, [cachedSrc, finalPoster]);
 
-  // Timeout Fallback: If video doesn't load within 10s, show error (prevent stuck gray box)
-  // 10s is more reasonable for mobile networks than the previous 3s.
+  // Timeout Fallback: If video takes too long, only show error if it's truly stuck.
+  // 30s is more realistic for mobile video metadata fetching.
   useEffect(() => {
     if (videoReady || hasError) return;
 
     const timer = setTimeout(() => {
-      // If after 10 seconds we still don't have video OR image, then we show error
-      if (!videoReady && !imageLoaded) {
+      // On mobile, videoReady might be delayed by the browser. 
+      // We only show error if we have NO poster and NO video after 30s.
+      if (!videoReady && !finalPoster) {
         setHasError(true);
       }
-    }, 10000);
+    }, 30000);
 
     return () => clearTimeout(timer);
-  }, [videoReady, imageLoaded, hasError]);
+  }, [videoReady, finalPoster, hasError]);
 
   // If video eventually loads after a delay, clear the error
   useEffect(() => {
