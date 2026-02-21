@@ -55,6 +55,10 @@ export default function CreatePostModal({ isOpen, onClose, onPostCreated }: Crea
             let thumbnailUrl = null;
 
             if (mediaFile) {
+                if (!s3Client) {
+                    toast.error("Storage is not configured. Please set up R2/S3 credentials.");
+                    return;
+                }
                 const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
                 const fileExtension = mediaFile.name.split('.').pop();
                 const fileName = `${uniqueSuffix}.${fileExtension}`;

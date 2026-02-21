@@ -124,6 +124,10 @@ export const StoryRail = () => {
         const toastId = toast.loading("Uploading story... 0%");
 
         try {
+            if (!s3Client) {
+                toast.error("Storage is not configured. Please set up R2/S3 credentials.");
+                return;
+            }
             const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
             const fileExt = file.name.split('.').pop();
             const fileName = `stories/${user.id}/${uniqueSuffix}.${fileExt}`;
