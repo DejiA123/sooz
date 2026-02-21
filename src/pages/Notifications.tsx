@@ -109,7 +109,7 @@ export default function Notifications() {
 
     return (
         <div className="pb-20">
-            <div className="sticky top-[60px] z-40 bg-background/80 backdrop-blur-xl px-4 py-3 border-b border-white/5 flex items-center justify-between">
+            <div className="p-4 border-b border-white/5 bg-background/50 backdrop-blur-xl flex items-center justify-between">
                 <h1 className="text-xl font-bold">Notifications</h1>
                 <Button variant="ghost" size="sm" onClick={handleMarkAllRead}>
                     <Check className="w-4 h-4 mr-1" /> Mark all read
