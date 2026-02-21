@@ -62,11 +62,31 @@ export default function VideoArchive() {
         }
     };
 
-    const handleDownload = (video: VideoItem) => {
-        if (video.r2_video_url) {
-            // Open in new tab to trigger native browser behavior
+    const handleDownload = async (video: VideoItem) => {
+        if (!video.r2_video_url) return;
+
+        const toastId = toast.loading("Preparing download...");
+        try {
+            const response = await fetch(video.r2_video_url);
+            if (!response.ok) throw new Error("Network response was not ok");
+
+            const blob = await response.blob();
+            const url = URL.createObjectURL(blob);
+
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `${video.title.replace(/[^a-z0-9]/gi, "_")}.mp4`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            toast.success("Download started!", { id: toastId });
+        } catch (error) {
+            console.error("Download failed:", error);
+            // Fallback for cases where fetch/blob fails (e.g. CORS)
             window.open(video.r2_video_url, "_blank");
-            toast.success("Download started");
+            toast.success("Opening video — tap Share > Save to Files to download", { id: toastId });
         }
     };
 
