@@ -62,31 +62,34 @@ export default function VideoArchive() {
         }
     };
 
-    const handleDownload = async (video: VideoItem) => {
+    const handleDownload = (video: VideoItem) => {
         if (!video.r2_video_url) return;
 
-        const toastId = toast.loading("Preparing download...");
-        try {
-            const response = await fetch(video.r2_video_url);
-            if (!response.ok) throw new Error("Network response was not ok");
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry/i.test(navigator.userAgent);
 
-            const blob = await response.blob();
-            const url = URL.createObjectURL(blob);
-
+        if (isIOS || isMobile) {
+            // On mobile, open the video URL directly — blob downloads crash on large files
             const a = document.createElement("a");
-            a.href = url;
+            a.href = video.r2_video_url;
+            a.target = "_blank";
+            a.rel = "noopener noreferrer";
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+
+            toast.info("Tap the Share button ↗ then 'Save to Files' to download", {
+                duration: 6000,
+            });
+        } else {
+            // On desktop, use anchor with download attribute
+            const a = document.createElement("a");
+            a.href = video.r2_video_url;
             a.download = `${video.title.replace(/[^a-z0-9]/gi, "_")}.mp4`;
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-
-            toast.success("Download started!", { id: toastId });
-        } catch (error) {
-            console.error("Download failed:", error);
-            // Fallback for cases where fetch/blob fails (e.g. CORS)
-            window.open(video.r2_video_url, "_blank");
-            toast.success("Opening video — tap Share > Save to Files to download", { id: toastId });
+            toast.success("Download started!");
         }
     };
 
