@@ -388,8 +388,8 @@ export const ChatWindow = ({ chatId, onBack }: ChatWindowProps) => {
                                     className={cn(
                                         "text-sm leading-relaxed shadow-sm break-words relative",
                                         isMe
-                                            ? "bg-gradient-to-br from-indigo-600 to-violet-600 text-white rounded-2xl rounded-tr-sm"
-                                            : "bg-secondary/80 backdrop-blur-sm text-foreground rounded-2xl rounded-tl-sm border border-white/5",
+                                            ? "bg-gradient-to-br from-indigo-600 to-violet-600 text-white rounded-2xl rounded-tr-sm selectable"
+                                            : "bg-secondary/80 backdrop-blur-sm text-foreground rounded-2xl rounded-tl-sm border border-white/5 selectable",
                                         msg.isDeleted ? "px-4 py-3 italic text-white/70 bg-white/5 border border-white/10" : (msg.type === 'image' ? "p-1" : "px-4 py-3")
                                     )}
                                 >
