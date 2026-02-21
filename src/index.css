@@ -236,4 +236,9 @@ textarea {
   .fixed.top-0 {
     top: env(safe-area-inset-top) !important;
   }
+
+  /* Custom utility for fixed-position pages like Chat */
+  .pwa-fixed-top {
+    top: calc(5rem + env(safe-area-inset-top, 0px)) !important;
+  }
 }
