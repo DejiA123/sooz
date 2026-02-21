@@ -1,4 +1,5 @@
 import { S3Client } from "@aws-sdk/client-s3";
+// Build trigger: 2026-02-21 23:35 UTC - Forcing refresh of baked-in R2 environment variables
 
 // TODO: USER - Replace these with your storage provider's details
 // Works with: AWS S3, Cloudflare R2, Backblaze B2, DigitalOcean Spaces, etc.
