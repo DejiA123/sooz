@@ -147,10 +147,6 @@ export const CreateModal = ({ isOpen, onClose, onPostCreated }: CreateModalProps
 
             // Upload media if present
             if (mediaFile) {
-                if (!s3Client) {
-                    toast.error("Storage is not configured. Please set up R2/S3 credentials.");
-                    return;
-                }
                 const fileExt = mediaFile.name.split(".").pop();
                 const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
                 const fileName = `${uniqueSuffix}.${fileExt}`;
