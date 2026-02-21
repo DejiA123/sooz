@@ -97,7 +97,7 @@ export const VideoFeedModal = ({ initialPost, posts: externalPosts, initialIndex
                 className="fixed inset-0 z-50 bg-black flex flex-col items-center justify-center text-white"
             >
                 {/* Modern Header / Close Button */}
-                <div className="absolute top-0 left-0 right-0 z-[60] p-4 flex justify-between items-start bg-gradient-to-b from-black/60 to-transparent pointer-events-none">
+                <div className="absolute top-0 left-0 right-0 z-[60] p-4 pt-[calc(1rem+env(safe-area-inset-top,0px))] flex justify-between items-start bg-gradient-to-b from-black/60 to-transparent pointer-events-none">
                     {/* Modern "Back" style close button */}
                     <Button
                         variant="ghost"
