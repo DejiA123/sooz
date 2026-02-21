@@ -12,6 +12,7 @@ import {
 } from "@/services/videoArchiveService";
 import { VideoCard } from "@/components/videoArchive/VideoCard";
 import { VideoPlayerModal } from "@/components/videoArchive/VideoPlayerModal";
+import { MobileDownloadModal } from "@/components/videoArchive/MobileDownloadModal";
 import { RefreshCw, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -25,6 +26,7 @@ export default function VideoArchive() {
     const [displayLimit, setDisplayLimit] = useState(12);
     const [isSyncing, setIsSyncing] = useState(false);
     const [lastSynced, setLastSynced] = useState<Date | null>(null);
+    const [downloadVideo, setDownloadVideo] = useState<VideoItem | null>(null);
 
     const loadVideos = useCallback(async () => {
         setLoading(true);
@@ -65,22 +67,11 @@ export default function VideoArchive() {
     const handleDownload = (video: VideoItem) => {
         if (!video.r2_video_url) return;
 
-        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
         const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry/i.test(navigator.userAgent);
 
-        if (isIOS || isMobile) {
-            // On mobile, open the video URL directly — blob downloads crash on large files
-            const a = document.createElement("a");
-            a.href = video.r2_video_url;
-            a.target = "_blank";
-            a.rel = "noopener noreferrer";
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-
-            toast.info("Tap the Share button ↗ then 'Save to Files' to download", {
-                duration: 6000,
-            });
+        if (isMobile) {
+            // On mobile, show the download modal with instructions
+            setDownloadVideo(video);
         } else {
             // On desktop, use anchor with download attribute
             const a = document.createElement("a");
@@ -337,6 +328,15 @@ export default function VideoArchive() {
                 <VideoPlayerModal
                     video={selectedVideo}
                     onClose={() => setSelectedVideo(null)}
+                />
+            )}
+
+            {/* Mobile Download Modal */}
+            {downloadVideo && downloadVideo.r2_video_url && (
+                <MobileDownloadModal
+                    url={downloadVideo.r2_video_url}
+                    title={downloadVideo.title}
+                    onClose={() => setDownloadVideo(null)}
                 />
             )}
         </div>
