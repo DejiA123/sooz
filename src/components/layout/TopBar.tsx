@@ -63,7 +63,7 @@ export const TopBar = () => {
             </Button>
           </SheetTrigger>
           <SheetContent side="right" className="w-[80%] p-0 bg-background border-l border-border/50">
-            <SheetHeader className="p-6 border-b border-border/50">
+            <SheetHeader className="p-6 pt-[calc(1.5rem+env(safe-area-inset-top))] border-b border-border/50">
               <SheetTitle className="text-left text-xl font-bold bg-gradient-to-r from-primary to-purple-600 bg-clip-text text-transparent">
                 App Settings
               </SheetTitle>
