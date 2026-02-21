@@ -9,8 +9,7 @@ import { cn } from "@/lib/utils";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
-import { getS3Client, s3Config } from "@/integrations/s3/client";
-import { Upload } from "@aws-sdk/lib-storage";
+import { getPresignedUploadUrl } from "@/integrations/s3/client";
 import { CameraCapture } from "./CameraCapture";
 
 interface CreateModalProps {
@@ -147,29 +146,32 @@ export const CreateModal = ({ isOpen, onClose, onPostCreated }: CreateModalProps
 
             // Upload media if present
             if (mediaFile) {
-                const fileExt = mediaFile.name.split(".").pop();
-                const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-                const fileName = `${uniqueSuffix}.${fileExt}`;
+                // Get presigned URL from Edge Function
+                const { signedUrl, publicUrl } = await getPresignedUploadUrl(mediaFile.name, mediaFile.type);
+                mediaUrl = publicUrl;
 
-                const upload = new Upload({
-                    client: getS3Client(),
-                    params: {
-                        Bucket: s3Config.bucketName,
-                        Key: fileName,
-                        Body: mediaFile,
-                        ContentType: mediaFile.type,
-                    },
-                });
+                // Handle media upload
+                const xhr = new XMLHttpRequest();
+                xhr.open('PUT', signedUrl, true);
+                xhr.setRequestHeader('Content-Type', mediaFile.type);
 
-                upload.on("httpUploadProgress", (progress) => {
-                    if (progress.loaded && progress.total) {
-                        const percent = Math.round((progress.loaded / progress.total) * 100);
+                xhr.upload.onprogress = (e) => {
+                    if (e.lengthComputable) {
+                        const percent = Math.round((e.loaded / e.total) * 100);
                         setUploadProgress(percent);
                     }
+                };
+
+                const uploadPromise = new Promise((resolve, reject) => {
+                    xhr.onload = () => {
+                        if (xhr.status === 200) resolve(true);
+                        else reject(new Error('Upload failed'));
+                    };
+                    xhr.onerror = () => reject(new Error('Upload failed'));
+                    xhr.send(mediaFile);
                 });
 
-                await upload.done();
-                mediaUrl = `${import.meta.env.VITE_PUBLIC_R2_URL}/${fileName}`;
+                await uploadPromise;
             }
 
             const commonData = {

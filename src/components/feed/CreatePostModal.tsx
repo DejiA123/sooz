@@ -7,8 +7,7 @@ import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
-import { getS3Client, s3Config } from "@/integrations/s3/client";
-import { Upload } from "@aws-sdk/lib-storage";
+import { getPresignedUploadUrl } from "@/integrations/s3/client";
 import { extractVideoThumbnail } from "@/utils/videoThumbnail";
 
 interface CreatePostModalProps {
@@ -55,30 +54,29 @@ export default function CreatePostModal({ isOpen, onClose, onPostCreated }: Crea
             let thumbnailUrl = null;
 
             if (mediaFile) {
-                const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-                const fileExtension = mediaFile.name.split('.').pop();
-                const fileName = `${uniqueSuffix}.${fileExtension}`;
+                // Get presigned URL for media
+                const { signedUrl: mediaSignedUrl, publicUrl: mediaPublicUrl } = await getPresignedUploadUrl(mediaFile.name, mediaFile.type);
+                mediaUrl = mediaPublicUrl;
 
-                const upload = new Upload({
-                    client: getS3Client(),
-                    params: {
-                        Bucket: s3Config.bucketName,
-                        Key: fileName,
-                        Body: mediaFile,
-                        ContentType: mediaFile.type,
-                    },
-                });
+                // Handle media upload
+                const xhr = new XMLHttpRequest();
+                xhr.open('PUT', mediaSignedUrl, true);
+                xhr.setRequestHeader('Content-Type', mediaFile.type);
 
-                upload.on("httpUploadProgress", (progress) => {
-                    if (progress.loaded && progress.total) {
-                        const percent = Math.round((progress.loaded / progress.total) * 100);
+                xhr.upload.onprogress = (e) => {
+                    if (e.lengthComputable) {
+                        const percent = Math.round((e.loaded / e.total) * 100);
                         setUploadProgress(percent);
                     }
+                };
+
+                const mediaUploadPromise = new Promise((resolve, reject) => {
+                    xhr.onload = () => xhr.status === 200 ? resolve(true) : reject(new Error('Media upload failed'));
+                    xhr.onerror = () => reject(new Error('Media upload failed'));
+                    xhr.send(mediaFile);
                 });
 
-                await upload.done();
-
-                mediaUrl = `${import.meta.env.VITE_PUBLIC_R2_URL}/${fileName}`;
+                await mediaUploadPromise;
                 mediaType = mediaFile.type.startsWith('video/') ? 'video' : 'image';
 
                 // Generate and upload thumbnail for videos
@@ -86,24 +84,27 @@ export default function CreatePostModal({ isOpen, onClose, onPostCreated }: Crea
                     try {
                         console.log("Generating video thumbnail...");
                         const thumbnailBlob = await extractVideoThumbnail(mediaFile);
-                        const thumbnailFileName = `thumbnails/${uniqueSuffix}.jpg`;
+                        const thumbnailFile = new File([thumbnailBlob], 'thumbnail.jpg', { type: 'image/jpeg' });
 
-                        const thumbnailUpload = new Upload({
-                            client: getS3Client(),
-                            params: {
-                                Bucket: s3Config.bucketName,
-                                Key: thumbnailFileName,
-                                Body: thumbnailBlob,
-                                ContentType: 'image/jpeg',
-                            },
+                        // Get presigned URL for thumbnail
+                        const { signedUrl: thumbSignedUrl, publicUrl: thumbPublicUrl } = await getPresignedUploadUrl('thumbnail.jpg', 'image/jpeg');
+                        thumbnailUrl = thumbPublicUrl;
+
+                        // Handle thumbnail upload
+                        const thumbXhr = new XMLHttpRequest();
+                        thumbXhr.open('PUT', thumbSignedUrl, true);
+                        thumbXhr.setRequestHeader('Content-Type', 'image/jpeg');
+
+                        const thumbUploadPromise = new Promise((resolve, reject) => {
+                            thumbXhr.onload = () => thumbXhr.status === 200 ? resolve(true) : reject(new Error('Thumbnail upload failed'));
+                            thumbXhr.onerror = () => reject(new Error('Thumbnail upload failed'));
+                            thumbXhr.send(thumbnailFile);
                         });
 
-                        await thumbnailUpload.done();
-                        thumbnailUrl = `${import.meta.env.VITE_PUBLIC_R2_URL}/${thumbnailFileName}`;
+                        await thumbUploadPromise;
                         console.log("Thumbnail uploaded:", thumbnailUrl);
                     } catch (thumbError) {
                         console.error("Failed to generate thumbnail:", thumbError);
-                        // Continue without thumbnail - not critical
                     }
                 }
 

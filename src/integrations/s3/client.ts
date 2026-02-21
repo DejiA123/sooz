@@ -1,33 +1,21 @@
-import { S3Client } from "@aws-sdk/client-s3";
+import { supabase } from "../supabase/client";
+
 // Build trigger: 2026-02-21 23:35 UTC - Forcing refresh of baked-in R2 environment variables
 
-// TODO: USER - Replace these with your storage provider's details
-// Works with: AWS S3, Cloudflare R2, Backblaze B2, DigitalOcean Spaces, etc.
-export const s3Config = {
-    region: "auto",
-    endpoint: import.meta.env.VITE_R2_ENDPOINT || "",
-    credentials: {
-        accessKeyId: import.meta.env.VITE_R2_ACCESS_KEY_ID || "",
-        secretAccessKey: import.meta.env.VITE_R2_SECRET_ACCESS_KEY || "",
-    },
-    bucketName: import.meta.env.VITE_R2_BUCKET_NAME || "",
-};
-
-let _s3Client: S3Client | null = null;
-
-export const getS3Client = () => {
-    if (_s3Client) return _s3Client;
-
-    if (!s3Config.endpoint || !s3Config.credentials.accessKeyId || !s3Config.credentials.secretAccessKey) {
-        throw new Error("S3 Error: Missing configuration. Please check your environment variables (VITE_R2_ENDPOINT, etc).");
-    }
-
-    _s3Client = new S3Client({
-        region: s3Config.region,
-        endpoint: s3Config.endpoint,
-        credentials: s3Config.credentials,
-        forcePathStyle: true,
+export const getPresignedUploadUrl = async (fileName: string, fileType: string) => {
+    const { data, error } = await supabase.functions.invoke('get-r2-upload-url', {
+        body: { fileName, fileType }
     });
 
-    return _s3Client;
+    if (error) {
+        console.error('Error getting presigned URL:', error);
+        throw new Error(`Failed to get upload URL: ${error.message}`);
+    }
+
+    return data as { signedUrl: string; key: string; publicUrl: string };
+};
+
+// We still keep the public R2 URL for viewing media
+export const s3Config = {
+    publicUrl: import.meta.env.VITE_PUBLIC_R2_URL || "https://pub-e59dafe72724404d8ae7af425d1dfbdc.r2.dev",
 };

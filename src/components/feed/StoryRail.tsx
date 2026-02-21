@@ -10,8 +10,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { StoryViewer } from "./StoryViewer";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { getS3Client, s3Config } from "@/integrations/s3/client";
-import { Upload } from "@aws-sdk/lib-storage";
+import { getPresignedUploadUrl } from "@/integrations/s3/client";
 import { Link, useNavigate } from "react-router-dom";
 
 interface StoryUser {
@@ -124,30 +123,34 @@ export const StoryRail = () => {
         const toastId = toast.loading("Uploading story... 0%");
 
         try {
-            const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-            const fileExt = file.name.split('.').pop();
-            const fileName = `stories/${user.id}/${uniqueSuffix}.${fileExt}`;
+            // Get presigned URL from Edge Function
+            const { signedUrl, publicUrl } = await getPresignedUploadUrl(file.name, file.type);
 
-            const upload = new Upload({
-                client: getS3Client(),
-                params: {
-                    Bucket: s3Config.bucketName,
-                    Key: fileName,
-                    Body: file,
-                    ContentType: file.type,
-                },
-            });
+            // Upload directly to R2 using the signed URL
+            const xhr = new XMLHttpRequest();
+            xhr.open('PUT', signedUrl, true);
+            xhr.setRequestHeader('Content-Type', file.type);
 
-            upload.on("httpUploadProgress", (progress) => {
-                if (progress.loaded && progress.total) {
-                    const percent = Math.round((progress.loaded / progress.total) * 100);
+            xhr.upload.onprogress = (e) => {
+                if (e.lengthComputable) {
+                    const percent = Math.round((e.loaded / e.total) * 100);
                     toast.loading(`Uploading story... ${percent}%`, { id: toastId });
                 }
+            };
+
+            const uploadPromise = new Promise((resolve, reject) => {
+                xhr.onload = () => {
+                    if (xhr.status === 200) resolve(true);
+                    else reject(new Error('Upload failed'));
+                };
+                xhr.onerror = () => reject(new Error('Upload failed'));
+                xhr.send(file);
             });
 
-            await upload.done();
+            await uploadPromise;
 
-            const publicUrl = `${import.meta.env.VITE_PUBLIC_R2_URL}/${fileName}`;
+
+
 
             const { error: dbError } = await supabase.from('stories').insert({
                 user_id: user.id,
