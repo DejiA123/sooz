@@ -162,8 +162,10 @@ export default function Activity() {
 
     return (
         <div className="pb-20">
-            <h1 className="text-xl font-bold px-4 py-4">Notifications</h1>
-            <ScrollArea className="h-[calc(100vh-140px)]">
+            <div className="p-4 border-b border-white/5 bg-background/50 backdrop-blur-xl">
+                <h1 className="text-xl font-bold">Notifications</h1>
+            </div>
+            <ScrollArea className="h-[calc(100vh-160px)]">
                 <div ref={scrollRef} className="space-y-1 px-2">
                     {isLoading ? (
                         <ActivitySkeleton />
