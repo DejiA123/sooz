@@ -51,7 +51,7 @@ export default function SuggestedPeople() {
 
     return (
         <div className="pb-20 max-w-xl mx-auto">
-            <div className="sticky top-16 md:top-0 z-40 bg-background/80 backdrop-blur-xl px-4 py-4 flex items-center gap-4">
+            <div className="sticky top-20 md:top-0 z-40 bg-background/80 backdrop-blur-xl px-4 py-4 flex items-center gap-4">
                 <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="md:hidden">
                     <ArrowLeft className="w-6 h-6" />
                 </Button>
