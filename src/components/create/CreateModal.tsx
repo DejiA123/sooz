@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
-import { s3Client, s3Config } from "@/integrations/s3/client";
+import { getS3Client, s3Config } from "@/integrations/s3/client";
 import { Upload } from "@aws-sdk/lib-storage";
 import { CameraCapture } from "./CameraCapture";
 
@@ -156,7 +156,7 @@ export const CreateModal = ({ isOpen, onClose, onPostCreated }: CreateModalProps
                 const fileName = `${uniqueSuffix}.${fileExt}`;
 
                 const upload = new Upload({
-                    client: s3Client,
+                    client: getS3Client(),
                     params: {
                         Bucket: s3Config.bucketName,
                         Key: fileName,

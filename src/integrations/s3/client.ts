@@ -12,13 +12,21 @@ export const s3Config = {
     bucketName: import.meta.env.VITE_R2_BUCKET_NAME || "",
 };
 
-const hasCredentials = s3Config.endpoint && s3Config.credentials.accessKeyId && s3Config.credentials.secretAccessKey;
+let _s3Client: S3Client | null = null;
 
-export const s3Client = hasCredentials
-    ? new S3Client({
+export const getS3Client = () => {
+    if (_s3Client) return _s3Client;
+
+    if (!s3Config.endpoint || !s3Config.credentials.accessKeyId || !s3Config.credentials.secretAccessKey) {
+        throw new Error("S3 Error: Missing configuration. Please check your environment variables (VITE_R2_ENDPOINT, etc).");
+    }
+
+    _s3Client = new S3Client({
         region: s3Config.region,
         endpoint: s3Config.endpoint,
         credentials: s3Config.credentials,
         forcePathStyle: true,
-    })
-    : null;
+    });
+
+    return _s3Client;
+};

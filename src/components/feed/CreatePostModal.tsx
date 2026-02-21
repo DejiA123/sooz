@@ -7,7 +7,7 @@ import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
-import { s3Client, s3Config } from "@/integrations/s3/client";
+import { getS3Client, s3Config } from "@/integrations/s3/client";
 import { Upload } from "@aws-sdk/lib-storage";
 import { extractVideoThumbnail } from "@/utils/videoThumbnail";
 
@@ -64,7 +64,7 @@ export default function CreatePostModal({ isOpen, onClose, onPostCreated }: Crea
                 const fileName = `${uniqueSuffix}.${fileExtension}`;
 
                 const upload = new Upload({
-                    client: s3Client,
+                    client: getS3Client(),
                     params: {
                         Bucket: s3Config.bucketName,
                         Key: fileName,
@@ -93,7 +93,7 @@ export default function CreatePostModal({ isOpen, onClose, onPostCreated }: Crea
                         const thumbnailFileName = `thumbnails/${uniqueSuffix}.jpg`;
 
                         const thumbnailUpload = new Upload({
-                            client: s3Client,
+                            client: getS3Client(),
                             params: {
                                 Bucket: s3Config.bucketName,
                                 Key: thumbnailFileName,

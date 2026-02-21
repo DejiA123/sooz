@@ -10,7 +10,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { StoryViewer } from "./StoryViewer";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { s3Client, s3Config } from "@/integrations/s3/client";
+import { getS3Client, s3Config } from "@/integrations/s3/client";
 import { Upload } from "@aws-sdk/lib-storage";
 import { Link, useNavigate } from "react-router-dom";
 
@@ -133,7 +133,7 @@ export const StoryRail = () => {
             const fileName = `stories/${user.id}/${uniqueSuffix}.${fileExt}`;
 
             const upload = new Upload({
-                client: s3Client,
+                client: getS3Client(),
                 params: {
                     Bucket: s3Config.bucketName,
                     Key: fileName,
