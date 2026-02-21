@@ -196,9 +196,9 @@ textarea {
 /* PWA-specific styles for better positioning */
 @media (display-mode: standalone) {
 
-  /* Add safe area padding to the top for status bar */
+  /* Safe area handling moved to layout components for better stability during modal openings */
   body {
-    padding-top: env(safe-area-inset-top);
+    /* No padding-top here as it conflicts with Radix UI scroll-lock */
   }
 
   /* Adjust bottom navigation positioning - bring it up */
@@ -232,9 +232,9 @@ textarea {
     /* Needs to be above everything at the very top */
   }
 
-  /* Add padding to the fixed header so it doesn't overlap with status bar */
+  /* Fixed header now manages its own internal safe-area padding */
   .fixed.top-0 {
-    top: env(safe-area-inset-top) !important;
+    top: 0 !important;
   }
 
   /* Custom utility for fixed-position pages like Chat */
