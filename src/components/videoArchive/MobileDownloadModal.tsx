@@ -1,4 +1,4 @@
-import { X, Download, Copy, CheckCircle2, ExternalLink } from "lucide-react";
+import { X, Download, Copy, CheckCircle2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -26,14 +26,6 @@ export function MobileDownloadModal({ url, title, onClose }: MobileDownloadModal
         setCopied(true);
         toast.success("Link copied! Paste in Safari to download.");
         setTimeout(() => setCopied(false), 3000);
-    };
-
-    const handleOpenInSafari = () => {
-        // Use location.href to open in Safari (not in-app browser)
-        window.open(url, "_blank");
-        toast.info("Once the video loads, use Share ↗ to save it", {
-            duration: 5000,
-        });
     };
 
     return (
@@ -90,15 +82,6 @@ export function MobileDownloadModal({ url, title, onClose }: MobileDownloadModal
                                 Copy Download Link
                             </>
                         )}
-                    </button>
-
-                    {/* Secondary: Open in browser */}
-                    <button
-                        onClick={handleOpenInSafari}
-                        className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl bg-muted/50 border border-white/5 text-sm font-medium text-foreground transition-all active:scale-95"
-                    >
-                        <ExternalLink className="w-4 h-4" />
-                        Open in Browser
                     </button>
                 </div>
             </div>
