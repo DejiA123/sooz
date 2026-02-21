@@ -28,6 +28,7 @@ const EmailConfirmation = lazy(() => import("./pages/EmailConfirmation"));
 const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
 const UpdatePassword = lazy(() => import("./pages/UpdatePassword"));
 const Algorithms = lazy(() => import("./pages/Algorithms"));
+const AnalyticsDashboard = lazy(() => import("./pages/AnalyticsDashboard"));
 const VideoArchive = lazy(() => import("./pages/VideoArchive"));
 import { AuthListener } from "./components/AuthListener";
 import { ProtectedRoute } from "./components/ProtectedRoute";
@@ -129,6 +130,7 @@ const App = () => {
                     <Route path="/privacy" element={<Suspense fallback={null}><Privacy /></Suspense>} />
                     <Route path="/terms" element={<Suspense fallback={null}><Terms /></Suspense>} />
                     <Route path="/algorithms" element={<Suspense fallback={null}><Algorithms /></Suspense>} />
+                    <Route path="/analytics" element={<Suspense fallback={null}><AnalyticsDashboard /></Suspense>} />
                     <Route path="/archive" element={<Suspense fallback={null}><VideoArchive /></Suspense>} />
                     <Route element={<ProtectedRoute />}>
                       <Route path="/chat" element={<Suspense fallback={null}><Chat /></Suspense>} />

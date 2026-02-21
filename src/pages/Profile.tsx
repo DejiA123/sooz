@@ -63,19 +63,27 @@ const GridVideo = ({ src, poster, className, priority = false }: { src: string, 
     return cachedSrc.includes('#') ? cachedSrc : `${cachedSrc}#t=0.001`;
   }, [cachedSrc, finalPoster]);
 
-  // Timeout Fallback: If video doesn't load within 3s, show error (prevent stuck gray box)
+  // Timeout Fallback: If video doesn't load within 10s, show error (prevent stuck gray box)
+  // 10s is more reasonable for mobile networks than the previous 3s.
   useEffect(() => {
     if (videoReady || hasError) return;
 
     const timer = setTimeout(() => {
+      // If after 10 seconds we still don't have video OR image, then we show error
       if (!videoReady && !imageLoaded) {
-        // Only show error if BOTH video and image failed to load
         setHasError(true);
       }
-    }, 3000);
+    }, 10000);
 
     return () => clearTimeout(timer);
   }, [videoReady, imageLoaded, hasError]);
+
+  // If video eventually loads after a delay, clear the error
+  useEffect(() => {
+    if (videoReady && hasError) {
+      setHasError(false);
+    }
+  }, [videoReady]);
 
   return (
     <div

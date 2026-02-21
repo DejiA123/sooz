@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Home, Heart, User, PlusSquare, Search, Menu, MoreHorizontal, Settings as SettingsIcon, ActivitySquare, Bookmark, Moon, Sun, MessageSquareWarning, LogOut, MessageCircle, Code2, PlayCircle } from "lucide-react";
+import { Home, Heart, User, PlusSquare, Search, Menu, MoreHorizontal, Settings as SettingsIcon, ActivitySquare, Bookmark, Moon, Sun, MessageSquareWarning, LogOut, MessageCircle, Code2, PlayCircle, BarChart3 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { CreateModal } from "@/components/create/CreateModal";
@@ -122,9 +122,9 @@ export const Sidebar = () => {
                                 </Link>
                             </DropdownMenuItem>
                             <DropdownMenuItem asChild>
-                                <Link to="/algorithms" className="flex items-center gap-3 p-3 cursor-pointer rounded-lg focus:bg-secondary/50">
-                                    <Code2 className="w-5 h-5" />
-                                    <span>C++ Algorithms</span>
+                                <Link to="/analytics" className="flex items-center gap-3 p-3 cursor-pointer rounded-lg focus:bg-secondary/50">
+                                    <BarChart3 className="w-5 h-5 text-primary" />
+                                    <span>App Analytics</span>
                                 </Link>
                             </DropdownMenuItem>
                             <DropdownMenuItem asChild>
