@@ -10,18 +10,6 @@ interface MobileDownloadModalProps {
 
 export function MobileDownloadModal({ url, title, onClose }: MobileDownloadModalProps) {
     const [copied, setCopied] = useState(false);
-    const fileName = `${title.replace(/[^a-z0-9]/gi, "_")}.mp4`;
-
-    const handleCopyLink = async () => {
-        try {
-            await navigator.clipboard.writeText(url);
-            setCopied(true);
-            toast.success("Link copied!");
-            setTimeout(() => setCopied(false), 2000);
-        } catch {
-            toast.error("Could not copy link");
-        }
-    };
 
     const handleShare = async () => {
         if (navigator.share) {
@@ -36,7 +24,37 @@ export function MobileDownloadModal({ url, title, onClose }: MobileDownloadModal
                     toast.error("Share failed");
                 }
             }
+        } else {
+            // Fallback if share API not available
+            handleCopyLink();
         }
+    };
+
+    const handleCopyLink = async () => {
+        try {
+            await navigator.clipboard.writeText(url);
+            setCopied(true);
+            toast.success("Link copied! Paste in Safari to download.");
+            setTimeout(() => setCopied(false), 2000);
+        } catch {
+            // Fallback for clipboard API
+            const input = document.createElement("input");
+            input.value = url;
+            document.body.appendChild(input);
+            input.select();
+            document.execCommand("copy");
+            document.body.removeChild(input);
+            setCopied(true);
+            toast.success("Link copied!");
+            setTimeout(() => setCopied(false), 2000);
+        }
+    };
+
+    const handleOpenInBrowser = () => {
+        window.open(url, "_blank");
+        toast.info("Once the video loads, tap Share ↗ then 'Save to Files'", {
+            duration: 6000,
+        });
     };
 
     return (
@@ -56,7 +74,7 @@ export function MobileDownloadModal({ url, title, onClose }: MobileDownloadModal
                             <Download className="w-5 h-5 text-primary" />
                         </div>
                         <div>
-                            <h3 className="text-sm font-bold text-foreground">Download Video</h3>
+                            <h3 className="text-sm font-bold text-foreground">Save Video</h3>
                             <p className="text-xs text-muted-foreground line-clamp-1">{title}</p>
                         </div>
                     </div>
@@ -68,38 +86,32 @@ export function MobileDownloadModal({ url, title, onClose }: MobileDownloadModal
                     </button>
                 </div>
 
-                {/* Instructions */}
-                <div className="p-4 space-y-4">
-                    <div className="bg-primary/5 rounded-xl p-4 border border-primary/10">
-                        <p className="text-xs font-bold text-primary mb-2">📱 How to save on iPhone:</p>
-                        <ol className="text-xs text-muted-foreground space-y-1.5 list-decimal list-inside">
-                            <li><strong>Long press</strong> the blue download link below</li>
-                            <li>Tap <strong>"Download Linked File"</strong></li>
-                            <li>Find it in your <strong>Files app</strong> → Downloads</li>
-                        </ol>
-                    </div>
-
-                    {/* Download Link - long pressable */}
-                    <a
-                        href={url}
-                        download={fileName}
-                        className="flex items-center justify-center gap-2 w-full py-3.5 px-4 rounded-xl bg-primary text-primary-foreground font-bold text-sm transition-all active:scale-95 shadow-lg shadow-primary/20"
+                {/* Actions */}
+                <div className="p-4 space-y-3">
+                    {/* Primary: Share & Save */}
+                    <button
+                        onClick={handleShare}
+                        className="flex items-center justify-center gap-2.5 w-full py-3.5 px-4 rounded-xl bg-primary text-primary-foreground font-bold text-sm transition-all active:scale-95 shadow-lg shadow-primary/20"
                     >
-                        <Download className="w-5 h-5" />
-                        Long Press to Download
-                    </a>
+                        <Share2 className="w-5 h-5" />
+                        Share & Save to Files
+                    </button>
 
-                    {/* Alternative Actions */}
+                    <p className="text-[11px] text-muted-foreground text-center">
+                        Tap above → Select <strong>"Save to Files"</strong> from the share menu
+                    </p>
+
+                    <div className="h-px bg-white/5" />
+
+                    {/* Secondary Actions */}
                     <div className="flex gap-2">
-                        {navigator.share && (
-                            <button
-                                onClick={handleShare}
-                                className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-muted/50 border border-white/5 text-sm font-medium text-foreground transition-all active:scale-95"
-                            >
-                                <Share2 className="w-4 h-4" />
-                                Share
-                            </button>
-                        )}
+                        <button
+                            onClick={handleOpenInBrowser}
+                            className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-muted/50 border border-white/5 text-sm font-medium text-foreground transition-all active:scale-95"
+                        >
+                            <Download className="w-4 h-4" />
+                            Open Video
+                        </button>
                         <button
                             onClick={handleCopyLink}
                             className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-muted/50 border border-white/5 text-sm font-medium text-foreground transition-all active:scale-95"
