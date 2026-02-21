@@ -57,8 +57,6 @@ export const useImageCache = create<ImageCacheState>((set, get) => ({
         // Check if cache is still valid (not too old)
         const age = Date.now() - entry.timestamp;
         if (age > MAX_CACHE_AGE_MS) {
-            // Cache expired, clean it up
-            get().revokeBlobUrl(originalUrl);
             return undefined;
         }
 

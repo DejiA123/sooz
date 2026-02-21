@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useScrollDirection } from "@/hooks/useScrollDirection";
 import {
@@ -16,6 +17,7 @@ import { cn } from "@/lib/utils";
 import {
   Sheet,
   SheetContent,
+  SheetDescription,
   SheetHeader,
   SheetTitle,
   SheetTrigger,
@@ -27,6 +29,7 @@ import { supabase } from "@/integrations/supabase/client";
 export const TopBar = () => {
   const scrollDirection = useScrollDirection();
   const location = useLocation();
+  const [isOpen, setIsOpen] = useState(false);
 
   // Disable scroll-hiding on chat and activity pages
   const isExcludedPage = ["/chat", "/activity"].includes(location.pathname);
@@ -56,37 +59,55 @@ export const TopBar = () => {
         </Link>
 
         {/* Hamburger Menu on Mobile */}
-        <Sheet>
+        <Sheet open={isOpen} onOpenChange={setIsOpen}>
           <SheetTrigger asChild>
             <Button variant="ghost" size="icon" className="md:hidden h-9 w-9 rounded-full bg-secondary/30">
               <Menu className="w-5 h-5" />
             </Button>
           </SheetTrigger>
           <SheetContent side="right" className="w-[80%] p-0 bg-background border-l border-border/50">
-            <SheetHeader className="p-6 pt-[calc(1.5rem+env(safe-area-inset-top))] border-b border-border/50">
+            <SheetHeader className="p-6 pt-[calc(1.5rem+env(safe-area-inset-top,0px))] border-b border-border/50">
               <SheetTitle className="text-left text-xl font-bold bg-gradient-to-r from-primary to-purple-600 bg-clip-text text-transparent">
                 App Settings
               </SheetTitle>
+              <SheetDescription className="sr-only">
+                Access app settings, analytics, and more.
+              </SheetDescription>
             </SheetHeader>
 
             <div className="flex flex-col p-4 gap-2">
-              <Link to="/settings" className="flex items-center gap-4 p-4 rounded-xl hover:bg-secondary/50 transition-colors">
+              <Link
+                to="/settings"
+                onClick={() => setIsOpen(false)}
+                className="flex items-center gap-4 p-4 rounded-xl hover:bg-secondary/50 transition-colors"
+              >
                 <Settings className="w-5 h-5 text-muted-foreground" />
                 <span className="font-medium">Settings</span>
               </Link>
 
-              <Link to="/analytics" className="flex items-center gap-4 p-4 rounded-xl hover:bg-secondary/50 transition-colors">
+              <Link
+                to="/analytics"
+                onClick={() => setIsOpen(false)}
+                className="flex items-center gap-4 p-4 rounded-xl hover:bg-secondary/50 transition-colors"
+              >
                 <BarChart3 className="w-5 h-5 text-primary" />
                 <span className="font-medium text-primary">App Analytics</span>
               </Link>
 
-              <Link to="/archive" className="flex items-center gap-4 p-4 rounded-xl hover:bg-secondary/50 transition-colors">
+              <Link
+                to="/archive"
+                onClick={() => setIsOpen(false)}
+                className="flex items-center gap-4 p-4 rounded-xl hover:bg-secondary/50 transition-colors"
+              >
                 <Video className="w-5 h-5 text-muted-foreground" />
                 <span className="font-medium">Video Archive</span>
               </Link>
 
               <button
-                onClick={() => toast("Saved posts coming soon!")}
+                onClick={() => {
+                  setIsOpen(false);
+                  toast("Saved posts coming soon!");
+                }}
                 className="flex items-center gap-4 p-4 rounded-xl hover:bg-secondary/50 transition-colors text-left"
               >
                 <Bookmark className="w-5 h-5 text-muted-foreground" />
@@ -98,6 +119,9 @@ export const TopBar = () => {
                   const isDark = document.documentElement.classList.toggle("dark");
                   localStorage.setItem("sooz-mode", isDark ? "dark" : "light");
                   toast.success(isDark ? "Dark mode enabled" : "Light mode enabled");
+                  // Appearance toggle doesn't necessarily need to close menu, 
+                  // but we can close it for consistency if desired.
+                  setIsOpen(false);
                 }}
                 className="flex items-center gap-4 p-4 rounded-xl hover:bg-secondary/50 transition-colors text-left"
               >
@@ -109,7 +133,10 @@ export const TopBar = () => {
               </button>
 
               <button
-                onClick={() => toast("Report submitted, thanks!")}
+                onClick={() => {
+                  setIsOpen(false);
+                  toast("Report submitted, thanks!");
+                }}
                 className="flex items-center gap-4 p-4 rounded-xl hover:bg-secondary/50 transition-colors text-left"
               >
                 <MessageSquareWarning className="w-5 h-5 text-muted-foreground" />
@@ -120,6 +147,7 @@ export const TopBar = () => {
 
               <button
                 onClick={async () => {
+                  setIsOpen(false);
                   await supabase.auth.signOut();
                   window.location.href = "/auth";
                 }}

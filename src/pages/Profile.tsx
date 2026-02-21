@@ -10,7 +10,7 @@ import { Settings, Grid3X3, Bookmark, Heart, Loader2, Camera, Play, X, VideoOff 
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import EditProfileModal from "@/components/profile/EditProfileModal";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { PostCard } from "@/components/feed/PostCard";
 import { LazyImage } from "@/components/feed/LazyImage";
 import { LazyVideo } from "@/components/feed/LazyVideo";
@@ -569,6 +569,8 @@ const Profile = () => {
       {/* Avatar Lightbox */}
       <Dialog open={showAvatarModal} onOpenChange={setShowAvatarModal}>
         <DialogContent className="p-0 border-none bg-transparent max-w-lg w-full overflow-hidden shadow-none flex items-center justify-center outline-none">
+          <DialogTitle className="sr-only">Profile Picture</DialogTitle>
+          <DialogDescription className="sr-only">Viewing profile picture in full size</DialogDescription>
           <div className="relative w-full aspect-square max-h-[80vh] rounded-full overflow-hidden border-4 border-white/20 shadow-2xl">
             {profile.avatar_url ? (
               <img
