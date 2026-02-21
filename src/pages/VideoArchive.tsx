@@ -328,6 +328,7 @@ export default function VideoArchive() {
                 <VideoPlayerModal
                     video={selectedVideo}
                     onClose={() => setSelectedVideo(null)}
+                    onDownload={handleDownload}
                 />
             )}
 
