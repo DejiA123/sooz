@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { StoryViewer } from "./StoryViewer";
@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { getPresignedUploadUrl } from "@/integrations/s3/client";
 import { Link, useNavigate } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface StoryUser {
     id: string;
@@ -29,15 +30,15 @@ export const StoryRail = () => {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const navigate = useNavigate();
     const queryClient = useQueryClient();
+    const [uploading, setUploading] = useState(false);
 
     const { data: storyData, isLoading } = useQuery({
         queryKey: ['stories', user?.id],
         queryFn: async () => {
-            if (!user) return { storyUsers: [], userStory: null };
+            if (!user) return { storyUsers: [], userStory: null, followedUsers: [] };
 
             const now = new Date().toISOString();
 
-            // Parallel fetch for speed
             const [storiesResult, followsResult] = await Promise.all([
                 supabase
                     .from('stories')
@@ -56,7 +57,6 @@ export const StoryRail = () => {
                     .eq('follower_id', user.id)
             ]);
 
-            // Process Stories
             const grouped: Record<string, StoryUser> = {};
             if (storiesResult.data) {
                 storiesResult.data.forEach((story: any) => {
@@ -78,8 +78,7 @@ export const StoryRail = () => {
             const others = Object.values(grouped).filter((g) => g.id !== user.id);
             const mine = grouped[user.id];
 
-            // Process Follows (to show users without stories)
-            let followed: StoryUser[] = [];
+            let followed: any[] = [];
             if (followsResult.data) {
                 followed = followsResult.data.map((f: any) => ({
                     id: f.profiles.id,
@@ -94,7 +93,7 @@ export const StoryRail = () => {
             return { storyUsers: others, userStory: mine, followedUsers: followed };
         },
         enabled: !!user,
-        staleTime: 1000 * 60 * 5, // 5 min cache
+        staleTime: 1000 * 60 * 5,
     });
 
     const storyUsers = storyData?.storyUsers || [];
@@ -103,7 +102,6 @@ export const StoryRail = () => {
 
     useEffect(() => {
         if (!user) return;
-        // Subscribe to new stories
         const channel = supabase
             .channel('public:stories')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'stories' }, () => {
@@ -120,13 +118,12 @@ export const StoryRail = () => {
         const file = event.target.files?.[0];
         if (!file || !user) return;
 
+        setUploading(true);
         const toastId = toast.loading("Uploading story... 0%");
 
         try {
-            // Get presigned URL from Edge Function
             const { signedUrl, publicUrl } = await getPresignedUploadUrl(file.name, file.type);
 
-            // Upload directly to R2 using the signed URL
             const xhr = new XMLHttpRequest();
             xhr.open('PUT', signedUrl, true);
             xhr.setRequestHeader('Content-Type', file.type);
@@ -149,9 +146,6 @@ export const StoryRail = () => {
 
             await uploadPromise;
 
-
-
-
             const { error: dbError } = await supabase.from('stories').insert({
                 user_id: user.id,
                 media_url: publicUrl,
@@ -161,10 +155,12 @@ export const StoryRail = () => {
             if (dbError) throw dbError;
 
             toast.dismiss(toastId);
+            setUploading(false);
             queryClient.invalidateQueries({ queryKey: ['stories', user.id] });
 
         } catch (error: any) {
             console.error("Story upload error:", error);
+            setUploading(false);
             toast.error("Failed to upload: " + (error.message || "Unknown error"), { id: toastId });
         }
     };
@@ -176,124 +172,180 @@ export const StoryRail = () => {
 
     const handleMyStoryClick = () => {
         if (userStory) {
-            // My story is index 0 in the combined list
             openViewer(0);
         } else {
             fileInputRef.current?.click();
         }
     };
 
-    // Combine for viewer: [My Story (if exists), ...Others]
-    // Only users with stories go into the viewer
     const viewerStories = userStory ? [userStory, ...storyUsers] : storyUsers;
-
-    // Filter followed users to remove duplicates (those who already have stories)
     const storyUserIds = new Set(storyUsers.map(u => u.id));
     const uniqueFollowedUsers = followedUsers.filter(u => !storyUserIds.has(u.id));
 
+    // Animation Variants
+    const containerVariants = {
+        hidden: { opacity: 0, y: 10 },
+        visible: {
+            opacity: 1,
+            y: 0,
+            transition: {
+                staggerChildren: 0.1,
+                duration: 0.8,
+                ease: [0.22, 1, 0.36, 1]
+            }
+        }
+    };
+
+    const itemVariants = {
+        hidden: { scale: 0.8, opacity: 0 },
+        visible: {
+            scale: 1,
+            opacity: 1,
+            transition: { type: "spring", stiffness: 300, damping: 20 }
+        }
+    };
+
     return (
-        <div className="w-full pb-4 pt-2">
-            <ScrollArea className="w-full whitespace-nowrap">
-                <div className="flex w-max space-x-4 px-0 md:px-4 pb-2">
-                    <input
-                        type="file"
-                        ref={fileInputRef}
-                        className="hidden"
-                        accept="image/*,video/*"
-                        onChange={handleFileUpload}
-                    />
+        <div className="w-full relative px-1 sm:px-0">
+            {/* The "Best" Glass Container */}
+            <div className="bg-white/5 backdrop-blur-3xl border border-white/10 rounded-[2.5rem] shadow-premium overflow-hidden transition-all duration-700">
+                <ScrollArea className="w-full">
+                    <motion.div
+                        variants={containerVariants}
+                        initial="hidden"
+                        animate="visible"
+                        className="flex items-center gap-6 p-6 px-7 w-max min-w-full justify-center"
+                    >
+                        <input
+                            type="file"
+                            ref={fileInputRef}
+                            className="hidden"
+                            accept="image/*,video/*"
+                            onChange={handleFileUpload}
+                        />
 
-                    {/* Loading State */}
-                    {isLoading && (
-                        <div className="flex gap-4">
-                            {[1, 2, 3, 4, 5, 6].map((i) => (
-                                <div key={i} className="flex flex-col items-center gap-1.5">
-                                    <Skeleton className="w-[68px] h-[68px] rounded-full" />
-                                    <Skeleton className="h-3 w-12" />
-                                </div>
-                            ))}
-                        </div>
-                    )}
-
-                    {!isLoading && (
-                        <>
-                            {/* Current User Story */}
-                            <div className="flex flex-col items-center gap-1.5 cursor-pointer group" onClick={handleMyStoryClick}>
-                                <div className="relative">
-                                    <div className={cn(
-                                        "p-[2px] rounded-full transition-all duration-300",
-                                        userStory ? "bg-gradient-to-tr from-yellow-400 to-fuchsia-600" : ""
-                                    )}>
-                                        <Avatar className="w-16 h-16 border-2 border-background group-hover:scale-95 transition-transform duration-300">
-                                            <AvatarImage src={user?.user_metadata?.avatar_url} className="object-cover" />
-                                            <AvatarFallback>ME</AvatarFallback>
-                                        </Avatar>
+                        {isLoading ? (
+                            <div className="flex gap-6">
+                                {[1, 2, 3, 4, 5].map((i) => (
+                                    <div key={i} className="flex flex-col items-center gap-3">
+                                        <Skeleton className="w-[78px] h-[78px] rounded-[28px]" />
+                                        <Skeleton className="h-3 w-12 rounded-full opacity-50" />
                                     </div>
-                                    {!userStory && (
-                                        <div className="absolute bottom-0 right-0 bg-primary text-primary-foreground rounded-full p-1 border-2 border-background">
-                                            <Plus className="w-3 h-3" strokeWidth={3} />
-                                        </div>
-                                    )}
-                                </div>
-                                <span className="text-[11px] font-medium text-muted-foreground group-hover:text-foreground transition-colors">
-                                    Your Story
-                                </span>
+                                ))}
                             </div>
-
-                            {/* Users WITH Stories */}
-                            {storyUsers.map((storyUser, i) => (
-                                <div
-                                    key={storyUser.id}
-                                    className="flex flex-col items-center gap-1.5 cursor-pointer group"
-                                    onClick={() => openViewer(userStory ? i + 1 : i)}
+                        ) : (
+                            <>
+                                {/* Current User Story */}
+                                <motion.div
+                                    variants={itemVariants}
+                                    whileHover={{ scale: 1.05 }}
+                                    whileTap={{ scale: 0.95 }}
+                                    className="flex flex-col items-center gap-3 cursor-pointer group relative"
+                                    onClick={handleMyStoryClick}
                                 >
                                     <div className="relative">
-                                        <div className="p-[2px] rounded-full transition-all duration-300 bg-gradient-to-tr from-yellow-400 to-fuchsia-600">
-                                            <Avatar className="w-16 h-16 border-2 border-background group-hover:scale-95 transition-transform duration-300">
-                                                <AvatarImage src={storyUser.avatar || ""} className="object-cover" />
-                                                <AvatarFallback>{storyUser.username[0]?.toUpperCase()}</AvatarFallback>
-                                            </Avatar>
+                                        <div className={cn(
+                                            "p-[3px] rounded-[32px] transition-all duration-700",
+                                            userStory
+                                                ? "bg-gradient-to-tr from-[#FF3B30] via-[#FF2D55] to-[#AF52DE] shadow-lg shadow-pink-500/20 animated-story-ring"
+                                                : "bg-white/10"
+                                        )}>
+                                            <Avatar className="w-[72px] h-[72px] rounded-[28px] border-[3px] border-background/50 group-hover:border-transparent transition-all duration-500">
+                                                <AvatarImage src={user?.user_metadata?.avatar_url} className="object-cover" />
+                                                <AvatarFallback className="bg-secondary text-secondary-foreground font-bold text-lg">ME</AvatarFallback>
+                                            </ Avatar>
                                         </div>
+                                        {!userStory && (
+                                            <div className="absolute -bottom-1 -right-1 bg-primary text-primary-foreground rounded-full p-2 border-[4px] border-background shadow-xl scale-90 sm:scale-100">
+                                                <Plus className="w-4 h-4" strokeWidth={4} />
+                                            </div>
+                                        )}
+                                        {uploading && (
+                                            <div className="absolute inset-0 flex items-center justify-center bg-black/60 rounded-[32px] backdrop-blur-[2px]">
+                                                <div className="w-10 h-10 border-4 border-white/20 border-t-white rounded-full animate-spin" />
+                                            </div>
+                                        )}
                                     </div>
-                                    <span className="text-[11px] font-medium text-muted-foreground group-hover:text-foreground transition-colors max-w-[64px] truncate text-center">
-                                        {storyUser.username}
+                                    <span className="text-[12px] font-display font-bold text-muted-foreground/80 group-hover:text-foreground transition-colors tracking-tight">
+                                        Your Story
                                     </span>
-                                </div>
-                            ))}
+                                </motion.div>
 
-                            {/* Followed Users WITHOUT Stories */}
-                            {uniqueFollowedUsers.map((followedUser) => (
-                                <Link
-                                    key={followedUser.id}
-                                    to={`/profile/${followedUser.username}`}
-                                    className="flex flex-col items-center gap-1.5 cursor-pointer group"
-                                >
-                                    <div className="relative">
-                                        <div className="p-[2px] rounded-full transition-all duration-300 border-2 border-muted hover:border-muted-foreground/50">
-                                            <Avatar className="w-16 h-16 border-2 border-background group-hover:scale-95 transition-transform duration-300">
-                                                <AvatarImage src={followedUser.avatar || ""} className="object-cover" />
-                                                <AvatarFallback>{followedUser.username[0]?.toUpperCase()}</AvatarFallback>
-                                            </Avatar>
+                                {/* Users WITH Stories */}
+                                {storyUsers.map((storyUser) => (
+                                    <motion.div
+                                        key={storyUser.id}
+                                        variants={itemVariants}
+                                        whileHover={{ scale: 1.05 }}
+                                        whileTap={{ scale: 0.95 }}
+                                        className="flex flex-col items-center gap-3 cursor-pointer group"
+                                        onClick={() => openViewer(userStory ? storyUsers.indexOf(storyUser) + 1 : storyUsers.indexOf(storyUser))}
+                                    >
+                                        <div className="relative">
+                                            <div className="p-[3px] rounded-[32px] transition-all duration-700 bg-gradient-to-tr from-[#FF3B30] via-[#FF2D55] to-[#AF52DE] shadow-lg shadow-pink-500/10 group-hover:shadow-pink-500/40 animated-story-ring">
+                                                <Avatar className="w-[72px] h-[72px] rounded-[28px] border-[3px] border-background/50 group-hover:border-transparent transition-all duration-500">
+                                                    <AvatarImage src={storyUser.avatar || ""} className="object-cover" />
+                                                    <AvatarFallback className="bg-primary/10 text-primary text-2xl font-bold">{storyUser.username[0]?.toUpperCase()}</AvatarFallback>
+                                                </Avatar>
+                                            </div>
                                         </div>
-                                    </div>
-                                    <span className="text-[11px] font-medium text-muted-foreground group-hover:text-foreground transition-colors max-w-[64px] truncate text-center">
-                                        {followedUser.username}
-                                    </span>
-                                </Link>
-                            ))}
-                        </>
-                    )}
-                </div>
-                <ScrollBar orientation="horizontal" className="hidden" />
-            </ScrollArea>
+                                        <span className="text-[12px] font-display font-bold text-muted-foreground/80 group-hover:text-foreground transition-colors max-w-[80px] truncate text-center tracking-tight">
+                                            {storyUser.username}
+                                        </span>
+                                    </motion.div>
+                                ))}
 
-            {viewerOpen && viewerStories.length > 0 && (
+                                {/* Followed Users WITHOUT Stories */}
+                                {uniqueFollowedUsers.map((followedUser) => (
+                                    <motion.div
+                                        key={followedUser.id}
+                                        variants={itemVariants}
+                                        whileHover={{ scale: 1.05 }}
+                                        whileTap={{ scale: 0.95 }}
+                                    >
+                                        <Link
+                                            to={`/profile/${followedUser.username}`}
+                                            className="flex flex-col items-center gap-3 cursor-pointer group"
+                                        >
+                                            <div className="relative">
+                                                <div className="p-[3px] rounded-[32px] transition-all duration-500 bg-white/5 border border-white/5 group-hover:border-primary/40 group-hover:bg-primary/5">
+                                                    <Avatar className="w-[72px] h-[72px] rounded-[28px] border-[3px] border-background/50 group-hover:border-transparent group-hover:scale-95 transition-all duration-500">
+                                                        <AvatarImage src={followedUser.avatar || ""} className="object-cover" />
+                                                        <AvatarFallback className="bg-secondary/50 text-secondary-foreground font-bold text-lg">{followedUser.username[0]?.toUpperCase()}</AvatarFallback>
+                                                    </Avatar>
+                                                </div>
+                                            </div>
+                                            <span className="text-[12px] font-display font-bold text-muted-foreground/60 group-hover:text-foreground transition-colors max-w-[80px] truncate text-center tracking-tight">
+                                                {followedUser.username}
+                                            </span>
+                                        </Link>
+                                    </motion.div>
+                                ))}
+                            </>
+                        )}
+                    </motion.div>
+                </ScrollArea>
+            </div>
+
+            {viewerOpen && (
                 <StoryViewer
+                    users={viewerStories}
                     initialUserIndex={initialUserIndex}
-                    stories={viewerStories}
                     onClose={() => setViewerOpen(false)}
                 />
             )}
+
+            <style dangerouslySetInnerHTML={{
+                __html: `
+                @keyframes story-glow {
+                    0% { filter: hue-rotate(0deg) brightness(1); }
+                    50% { filter: hue-rotate(15deg) brightness(1.2); }
+                    100% { filter: hue-rotate(0deg) brightness(1); }
+                }
+                .animated-story-ring {
+                    animation: story-glow 4s ease-in-out infinite;
+                }
+            `}} />
         </div>
     );
 };

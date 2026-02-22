@@ -56,52 +56,48 @@ export const SuggestedAccounts = () => {
     if (profiles.length === 0) return null;
 
     return (
-        <div className="hidden lg:block w-80 pl-8 fixed right-[calc(50%-45rem)] top-8 h-screen overflow-y-auto">
-            {/* Note: positioning is tricky with mx-auto content. 
-                 A simpler way is to put it in a flex container in Index.tsx
-                 For now, let's just return the content content and handle layout in parent.
-             */}
-            <div className="space-y-4">
+        <div className="w-full space-y-8 animate-fade-in pl-6 pt-4">
+            <div className="space-y-6">
                 <div className="flex items-center justify-between">
-                    <h2 className="text-sm font-semibold text-muted-foreground">Suggested for you</h2>
+                    <h2 className="text-[14px] font-display font-bold text-muted-foreground/50 tracking-tight uppercase">Suggested for you</h2>
                     <Link to="/suggested-people">
-                        <Button variant="link" className="text-xs text-primary p-0 h-auto">See All</Button>
+                        <Button variant="link" className="text-xs text-primary font-bold p-0 h-auto hover:no-underline hover:opacity-70 transition-opacity">See All</Button>
                     </Link>
                 </div>
 
-                <div className="space-y-4">
+                <div className="space-y-5">
                     {profiles.map((profile) => (
-                        <div key={profile.id} className="flex items-center justify-between">
-                            <Link to={`/profile/${profile.username}`} className="flex items-center gap-3 group">
-                                <Avatar className="w-10 h-10 border border-white/10 group-hover:border-primary/50 transition-colors">
-                                    <AvatarImage src={profile.avatar_url || ""} />
-                                    <AvatarFallback>{(profile.display_name || profile.username)[0].toUpperCase()}</AvatarFallback>
+                        <div key={profile.id} className="flex items-center justify-between group">
+                            <Link to={`/profile/${profile.username}`} className="flex items-center gap-3">
+                                <Avatar className="w-10 h-10 ring-2 ring-primary/5 group-hover:ring-primary/20 transition-all duration-300">
+                                    <AvatarImage src={profile.avatar_url || ""} className="object-cover" />
+                                    <AvatarFallback className="bg-secondary text-secondary-foreground font-bold">{(profile.display_name || profile.username)[0].toUpperCase()}</AvatarFallback>
                                 </Avatar>
                                 <div className="flex flex-col">
-                                    <span className="text-sm font-semibold leading-none group-hover:text-primary transition-colors">
+                                    <span className="text-[14px] font-bold leading-none tracking-tight group-hover:text-primary transition-colors">
                                         {profile.username}
                                     </span>
-                                    <span className="text-xs text-muted-foreground line-clamp-1">
-                                        Suggested for you
+                                    <span className="text-[11px] text-muted-foreground/60 font-medium">
+                                        Popular choice
                                     </span>
                                 </div>
                             </Link>
-                            <Button variant="link" size="sm" className="text-xs text-primary font-semibold hover:no-underline hover:text-primary/80">
+                            <button className="text-[12px] font-bold text-primary hover:text-primary/70 transition-colors px-2 py-1 rounded-lg hover:bg-primary/5">
                                 Follow
-                            </Button>
+                            </button>
                         </div>
                     ))}
                 </div>
 
                 {/* Footer Links (Decoration) */}
-                <div className="mt-8 pt-4 border-t border-white/5 text-xs text-muted-foreground space-y-2">
-                    <div className="flex flex-wrap gap-x-2 gap-y-1">
-                        <Link to="/about" className="hover:underline">About</Link><span>•</span>
-                        <Link to="/help" className="hover:underline">Help</Link><span>•</span>
-                        <Link to="/privacy" className="hover:underline">Privacy</Link><span>•</span>
-                        <Link to="/terms" className="hover:underline">Terms</Link>
+                <div className="pt-8 border-t border-white/5 text-[11px] font-medium text-muted-foreground/40 space-y-3">
+                    <div className="flex flex-wrap gap-x-3 gap-y-1.5 uppercase tracking-widest">
+                        <Link to="/about" className="hover:text-foreground transition-colors">About</Link>
+                        <Link to="/help" className="hover:text-foreground transition-colors">Help</Link>
+                        <Link to="/privacy" className="hover:text-foreground transition-colors">Privacy</Link>
+                        <Link to="/terms" className="hover:text-foreground transition-colors">Terms</Link>
                     </div>
-                    <p>© 2026 SOOZ</p>
+                    <p className="font-bold tracking-tight">© 2026 SOOZ SOCIAL TECHNOLOGY</p>
                 </div>
             </div>
         </div>

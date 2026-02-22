@@ -96,43 +96,43 @@ export const SuggestedUsersRail = () => {
     return (
         <div className="w-full space-y-4 py-3">
             <div className="flex items-center justify-between px-1">
-                <h3 className="font-semibold text-sm">Suggested for you</h3>
-                <Link to="/suggested-people" className="text-sm font-semibold text-primary hover:opacity-80">
+                <h3 className="font-display font-bold text-[15px] tracking-tight">Suggested for you</h3>
+                <Link to="/suggested-people" className="text-sm font-bold text-primary hover:opacity-80 transition-opacity">
                     See all
                 </Link>
             </div>
 
             <ScrollArea className="w-full whitespace-nowrap">
-                <div className="flex w-max space-x-3 pb-4">
+                <div className="flex w-max space-x-4 pb-4 px-1">
                     {visibleProfiles.map((profile) => (
                         <div
                             key={profile.id}
-                            className="w-[160px] h-[220px] rounded-xl border border-border bg-card relative flex flex-col items-center p-4 gap-3 shrink-0 shadow-sm"
+                            className="w-[180px] h-[240px] rounded-[2rem] border border-white/5 bg-card relative flex flex-col items-center p-5 gap-4 shrink-0 shadow-premium group transition-all duration-300 hover:shadow-2xl hover:-translate-y-1"
                         >
                             <button
                                 onClick={() => handleDismiss(profile.id)}
-                                className="absolute top-2 right-2 text-muted-foreground/50 hover:text-foreground p-1 transition-colors"
+                                className="absolute top-4 right-4 text-muted-foreground/30 hover:text-foreground p-1 transition-colors"
                             >
                                 <X className="w-4 h-4" />
                             </button>
 
-                            <Link to={`/profile/${profile.username}`} className="flex flex-col items-center gap-2 w-full mt-1 group">
-                                <Avatar className="w-20 h-20 border border-border group-hover:scale-105 transition-transform">
+                            <Link to={`/profile/${profile.username}`} className="flex flex-col items-center gap-3 w-full mt-2">
+                                <Avatar className="w-20 h-20 ring-4 ring-primary/5 group-hover:ring-primary/20 transition-all duration-500">
                                     <AvatarImage src={profile.avatar_url || ""} className="object-cover" />
-                                    <AvatarFallback className="text-xl bg-secondary">{profile.username[0].toUpperCase()}</AvatarFallback>
+                                    <AvatarFallback className="text-xl bg-primary/5 text-primary font-bold">{profile.username[0].toUpperCase()}</AvatarFallback>
                                 </Avatar>
-                                <div className="text-center w-full space-y-1">
-                                    <p className="font-semibold text-sm truncate w-full px-1 leading-tight">
+                                <div className="text-center w-full space-y-0.5">
+                                    <p className="font-display font-bold text-[14px] truncate w-full px-1 leading-tight tracking-tight">
                                         {profile.display_name || profile.username}
                                     </p>
-                                    <p className="text-[10px] text-muted-foreground truncate w-full px-1">
-                                        Followed by sooz_user + 2 others
+                                    <p className="text-[10px] text-muted-foreground/60 font-medium truncate w-full px-1">
+                                        Popular in community
                                     </p>
                                 </div>
                             </Link>
 
                             <Button
-                                className="w-full mt-auto h-8 text-xs font-semibold bg-primary hover:bg-primary/90 transition-all active:scale-95"
+                                className="w-full mt-auto h-9 rounded-2xl text-[12px] font-bold bg-primary hover:bg-primary/90 transition-all active:scale-95 shadow-lg shadow-primary/20"
                                 onClick={() => handleFollow(profile.id)}
                             >
                                 Follow

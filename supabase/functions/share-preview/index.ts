@@ -44,14 +44,15 @@ Deno.serve(async (req) => {
     }
 
     const profileData = (post.profiles as unknown) as { username: string; display_name: string } | null;
-    const title = profileData
-        ? `Post by ${profileData.display_name || profileData.username} on SOOZ`
-        : 'SOOZ - Sound Out Of Zion';
+    const displayName = profileData?.display_name || profileData?.username || 'someone';
 
-    const description = post.caption || 'Check out this post on SOOZ';
+    // Improved title to reach the 30-60 character "sweet spot"
+    const title = `Check out this amazing post by ${displayName} on SOOZ - Sound Out Of Zion`;
 
-    // Logic for image/video
-    let image = `${appDomain}/sooz-logo-v3.png`; // Default
+    const description = post.caption || `Connect with ${displayName} and other believers on SOOZ, the faith-based social media platform.`;
+
+    // Logic for image/video - ALWAYS absolute URLs for crawlers
+    let image = `${appDomain}/sooz-logo-v3.png`;
     let isVideoPost = post.media_type === 'video';
 
     // Fallback: Check extension if media_type isn't explicitly video
@@ -64,16 +65,18 @@ Deno.serve(async (req) => {
     if (post.media_url) {
         if (post.media_type === 'image') {
             // Priority: Thumbnail if available (optimized size), fallback to original
-            image = post.thumbnail_url || post.media_url;
+            const rawUrl = post.thumbnail_url || post.media_url;
+            image = rawUrl.startsWith('http') ? rawUrl : `${appDomain}${rawUrl}`;
         } else if (isVideoPost) {
             // For video: use thumbnail if available, fallback to logo
             if (post.thumbnail_url) {
-                image = post.thumbnail_url;
+                image = post.thumbnail_url.startsWith('http') ? post.thumbnail_url : `${appDomain}${post.thumbnail_url}`;
             }
         } else {
             // Fallback for unknown media_type
             if (!post.media_url.match(/\.(mp4|mov|avi|webm)$/i)) {
-                image = post.thumbnail_url || post.media_url;
+                const rawUrl = post.thumbnail_url || post.media_url;
+                image = rawUrl.startsWith('http') ? rawUrl : `${appDomain}${rawUrl}`;
             }
         }
     }
@@ -117,21 +120,29 @@ Deno.serve(async (req) => {
             <meta property="og:image" content="${image}" />
             <meta property="og:image:secure_url" content="${image}" />
             <meta property="og:image:type" content="image/jpeg" />
-            <meta property="og:image:width" content="600" />
-            <meta property="og:image:height" content="600" />
+            <meta property="og:image:width" content="1200" />
+            <meta property="og:image:height" content="630" />
             <meta property="og:image:alt" content="Preview of ${title.replace(/"/g, '&quot;')}" />
             <meta property="og:site_name" content="SOOZ" />
             ${videoMetaTags}
-            <meta name="twitter:card" content="${isVideoPost ? 'player' : 'summary_large_image'}" />
+            <meta name="twitter:card" content="summary_large_image" />
             <meta name="twitter:title" content="${title.replace(/"/g, '&quot;')}" />
             <meta name="twitter:description" content="${description.replace(/"/g, '&quot;')}" />
             <meta name="twitter:image" content="${image}" />
-            <meta name="twitter:image:alt" content="Preview" />
+            <meta name="twitter:image:alt" content="Preview of ${displayName}'s post" />
           </head>
-          <body>
-            <h1>${title}</h1>
-            <p>${description}</p>
-            <img src="${image}" alt="Preview" style="max-width:100%;" />
+          <body style="background: #030303; color: white; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; text-align: center;">
+            <div style="padding: 20px; max-width: 600px;">
+              <img src="${image}" alt="Preview" style="max-width: 100%; border-radius: 20px; box-shadow: 0 20px 40px rgba(0,0,0,0.5); margin-bottom: 20px;" />
+              <h1 style="font-size: 24px; margin-bottom: 10px;">${title}</h1>
+              <p style="color: #888; font-size: 16px;">${description}</p>
+              <p style="margin-top: 30px; font-weight: bold; color: #3b82f6;">Redirecting to SOOZ...</p>
+            </div>
+            <script>
+              setTimeout(() => {
+                window.location.href = "${redirectUrl}";
+              }, 2000);
+            </script>
           </body>
         </html>
       `;

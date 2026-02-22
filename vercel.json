@@ -1,13 +1,12 @@
 {
-    "routes": [
+    "rewrites": [
         {
-            "src": "/share/(?<id>[^/]+)",
-            "dest": "https://xhqpojnmcibkaydidnex.supabase.co/functions/v1/share-preview?id=$id",
-            "continue": false
+            "source": "/share/:id",
+            "destination": "https://xhqpojnmcibkaydidnex.supabase.co/functions/v1/share-preview?id=:id"
         },
         {
-            "src": "/(.*)",
-            "dest": "/index.html"
+            "source": "/(.*)",
+            "destination": "/index.html"
         }
     ]
 }

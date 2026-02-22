@@ -219,46 +219,45 @@ export const PostCard = ({
 
   return (
     <>
-      <article ref={postRef} className="mb-4 border-b border-white/5 pb-4 last:border-0 sm:border sm:rounded-lg sm:bg-card">
+      <article ref={postRef} className="mb-10 overflow-hidden bg-card border border-white/5 sm:rounded-[2.5rem] shadow-premium transition-shadow duration-500 hover:shadow-2xl">
         {/* Header */}
-        <div className="flex items-center justify-between p-3">
+        <div className="flex items-center justify-between p-4 px-5">
           <div className="flex items-center gap-3">
             <Link to={`/profile/${user.username}`}>
-              <Avatar className="w-8 h-8 cursor-pointer ring-2 ring-transparent hover:ring-primary/20 transition-all">
+              <Avatar className="w-10 h-10 cursor-pointer ring-2 ring-primary/10 hover:ring-primary/30 transition-all duration-300">
                 <AvatarImage src={user.avatar_url || ""} className="object-cover" />
-                <AvatarFallback>{(user.display_name || user.username)[0].toUpperCase()}</AvatarFallback>
-              </Avatar>
+                <AvatarFallback className="bg-primary/5 text-primary font-bold">{(user.display_name || user.username)[0].toUpperCase()}</AvatarFallback>
+              </ Avatar>
             </Link>
-            <div>
+            <div className="flex flex-col justify-center">
               <Link to={`/profile/${user.username}`} className="hover:opacity-80 transition-opacity">
-                <h3 className="font-semibold text-base leading-none">{user.display_name || user.username}</h3>
+                <h3 className="font-display font-bold text-[15px] leading-tight tracking-tight">{user.display_name || user.username}</h3>
               </Link>
-              {/* Optional: Location or subtext could go here */}
             </div>
           </div>
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
-                <MoreHorizontal className="w-5 h-5" />
+              <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full hover:bg-secondary/50 transition-colors">
+                <MoreHorizontal className="w-5 h-5 text-muted-foreground" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
+            <DropdownMenuContent align="end" className="rounded-2xl border-white/10 bg-background/95 backdrop-blur-xl">
               {isOwner && (
                 <>
-                  <DropdownMenuItem onClick={() => setShowEditDialog(true)}>
+                  <DropdownMenuItem onClick={() => setShowEditDialog(true)} className="rounded-xl">
                     <Edit className="w-4 h-4 mr-2" />
-                    Edit
+                    Edit Post
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={handleDelete} className="text-red-500 hover:text-red-600">
+                  <DropdownMenuItem onClick={handleDelete} className="rounded-xl text-red-500 focus:text-red-500 focus:bg-red-500/10">
                     <Trash2 className="w-4 h-4 mr-2" />
-                    Delete
+                    Delete Post
                   </DropdownMenuItem>
                 </>
               )}
               {!isOwner && (
-                <DropdownMenuItem onClick={() => toast.success("Reported (Mock)")}>
-                  Report
+                <DropdownMenuItem onClick={() => toast.success("Reported (Mock)")} className="rounded-xl">
+                  Report Post
                 </DropdownMenuItem>
               )}
             </DropdownMenuContent>
@@ -267,7 +266,7 @@ export const PostCard = ({
 
         {/* Media - Full bleed on mobile */}
         {media_url && (
-          <div className="relative w-full flex items-center justify-center">
+          <div className="relative w-full aspect-square sm:aspect-auto overflow-hidden bg-muted/20">
             {media_type === 'video' ? (
               <LazyVideo
                 src={media_url}
@@ -282,23 +281,30 @@ export const PostCard = ({
               <LazyImage
                 src={media_url}
                 alt="Post"
-                className="w-full max-h-[600px]"
+                className="w-full h-full object-cover max-h-[700px] transition-transform duration-700 hover:scale-105"
                 priority={priority}
               />
+            )}
+
+            {/* View Count Overlay for Video */}
+            {media_type === 'video' && initialViews > 0 && (
+              <div className="absolute top-4 left-4 px-3 py-1 rounded-full bg-black/20 backdrop-blur-md border border-white/10 text-[11px] font-bold text-white pointer-events-none">
+                {initialViews.toLocaleString()} views
+              </div>
             )}
           </div>
         )}
 
-        {/* Action Bar */}
-        <div className="px-3 pt-3 pb-1">
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-4">
+        {/* Action Bar & Content */}
+        <div className="p-5 pt-4">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-5">
               <button
                 onClick={handleLike}
-                className="hover:opacity-70 transition-opacity focus:outline-none"
+                className="transform transition-all duration-200 active:scale-125 focus:outline-none"
               >
                 <Heart
-                  className={cn("w-6 h-6 transition-all", isLiked ? "fill-red-500 text-red-500 scale-110" : "text-foreground")}
+                  className={cn("w-7 h-7 transition-all", isLiked ? "fill-red-500 text-red-500" : "text-foreground")}
                   strokeWidth={2}
                 />
               </button>
@@ -307,85 +313,81 @@ export const PostCard = ({
                 postId={id}
                 postOwnerUsername={user.username}
                 trigger={
-                  <button className="hover:opacity-70 transition-opacity focus:outline-none">
-                    <MessageCircle className="w-6 h-6 text-foreground -rotate-90" strokeWidth={2} />
+                  <button className="transform transition-transform active:scale-90 focus:outline-none">
+                    <MessageCircle className="w-7 h-7 text-foreground" strokeWidth={2} />
                   </button>
                 }
               />
 
               <button
-                className="hover:opacity-70 transition-opacity focus:outline-none"
+                className="transform transition-transform active:scale-90 focus:outline-none"
                 onClick={async () => {
                   const appDomain = import.meta.env.VITE_APP_DOMAIN || 'https://sooz.vercel.app';
                   const postUrl = `${appDomain}/share/${id}`;
 
                   try {
                     if (navigator.share) {
-                      await navigator.share({
-                        url: postUrl,
-                      });
+                      await navigator.share({ url: postUrl });
                     } else {
                       await navigator.clipboard.writeText(postUrl);
-                      toast.success("Link copied to clipboard!");
+                      toast.success("Link copied!");
                     }
                   } catch (err) {
                     await navigator.clipboard.writeText(postUrl);
-                    toast.success("Link copied to clipboard!");
+                    toast.success("Link copied!");
                   }
                 }}
               >
-                <Share2 className="w-6 h-6 text-foreground" strokeWidth={2} />
+                <Share2 className="w-7 h-7 text-foreground" strokeWidth={2} />
               </button>
             </div>
 
             <button
-              className="hover:opacity-70 transition-opacity focus:outline-none"
+              className="transform transition-transform active:scale-90 focus:outline-none"
               onClick={handleSave}
               disabled={isSaveLoading}
             >
               <Bookmark
-                className={cn("w-6 h-6 transition-all", isSaved ? "fill-foreground text-foreground" : "text-foreground")}
+                className={cn("w-7 h-7 transition-all", isSaved ? "fill-primary text-primary" : "text-foreground")}
                 strokeWidth={2}
               />
             </button>
           </div>
 
-          {/* Likes */}
-          <div className="mb-2">
-            <p className="text-base font-semibold">{likes.toLocaleString()} likes</p>
-          </div>
+          {/* Likes & Caption Section */}
+          <div className="space-y-2">
+            <p className="text-[15px] font-bold tracking-tight">{likes.toLocaleString()} likes</p>
 
-          {/* Caption */}
-          {caption && (
-            <div className="mb-1">
-              <p className="text-base leading-normal">
-                <Link to={`/profile/${user.username}`} className="font-semibold hover:underline mr-2">
-                  {user.username}
-                </Link>
-                {caption}
+            {caption && (
+              <div className="group">
+                <p className="text-[15px] leading-relaxed">
+                  <Link to={`/profile/${user.username}`} className="font-bold hover:underline mr-2">
+                    {user.username}
+                  </Link>
+                  <span className="text-foreground/90">{caption}</span>
+                </p>
+              </div>
+            )}
+
+            {/* Comments & Timestamp */}
+            <div className="flex flex-col gap-1.5 pt-1">
+              {comments_count > 0 && (
+                <CommentDrawer
+                  postId={id}
+                  postOwnerUsername={user.username}
+                  trigger={
+                    <button className="text-[14px] text-muted-foreground hover:text-foreground transition-colors text-left w-fit">
+                      View all {comments_count} comments
+                    </button>
+                  }
+                />
+              )}
+
+              <p className="text-[11px] font-bold text-muted-foreground/50 uppercase tracking-widest pt-1">
+                {formatDistanceToNow(new Date(created_at), { addSuffix: false })} ago
               </p>
             </div>
-          )}
-
-          {/* Comments Link */}
-          {comments_count > 0 && (
-            <div className="mb-1">
-              <CommentDrawer
-                postId={id}
-                postOwnerUsername={user.username}
-                trigger={
-                  <button className="text-sm text-neutral-500 hover:text-neutral-300">
-                    View all {comments_count} comments
-                  </button>
-                }
-              />
-            </div>
-          )}
-
-          {/* Time */}
-          <p className="text-[10px] text-neutral-500 uppercase tracking-wide">
-            {formatDistanceToNow(new Date(created_at), { addSuffix: false })} ago
-          </p>
+          </div>
         </div>
       </article>
 
