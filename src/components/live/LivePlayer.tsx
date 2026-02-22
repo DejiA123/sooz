@@ -55,6 +55,20 @@ export const LivePlayer = ({ src, poster, className, autoPlay = true }: LivePlay
             let isAppending = false;
             let isActive = true;
 
+            let isFirstAppended = false;
+
+            const extractClusters = (buffer: ArrayBuffer) => {
+                const view = new Uint8Array(buffer);
+                // Look for first Cluster ID (0x1F43B675) which marks end of header
+                const limit = Math.min(view.length - 3, 50000);
+                for (let i = 0; i < limit; i++) {
+                    if (view[i] === 0x1F && view[i + 1] === 0x43 && view[i + 2] === 0xB6 && view[i + 3] === 0x75) {
+                        return buffer.slice(i);
+                    }
+                }
+                return buffer; // Fallback
+            };
+
             const fetchM3U8 = async (url: string) => {
                 const res = await fetch(`${url}?t=${Date.now()}`);
                 if (!res.ok) throw new Error("Stream offline");
@@ -73,9 +87,20 @@ export const LivePlayer = ({ src, poster, className, autoPlay = true }: LivePlay
                 if (isAppending || queue.length === 0 || !sourceBuffer || sourceBuffer.updating || !isActive) return;
                 isAppending = true;
                 try {
-                    const buffer = queue.shift();
-                    if (buffer) {
-                        sourceBuffer.appendBuffer(buffer);
+                    const originalBuffer = queue.shift();
+                    if (originalBuffer) {
+                        let finalBuffer = originalBuffer;
+
+                        if (!isFirstAppended) {
+                            // Very first chunk fed to MSE *needs* the EBML Header and Tracks
+                            isFirstAppended = true;
+                        } else {
+                            // All subsequent chunks must have the EBML Header stripped, 
+                            // otherwise MSE will choke and freeze the video stream.
+                            finalBuffer = extractClusters(originalBuffer);
+                        }
+
+                        sourceBuffer.appendBuffer(finalBuffer);
                         await new Promise(r => {
                             sourceBuffer!.addEventListener('updateend', r, { once: true });
                         });
