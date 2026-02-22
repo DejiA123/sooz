@@ -79,7 +79,6 @@ export default function Notifications() {
             if (error) throw error;
 
             setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
-            toast.success("All notifications marked as read");
         } catch (error) {
             toast.error("Failed to mark all as read");
         }

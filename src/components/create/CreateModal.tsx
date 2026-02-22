@@ -188,7 +188,6 @@ export const CreateModal = ({ isOpen, onClose, onPostCreated }: CreateModalProps
                 });
 
                 if (postError) throw postError;
-                toast.success("Post created!");
             } else {
                 // Story
                 // Expires in 24 hours
@@ -201,7 +200,6 @@ export const CreateModal = ({ isOpen, onClose, onPostCreated }: CreateModalProps
                 });
 
                 if (storyError) throw storyError;
-                toast.success("Story added!");
             }
 
             onPostCreated?.();

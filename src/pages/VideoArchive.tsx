@@ -51,7 +51,6 @@ export default function VideoArchive() {
         try {
             const result = await triggerSync();
             if (result.success) {
-                toast.success("Archive updated successfully!");
                 setLastSynced(new Date());
                 await loadVideos();
             } else {
@@ -80,7 +79,7 @@ export default function VideoArchive() {
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
-            toast.success("Download started!");
+
         }
     };
 

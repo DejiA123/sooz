@@ -139,7 +139,7 @@ export default function CreatePostModal({ isOpen, onClose, onPostCreated }: Crea
                 });
             }
 
-            toast.success("Post created successfully!");
+
             setCaption("");
             setMediaFile(null);
             setMediaPreview(null);

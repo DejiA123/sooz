@@ -219,7 +219,6 @@ export const ChatWindow = ({ chatId, onBack }: ChatWindowProps) => {
 
             // Remove from local state
             setMessages(prev => prev.filter(m => m.id !== messageId));
-            toast.success("Message deleted");
         } catch (error) {
             console.error("Failed to delete message:", error);
             toast.error("Failed to delete message");

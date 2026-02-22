@@ -50,7 +50,6 @@ export default function AnalyticsDashboard() {
         try {
             const data = await AnalyticsBridge.getAllReports();
             setReports(data);
-            toast.success("Analytics data synchronized");
         } catch (error) {
             toast.error("Failed to sync polyglot services");
         } finally {

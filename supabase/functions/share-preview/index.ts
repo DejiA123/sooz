@@ -87,8 +87,6 @@ Deno.serve(async (req) => {
             <meta property="og:video" content="${post.media_url}" />
             <meta property="og:video:secure_url" content="${post.media_url}" />
             <meta property="og:video:type" content="video/mp4" />
-            <meta property="og:video:width" content="1280" />
-            <meta property="og:video:height" content="720" />
             <meta name="twitter:player" content="${post.media_url}" />
             <meta name="twitter:player:width" content="1280" />
             <meta name="twitter:player:height" content="720" />`;
@@ -109,9 +107,7 @@ Deno.serve(async (req) => {
             <meta property="og:description" content="${description.replace(/"/g, '&quot;')}" />
             <meta property="og:image" content="${image}" />
             <meta property="og:image:secure_url" content="${image}" />
-            <meta property="og:image:type" content="image/jpeg" />
-            <meta property="og:image:width" content="1200" />
-            <meta property="og:image:height" content="630" />
+            <meta property="og:image:alt" content="Preview of ${title.replace(/"/g, '&quot;')}" />
             <meta property="og:site_name" content="SOOZ" />
             ${videoMetaTags}
             <meta name="twitter:card" content="${post.media_type === 'video' ? 'player' : 'summary_large_image'}" />

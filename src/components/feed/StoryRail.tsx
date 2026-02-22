@@ -160,7 +160,7 @@ export const StoryRail = () => {
 
             if (dbError) throw dbError;
 
-            toast.success("Story added!", { id: toastId });
+            toast.dismiss(toastId);
             queryClient.invalidateQueries({ queryKey: ['stories', user.id] });
 
         } catch (error: any) {

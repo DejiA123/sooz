@@ -209,7 +209,6 @@ export const PostCard = ({
       if (error) throw error;
 
       setIsDeleted(true);
-      toast.success("Post deleted");
     } catch (error) {
       console.error("Error deleting post:", error);
       toast.error("Failed to delete post");
