@@ -13,6 +13,7 @@ import { useVideoStore } from "@/store/useVideoStore";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { fetchPosts } from "@/services/api/posts";
 import { useVideoPreloader } from "@/hooks/useVideoPreloader";
+import { LivePostCard } from "@/components/feed/LivePostCard";
 
 interface PostWithUser {
   id: string;
@@ -90,7 +91,6 @@ export default function Index() {
       <div className="flex justify-center items-start lg:gap-8 px-4 sm:px-0">
         {/* Feed Column */}
         <div className="w-full md:max-w-[500px] pt-8">
-          <LiveBanner />
           <div className="mb-10 animate-fade-in-up">
             <StoryRail />
           </div>
@@ -106,6 +106,7 @@ export default function Index() {
             </div>
           ) : (
             <div className="space-y-4">
+              <LivePostCard />
               {posts.map((post, index) => (
                 <div key={`${post.id}-${index}`} className="animate-fade-in" style={{ animationDelay: `${index * 0.1}s` }}>
                   <PostCard
