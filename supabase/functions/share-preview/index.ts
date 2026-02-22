@@ -84,26 +84,35 @@ Deno.serve(async (req) => {
   const shareUrl = id ? `${appDomain}/share/${id}` : appDomain;
   const ogType = isVideoPost ? 'video.other' : 'website';
 
-  // For videos, add additional metadata
-  let videoMetaTags = '';
-  if (isVideoPost && post?.media_url) {
-    videoMetaTags = `
+  // Checking User-Agent to see if it's a bot/crawler
+  const userAgent = req.headers.get('user-agent') || '';
+  const isBot = /facebookexternalhit|twitterbot|whatsapp|linkedinbot|pinterest|slackbot|telegrambot|discordbot|googlebot|bingbot|applebot/i.test(userAgent);
+
+  if (isBot) {
+    // For videos, add additional metadata
+    let videoMetaTags = '';
+    if (isVideoPost && post?.media_url) {
+      videoMetaTags = `
         <meta property="og:video" content="${post.media_url}" />
         <meta property="og:video:secure_url" content="${post.media_url}" />
         <meta property="og:video:type" content="video/mp4" />
         <meta name="twitter:player" content="${post.media_url}" />
         <meta name="twitter:player:width" content="1280" />
         <meta name="twitter:player:height" content="720" />`;
-  }
+    }
 
-  const html = `
+    const html = `
     <!DOCTYPE html>
     <html lang="en">
       <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
 
+        <!-- Meta Verification -->
+        <meta property="fb:app_id" content="123456789" />
+
         <!-- Mobile-First Social Head (WhatsApp Priority) -->
+        <meta property="og:url" content="${shareUrl}" />
         <meta property="og:image" content="${image}" />
         <meta property="og:image:secure_url" content="${image}" />
         <meta property="og:image:width" content="1200" />
@@ -113,10 +122,8 @@ Deno.serve(async (req) => {
         <meta property="og:title" content="${title.replace(/"/g, '&quot;')}" />
         <meta property="og:description" content="${description.replace(/"/g, '&quot;')}" />
         <meta property="og:type" content="${ogType}" />
-        <meta property="og:url" content="${shareUrl}" />
         <meta property="og:site_name" content="SOOZ" />
         <meta property="og:locale" content="en_US" />
-        <meta property="fb:app_id" content="123456789" /> <!-- Placeholder for Meta crawler validation -->
         
         ${videoMetaTags}
 
@@ -127,74 +134,22 @@ Deno.serve(async (req) => {
         <meta name="twitter:image" content="${image}" />
 
         <title>${title}</title>
-        
-        <!-- Redirect logic for humans -->
-        <script>
-            window.location.href = "${redirectUrl}";
-        </script>
-        <meta http-equiv="refresh" content="5;url=${redirectUrl}">
-
-        <style>
-          body {
-            background: #030303;
-            color: white;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
-            margin: 0;
-            text-align: center;
-          }
-          .card {
-            padding: 40px;
-            max-width: 500px;
-            background: rgba(255, 255, 255, 0.05);
-            backdrop-filter: blur(20px);
-            border-radius: 40px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            box-shadow: 0 40px 100px rgba(0, 0, 0, 0.5);
-          }
-          img {
-            width: 100%;
-            height: auto;
-            aspect-ratio: 1.91 / 1;
-            object-fit: cover;
-            border-radius: 24px;
-            margin-bottom: 24px;
-            background: #111;
-          }
-          h1 { font-size: 20px; font-weight: 800; margin: 0 0 12px; letter-spacing: -0.02em; }
-          p { color: rgba(255, 255, 255, 0.6); font-size: 15px; margin: 0 0 24px; line-height: 1.5; }
-          .loader {
-            width: 24px;
-            height: 24px;
-            border: 3px solid rgba(255, 255, 255, 0.1);
-            border-top-color: #3b82f6;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin: 0 auto;
-          }
-          @keyframes spin { to { transform: rotate(360deg); } }
-        </style>
       </head>
-      <body>
-        <div class="card">
-          <img src="${image}" alt="Preview" />
-          <h1>Opening SOOZ...</h1>
-          <p>${displayName}'s post</p>
-          <div class="loader"></div>
-        </div>
+      <body style="background: #030303; color: white; display: flex; align-items: center; justify-content: center; height: 100vh; font-family: sans-serif;">
+         <p>Redirecting to SOOZ...</p>
       </body>
     </html>
     `;
 
-  return new Response(html, {
-    headers: {
-      ...corsHeaders,
-      'Content-Type': 'text/html; charset=UTF-8',
-      'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=600'
-    },
-  });
+    return new Response(html, {
+      headers: {
+        ...corsHeaders,
+        'Content-Type': 'text/html; charset=UTF-8',
+        'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=600'
+      },
+    });
+  }
+
+  // Real users get a clean 302 redirect
+  return Response.redirect(redirectUrl, 302);
 })
