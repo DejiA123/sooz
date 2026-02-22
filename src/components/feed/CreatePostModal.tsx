@@ -8,7 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { getPresignedUploadUrl } from "@/integrations/s3/client";
-import { extractVideoThumbnail } from "@/utils/videoThumbnail";
+import { extractVideoThumbnail, extractImageThumbnail } from "@/utils/videoThumbnail";
 
 interface CreatePostModalProps {
     isOpen: boolean;
@@ -83,33 +83,34 @@ export default function CreatePostModal({ isOpen, onClose, onPostCreated }: Crea
 
                 console.log("Determined media type:", mediaType);
 
-                // Generate and upload thumbnail for videos
-                if (mediaType === 'video') {
-                    try {
-                        console.log("Generating video thumbnail...");
-                        const thumbnailBlob = await extractVideoThumbnail(mediaFile);
-                        const thumbnailFile = new File([thumbnailBlob], 'thumbnail.jpg', { type: 'image/jpeg' });
+                // Generate and upload thumbnail for ALL media (to ensure small preview size)
+                try {
+                    console.log(`Generating ${mediaType} thumbnail...`);
+                    const thumbnailBlob = mediaType === 'video'
+                        ? await extractVideoThumbnail(mediaFile)
+                        : await extractImageThumbnail(mediaFile);
 
-                        // Get presigned URL for thumbnail
-                        const { signedUrl: thumbSignedUrl, publicUrl: thumbPublicUrl } = await getPresignedUploadUrl('thumbnail.jpg', 'image/jpeg');
-                        thumbnailUrl = thumbPublicUrl;
+                    const thumbnailFile = new File([thumbnailBlob], 'thumbnail.jpg', { type: 'image/jpeg' });
 
-                        // Handle thumbnail upload
-                        const thumbXhr = new XMLHttpRequest();
-                        thumbXhr.open('PUT', thumbSignedUrl, true);
-                        thumbXhr.setRequestHeader('Content-Type', 'image/jpeg');
+                    // Get presigned URL for thumbnail
+                    const { signedUrl: thumbSignedUrl, publicUrl: thumbPublicUrl } = await getPresignedUploadUrl('thumbnail.jpg', 'image/jpeg');
+                    thumbnailUrl = thumbPublicUrl;
 
-                        const thumbUploadPromise = new Promise((resolve, reject) => {
-                            thumbXhr.onload = () => thumbXhr.status === 200 ? resolve(true) : reject(new Error('Thumbnail upload failed'));
-                            thumbXhr.onerror = () => reject(new Error('Thumbnail upload failed'));
-                            thumbXhr.send(thumbnailFile);
-                        });
+                    // Handle thumbnail upload
+                    const thumbXhr = new XMLHttpRequest();
+                    thumbXhr.open('PUT', thumbSignedUrl, true);
+                    thumbXhr.setRequestHeader('Content-Type', 'image/jpeg');
 
-                        await thumbUploadPromise;
-                        console.log("Thumbnail uploaded:", thumbnailUrl);
-                    } catch (thumbError) {
-                        console.error("Failed to generate thumbnail:", thumbError);
-                    }
+                    const thumbUploadPromise = new Promise((resolve, reject) => {
+                        thumbXhr.onload = () => thumbXhr.status === 200 ? resolve(true) : reject(new Error('Thumbnail upload failed'));
+                        thumbXhr.onerror = () => reject(new Error('Thumbnail upload failed'));
+                        thumbXhr.send(thumbnailFile);
+                    });
+
+                    await thumbUploadPromise;
+                    console.log("Thumbnail uploaded:", thumbnailUrl);
+                } catch (thumbError) {
+                    console.error("Failed to generate thumbnail:", thumbError);
                 }
 
                 console.log("Inserting post into database...");

@@ -63,7 +63,8 @@ Deno.serve(async (req) => {
 
     if (post.media_url) {
         if (post.media_type === 'image') {
-            image = post.media_url;
+            // Priority: Thumbnail if available (optimized size), fallback to original
+            image = post.thumbnail_url || post.media_url;
         } else if (isVideoPost) {
             // For video: use thumbnail if available, fallback to logo
             if (post.thumbnail_url) {
@@ -72,7 +73,7 @@ Deno.serve(async (req) => {
         } else {
             // Fallback for unknown media_type
             if (!post.media_url.match(/\.(mp4|mov|avi|webm)$/i)) {
-                image = post.media_url;
+                image = post.thumbnail_url || post.media_url;
             }
         }
     }

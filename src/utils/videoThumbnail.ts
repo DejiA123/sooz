@@ -85,3 +85,72 @@ export async function extractVideoThumbnail(
         };
     });
 }
+/**
+ * Extract a thumbnail from an image file using HTML5 Canvas
+ * @param imageFile - The image file to thumbnail
+ * @returns Blob of the thumbnail as JPEG
+ */
+export async function extractImageThumbnail(
+    imageFile: File
+): Promise<Blob> {
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.src = URL.createObjectURL(imageFile);
+
+        const cleanup = () => {
+            URL.revokeObjectURL(img.src);
+        };
+
+        img.onload = () => {
+            try {
+                const maxDimension = 600;
+                let width = img.width;
+                let height = img.height;
+
+                if (width > maxDimension || height > maxDimension) {
+                    if (width > height) {
+                        height = Math.round((height * maxDimension) / width);
+                        width = maxDimension;
+                    } else {
+                        width = Math.round((width * maxDimension) / height);
+                        height = maxDimension;
+                    }
+                }
+
+                const canvas = document.createElement('canvas');
+                canvas.width = width;
+                canvas.height = height;
+
+                const ctx = canvas.getContext('2d');
+                if (!ctx) {
+                    cleanup();
+                    reject(new Error('Failed to get canvas context'));
+                    return;
+                }
+
+                ctx.drawImage(img, 0, 0, width, height);
+
+                canvas.toBlob(
+                    (blob) => {
+                        cleanup();
+                        if (blob) {
+                            resolve(blob);
+                        } else {
+                            reject(new Error('Canvas to Blob failed'));
+                        }
+                    },
+                    'image/jpeg',
+                    0.6 // Quality optimized for smaller size
+                );
+            } catch (error) {
+                cleanup();
+                reject(error);
+            }
+        };
+
+        img.onerror = () => {
+            cleanup();
+            reject(new Error('Error loading image file'));
+        };
+    });
+}

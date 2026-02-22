@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { getPresignedUploadUrl } from "@/integrations/s3/client";
-import { extractVideoThumbnail } from "@/utils/videoThumbnail";
+import { extractVideoThumbnail, extractImageThumbnail } from "@/utils/videoThumbnail";
 import { CameraCapture } from "./CameraCapture";
 
 interface CreateModalProps {
@@ -169,10 +169,14 @@ export const CreateModal = ({ isOpen, onClose, onPostCreated }: CreateModalProps
 
                 await uploadPromise;
 
-                // Thumbnail generation for video posts
-                if (mediaType === "video" && activeTab === "post") {
+                // Universal thumbnail generation for all media types
+                if (activeTab === "post") {
                     try {
-                        const thumbnailBlob = await extractVideoThumbnail(mediaFile);
+                        console.log(`Generating ${mediaType} thumbnail...`);
+                        const thumbnailBlob = mediaType === 'video'
+                            ? await extractVideoThumbnail(mediaFile)
+                            : await extractImageThumbnail(mediaFile);
+
                         const thumbnailFile = new File([thumbnailBlob], "thumbnail.jpg", { type: "image/jpeg" });
 
                         const { signedUrl: thumbSignedUrl, publicUrl: thumbPublicUrl } = await getPresignedUploadUrl("thumbnail.jpg", "image/jpeg");
