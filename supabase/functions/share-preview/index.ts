@@ -127,13 +127,15 @@ ${videoMetaTags}
 <meta name="twitter:description" content="${description.replace(/"/g, '&quot;')}" />
 <meta name="twitter:image" content="${image}" />
 <title>${title}</title>
-</head></html>`;
+</head>
+<body style="background: #030303;"></body>
+</html>`;
 
     return new Response(html, {
       headers: {
         ...corsHeaders,
         'Content-Type': 'text/html; charset=UTF-8',
-        'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=600'
+        'Cache-Control': 'public, s-maxage=5, stale-while-revalidate=5'
       },
     });
   }
