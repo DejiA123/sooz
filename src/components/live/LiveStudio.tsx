@@ -25,6 +25,7 @@ export const LiveStudio = ({ onStreamStarted, onStreamEnded }: LiveStudioProps) 
     const playlistRef = useRef<string[]>([]);
     const timerRef = useRef<NodeJS.Timeout | null>(null);
     const configIdRef = useRef<string | null>(null);
+    const initChunkUrlRef = useRef<string | null>(null);
 
     // Clear resources on unmount
     useEffect(() => {
@@ -88,9 +89,10 @@ export const LiveStudio = ({ onStreamStarted, onStreamEnded }: LiveStudioProps) 
 
         const playlistContent = [
             "#EXTM3U",
-            "#EXT-X-VERSION:3",
+            "#EXT-X-VERSION:6",
             "#EXT-X-TARGETDURATION:5",
             "#EXT-X-MEDIA-SEQUENCE:" + seqNum,
+            initChunkUrlRef.current ? `#EXT-X-MAP:URI="${initChunkUrlRef.current}"` : "",
             ...playlistRef.current.flatMap(url => [
                 "#EXTINF:4.0,",
                 url
@@ -120,92 +122,83 @@ export const LiveStudio = ({ onStreamStarted, onStreamEnded }: LiveStudioProps) 
         setIsLoading(true);
         chunksRef.current = 0;
         playlistRef.current = [];
+        initChunkUrlRef.current = null; // Reset init chunk URL
 
         try {
-            // Check for supported types
-            const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp8')
-                ? 'video/webm;codecs=vp8'
-                : 'video/webm';
+            // Check for supported types, PREFER MP4 for Safari native HLS support
+            let mimeType = 'video/webm;codecs=vp8';
+            if (MediaRecorder.isTypeSupported('video/mp4;codecs=avc1.42E01E')) {
+                mimeType = 'video/mp4;codecs=avc1.42E01E';
+            } else if (MediaRecorder.isTypeSupported('video/webm;codecs=vp9')) {
+                mimeType = 'video/webm;codecs=vp9';
+            }
 
-            let isRecordingActive = true;
-            setIsStreaming(true);
+            const recorder = new MediaRecorder(previewStream, {
+                mimeType,
+                videoBitsPerSecond: 2500000 // 2.5 Mbps
+            });
 
-            const captureNextChunk = () => {
-                if (!isRecordingActive || !previewStream) return;
+            recorder.ondataavailable = async (e) => {
+                if (e.data.size > 0) {
+                    const chunkIndex = chunksRef.current++;
+                    const chunkUrl = await uploadChunk(e.data, chunkIndex);
 
-                const recorder = new MediaRecorder(previewStream, {
-                    mimeType,
-                    videoBitsPerSecond: 2500000 // 2.5 Mbps
-                });
+                    if (chunkUrl) {
+                        if (chunkIndex === 0) {
+                            initChunkUrlRef.current = chunkUrl;
+                        }
 
-                mediaRecorderRef.current = recorder;
-
-                recorder.ondataavailable = async (e) => {
-                    if (e.data.size > 0 && isRecordingActive) {
-                        const chunkIndex = chunksRef.current++;
-                        const chunkUrl = await uploadChunk(e.data, chunkIndex);
-
-                        if (chunkUrl) {
-                            const m3u8Url = await updatePlaylist(chunkUrl);
-                            if (chunkIndex === 0 && m3u8Url) {
-                                // Fetch config ID if we don't have it
-                                if (!configIdRef.current) {
-                                    const { data } = await supabase
-                                        .from('live_stream_config')
-                                        .select('id')
-                                        .limit(1)
-                                        .maybeSingle();
-                                    if (data) configIdRef.current = data.id;
-                                }
-
-                                // On first chunk, update or insert database status
-                                if (configIdRef.current) {
-                                    await supabase
-                                        .from('live_stream_config')
-                                        .update({
-                                            status: 'live',
-                                            playback_url: m3u8Url,
-                                            is_active: true,
-                                            stream_uid: user?.id,
-                                            updated_at: new Date().toISOString()
-                                        })
-                                        .eq('id', configIdRef.current);
-                                } else {
-                                    const { data: newConfig } = await supabase
-                                        .from('live_stream_config')
-                                        .insert([{
-                                            status: 'live',
-                                            playback_url: m3u8Url,
-                                            is_active: true,
-                                            stream_uid: user?.id
-                                        }])
-                                        .select('id')
-                                        .single();
-
-                                    if (newConfig) {
-                                        configIdRef.current = newConfig.id;
-                                    }
-                                }
-
-                                onStreamStarted?.(m3u8Url);
+                        const m3u8Url = await updatePlaylist(chunkUrl);
+                        if (chunkIndex === 0 && m3u8Url) {
+                            // Fetch config ID if we don't have it
+                            if (!configIdRef.current) {
+                                const { data } = await supabase
+                                    .from('live_stream_config')
+                                    .select('id')
+                                    .limit(1)
+                                    .maybeSingle();
+                                if (data) configIdRef.current = data.id;
                             }
+
+                            // On first chunk, update or insert database status
+                            if (configIdRef.current) {
+                                await supabase
+                                    .from('live_stream_config')
+                                    .update({
+                                        status: 'live',
+                                        playback_url: m3u8Url,
+                                        is_active: true,
+                                        stream_uid: user?.id,
+                                        updated_at: new Date().toISOString()
+                                    })
+                                    .eq('id', configIdRef.current);
+                            } else {
+                                const { data: newConfig } = await supabase
+                                    .from('live_stream_config')
+                                    .insert([{
+                                        status: 'live',
+                                        playback_url: m3u8Url,
+                                        is_active: true,
+                                        stream_uid: user?.id
+                                    }])
+                                    .select('id')
+                                    .single();
+
+                                if (newConfig) {
+                                    configIdRef.current = newConfig.id;
+                                }
+                            }
+
+                            onStreamStarted?.(m3u8Url);
                         }
                     }
-                };
-
-                recorder.start();
-
-                // Stop the current recorder and chain the next one seamlessly after 4s
-                setTimeout(() => {
-                    if (recorder.state === 'recording') {
-                        recorder.stop();
-                    }
-                    if (isRecordingActive) captureNextChunk();
-                }, 4000);
+                }
             };
 
-            // Start the infinite sequence!
-            captureNextChunk();
+            // Start continuous recording, capturing chunks every 4s natively
+            recorder.start(4000);
+            mediaRecorderRef.current = recorder;
+            setIsStreaming(true);
 
             timerRef.current = setInterval(() => {
                 setStreamDuration(d => d + 1);
