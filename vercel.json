@@ -2,7 +2,7 @@
     "rewrites": [
         {
             "source": "/share/:id",
-            "destination": "https://xhqpojnmcibkaydidnex.supabase.co/functions/v1/share-preview?id=:id"
+            "destination": "/api/share/:id"
         },
         {
             "source": "/(.*)",
