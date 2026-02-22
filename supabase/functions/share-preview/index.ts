@@ -53,105 +53,142 @@ Deno.serve(async (req) => {
 
     // Logic for image/video - ALWAYS absolute URLs for crawlers
     let image = `${appDomain}/sooz-logo-v3.png`;
-    let isVideoPost = post.media_type === 'video';
+    let isVideoPost = post?.media_type === 'video';
 
-    // Fallback: Check extension if media_type isn't explicitly video
-    if (!isVideoPost && post.media_url) {
-        if (post.media_url.match(/\.(mp4|mov|avi|webm)$/i)) {
-            isVideoPost = true;
-        }
-    }
-
-    if (post.media_url) {
-        if (post.media_type === 'image') {
-            // Priority: Thumbnail if available (optimized size), fallback to original
-            const rawUrl = post.thumbnail_url || post.media_url;
-            image = rawUrl.startsWith('http') ? rawUrl : `${appDomain}${rawUrl}`;
-        } else if (isVideoPost) {
-            // For video: use thumbnail if available, fallback to logo
-            if (post.thumbnail_url) {
-                image = post.thumbnail_url.startsWith('http') ? post.thumbnail_url : `${appDomain}${post.thumbnail_url}`;
+    if (post) {
+        // Fallback: Check extension if media_type isn't explicitly video
+        if (!isVideoPost && post.media_url) {
+            if (post.media_url.match(/\.(mp4|mov|avi|webm)$/i)) {
+                isVideoPost = true;
             }
-        } else {
-            // Fallback for unknown media_type
-            if (!post.media_url.match(/\.(mp4|mov|avi|webm)$/i)) {
+        }
+
+        if (post.media_url) {
+            if (post.media_type === 'image') {
                 const rawUrl = post.thumbnail_url || post.media_url;
                 image = rawUrl.startsWith('http') ? rawUrl : `${appDomain}${rawUrl}`;
+            } else if (isVideoPost) {
+                if (post.thumbnail_url) {
+                    image = post.thumbnail_url.startsWith('http') ? post.thumbnail_url : `${appDomain}${post.thumbnail_url}`;
+                }
+            } else {
+                if (!post.media_url.match(/\.(mp4|mov|avi|webm)$/i)) {
+                    const rawUrl = post.thumbnail_url || post.media_url;
+                    image = rawUrl.startsWith('http') ? rawUrl : `${appDomain}${rawUrl}`;
+                }
             }
         }
     }
 
-    const redirectUrl = `${appDomain}/post/${id}`;
+    const redirectUrl = id ? `${appDomain}/post/${id}` : appDomain;
+    const shareUrl = id ? `${appDomain}/share/${id}` : appDomain;
+    const ogType = isVideoPost ? 'video.other' : 'website';
 
-    // Checking User-Agent to see if it's a bot/crawler
-    const userAgent = req.headers.get('user-agent') || '';
-    const isBot = /facebookexternalhit|twitterbot|whatsapp|linkedinbot|pinterest|slackbot|telegrambot|discordbot|googlebot/i.test(userAgent);
-
-    // If it's a bot/crawler, serve HTML with OG tags (no redirect)
-    if (isBot) {
-        // Determine og:type based on media
-        const ogType = isVideoPost ? 'video.other' : 'website';
-
-        // For videos, add additional metadata
-        let videoMetaTags = '';
-        if (isVideoPost && post.media_url) {
-            videoMetaTags = `
-            <meta property="og:video" content="${post.media_url}" />
-            <meta property="og:video:secure_url" content="${post.media_url}" />
-            <meta property="og:video:type" content="video/mp4" />
-            <meta name="twitter:player" content="${post.media_url}" />
-            <meta name="twitter:player:width" content="1280" />
-            <meta name="twitter:player:height" content="720" />`;
-        }
-
-        // Canonical URL should be the share URL itself so scrapers always get the tags
-        const shareUrl = `${appDomain}/share/${id}`;
-
-        const html = `
-        <!DOCTYPE html>
-        <html lang="en">
-          <head>
-            <meta charset="utf-8" />
-            <title>${title}</title>
-            <meta property="og:type" content="${ogType}" />
-            <meta property="og:url" content="${shareUrl}" />
-            <meta property="og:title" content="${title.replace(/"/g, '&quot;')}" />
-            <meta property="og:description" content="${description.replace(/"/g, '&quot;')}" />
-            <meta property="og:image" content="${image}" />
-            <meta property="og:image:secure_url" content="${image}" />
-            <meta property="og:image:type" content="image/jpeg" />
-            <meta property="og:image:width" content="1200" />
-            <meta property="og:image:height" content="630" />
-            <meta property="og:image:alt" content="Preview of ${title.replace(/"/g, '&quot;')}" />
-            <meta property="og:site_name" content="SOOZ" />
-            ${videoMetaTags}
-            <meta name="twitter:card" content="summary_large_image" />
-            <meta name="twitter:title" content="${title.replace(/"/g, '&quot;')}" />
-            <meta name="twitter:description" content="${description.replace(/"/g, '&quot;')}" />
-            <meta name="twitter:image" content="${image}" />
-            <meta name="twitter:image:alt" content="Preview of ${displayName}'s post" />
-          </head>
-          <body style="background: #030303; color: white; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; text-align: center;">
-            <div style="padding: 20px; max-width: 600px;">
-              <img src="${image}" alt="Preview" style="max-width: 100%; border-radius: 20px; box-shadow: 0 20px 40px rgba(0,0,0,0.5); margin-bottom: 20px;" />
-              <h1 style="font-size: 24px; margin-bottom: 10px;">${title}</h1>
-              <p style="color: #888; font-size: 16px;">${description}</p>
-              <p style="margin-top: 30px; font-weight: bold; color: #3b82f6;">Redirecting to SOOZ...</p>
-            </div>
-            <script>
-              setTimeout(() => {
-                window.location.href = "${redirectUrl}";
-              }, 2000);
-            </script>
-          </body>
-        </html>
-      `;
-
-        return new Response(html, {
-            headers: { ...corsHeaders, 'Content-Type': 'text/html' },
-        });
+    // For videos, add additional metadata
+    let videoMetaTags = '';
+    if (isVideoPost && post?.media_url) {
+        videoMetaTags = `
+        <meta property="og:video" content="${post.media_url}" />
+        <meta property="og:video:secure_url" content="${post.media_url}" />
+        <meta property="og:video:type" content="video/mp4" />
+        <meta name="twitter:player" content="${post.media_url}" />
+        <meta name="twitter:player:width" content="1280" />
+        <meta name="twitter:player:height" content="720" />`;
     }
 
-    // If it's a real user, do a proper HTTP redirect
-    return Response.redirect(redirectUrl, 302);
+    const html = `
+    <!DOCTYPE html>
+    <html lang="en">
+      <head>
+        <meta charset="utf-8" />
+        <title>${title}</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        
+        <!-- Redirect for humans (Crawlers usually don't execute JS) -->
+        <script>
+            window.location.href = "${redirectUrl}";
+        </script>
+        <meta http-equiv="refresh" content="5;url=${redirectUrl}">
+
+        <!-- Open Graph / Facebook / WhatsApp -->
+        <meta property="og:type" content="${ogType}" />
+        <meta property="og:url" content="${shareUrl}" />
+        <meta property="og:title" content="${title.replace(/"/g, '&quot;')}" />
+        <meta property="og:description" content="${description.replace(/"/g, '&quot;')}" />
+        <meta property="og:image" content="${image}" />
+        <meta property="og:image:secure_url" content="${image}" />
+        <meta property="og:image:type" content="image/jpeg" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="SOOZ - ${displayName}" />
+        <meta property="og:site_name" content="SOOZ" />
+        ${videoMetaTags}
+
+        <!-- Twitter -->
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:url" content="${shareUrl}" />
+        <meta name="twitter:title" content="${title.replace(/"/g, '&quot;')}" />
+        <meta name="twitter:description" content="${description.replace(/"/g, '&quot;')}" />
+        <meta name="twitter:image" content="${image}" />
+        <meta name="twitter:image:alt" content="SOOZ Preview" />
+
+        <style>
+          body {
+            background: #030303;
+            color: white;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            text-align: center;
+          }
+          .card {
+            padding: 40px;
+            max-width: 500px;
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(20px);
+            border-radius: 40px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 40px 100px rgba(0, 0, 0, 0.5);
+          }
+          img {
+            width: 100%;
+            height: auto;
+            aspect-ratio: 1.91 / 1;
+            object-fit: cover;
+            border-radius: 24px;
+            margin-bottom: 24px;
+            background: #111;
+          }
+          h1 { font-size: 20px; font-weight: 800; margin: 0 0 12px; letter-spacing: -0.02em; }
+          p { color: rgba(255, 255, 255, 0.6); font-size: 15px; margin: 0 0 24px; line-height: 1.5; }
+          .loader {
+            width: 24px;
+            height: 24px;
+            border: 3px solid rgba(255, 255, 255, 0.1);
+            border-top-color: #3b82f6;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+          }
+          @keyframes spin { to { transform: rotate(360deg); } }
+        </style>
+      </head>
+      <body>
+        <div class="card">
+          <img src="${image}" alt="Preview" />
+          <h1>Opening SOOZ...</h1>
+          <p>${title}</p>
+          <div class="loader"></div>
+        </div>
+      </body>
+    </html>
+    `;
+
+    return new Response(html, {
+        headers: { ...corsHeaders, 'Content-Type': 'text/html' },
+    });
 })
