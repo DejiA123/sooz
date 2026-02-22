@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Loader2, Camera, CameraOff, Radio, StopCircle, RefreshCcw } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/hooks/useAuth";
 
 interface LiveStudioProps {
     onStreamStarted?: (url: string) => void;
@@ -12,6 +13,7 @@ interface LiveStudioProps {
 }
 
 export const LiveStudio = ({ onStreamStarted, onStreamEnded }: LiveStudioProps) => {
+    const { user } = useAuth();
     const [isStreaming, setIsStreaming] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [streamDuration, setStreamDuration] = useState(0);
@@ -152,6 +154,7 @@ export const LiveStudio = ({ onStreamStarted, onStreamEnded }: LiveStudioProps) 
                                         status: 'live',
                                         playback_url: m3u8Url,
                                         is_active: true,
+                                        stream_uid: user?.id,
                                         updated_at: new Date().toISOString()
                                     })
                                     .eq('id', configIdRef.current);
@@ -161,7 +164,8 @@ export const LiveStudio = ({ onStreamStarted, onStreamEnded }: LiveStudioProps) 
                                     .insert([{
                                         status: 'live',
                                         playback_url: m3u8Url,
-                                        is_active: true
+                                        is_active: true,
+                                        stream_uid: user?.id
                                     }])
                                     .select('id')
                                     .single();

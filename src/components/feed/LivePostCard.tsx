@@ -9,14 +9,18 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
 export const LivePostCard = () => {
-    const [streamConfig, setStreamConfig] = useState<{ playback_url: string; status: string } | null>(null);
+    const [streamConfig, setStreamConfig] = useState<{
+        playback_url: string;
+        status: string;
+        profile?: { display_name: string | null; username: string; avatar_url: string | null }
+    } | null>(null);
     const [isVisible, setIsVisible] = useState(true);
 
     useEffect(() => {
         const checkStatus = async () => {
-            const { data, error } = await supabase
+            const { data: configData, error } = await supabase
                 .from('live_stream_config')
-                .select('playback_url, status')
+                .select('playback_url, status, stream_uid')
                 .eq('status', 'live')
                 .limit(1)
                 .maybeSingle();
@@ -26,8 +30,26 @@ export const LivePostCard = () => {
                 return;
             }
 
-            if (data) {
-                setStreamConfig(data);
+            if (configData) {
+                let profileData = null;
+                if (configData.stream_uid) {
+                    const { data: profile } = await supabase
+                        .from('profiles')
+                        .select('display_name, username, avatar_url')
+                        .eq('id', configData.stream_uid)
+                        .maybeSingle();
+                    profileData = profile;
+                }
+
+                setStreamConfig({
+                    playback_url: configData.playback_url,
+                    status: configData.status,
+                    profile: profileData || {
+                        display_name: 'Main Sanctuary',
+                        username: 'church',
+                        avatar_url: '/placeholder.svg'
+                    }
+                });
             } else {
                 setStreamConfig(null);
             }
@@ -57,17 +79,19 @@ export const LivePostCard = () => {
             <div className="flex items-center justify-between p-4 px-5">
                 <div className="flex items-center gap-3">
                     <Avatar className="w-10 h-10 ring-2 ring-red-500/20">
-                        <AvatarImage src="/placeholder.svg" className="object-cover" />
+                        <AvatarImage src={streamConfig.profile?.avatar_url || "/placeholder.svg"} className="object-cover" />
                         <AvatarFallback className="bg-red-50 text-red-600 font-bold text-xs">LIVE</AvatarFallback>
                     </Avatar>
                     <div className="flex flex-col">
                         <div className="flex items-center gap-2">
-                            <h3 className="font-display font-bold text-[15px] leading-tight tracking-tight">Main Sanctuary</h3>
+                            <h3 className="font-display font-bold text-[15px] leading-tight tracking-tight">
+                                {streamConfig.profile?.display_name || streamConfig.profile?.username}
+                            </h3>
                             <Badge variant="destructive" className="h-4 px-1.5 text-[8px] font-black uppercase tracking-widest animate-pulse border-none">
                                 Live
                             </Badge>
                         </div>
-                        <p className="text-[11px] text-muted-foreground font-medium">Internal Stream Broadcast</p>
+                        <p className="text-[11px] text-muted-foreground font-medium">@{streamConfig.profile?.username}</p>
                     </div>
                 </div>
 
@@ -117,7 +141,7 @@ export const LivePostCard = () => {
                 <div className="space-y-2">
                     <p className="text-[15px] leading-relaxed">
                         <span className="font-bold mr-2 text-red-600">LIVE:</span>
-                        <span className="text-foreground/90 font-medium">Join us live for the current session. Experience the broadcast in real-time with internal HLS streaming.</span>
+                        <span className="text-foreground/90 font-medium">Join {streamConfig.profile?.display_name || streamConfig.profile?.username} live for the current session. Experience the broadcast in real-time with internal HLS streaming.</span>
                     </p>
 
                     <p className="text-[11px] font-bold text-muted-foreground/50 uppercase tracking-widest pt-1">

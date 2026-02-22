@@ -42,6 +42,13 @@ export const LivePlayer = ({ src, poster, className, autoPlay = true }: LivePlay
             const hls = new Hls({
                 enableWorker: true,
                 lowLatencyMode: true,
+                xhrSetup: (xhr, url) => {
+                    // Prevent browser caching of the dynamic live playlist
+                    if (url.includes('.m3u8')) {
+                        const spacer = url.includes('?') ? '&' : '?';
+                        xhr.open('GET', `${url}${spacer}t=${Date.now()}`, true);
+                    }
+                }
             });
 
             hls.loadSource(hlsUrl);
