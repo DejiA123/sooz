@@ -72,8 +72,10 @@ self.addEventListener('fetch', (event) => {
                         cache.put(event.request, responseToCache);
                         return networkResponse;
                     }).catch(() => {
-                        // Return cached fallback if available
-                        return cache.match(event.request);
+                        // Return cached fallback if available, or a generic error response
+                        return cache.match(event.request).then(fallback =>
+                            fallback || new Response('Network and cache unavailable', { status: 503 })
+                        );
                     });
                 });
             })
@@ -92,7 +94,9 @@ self.addEventListener('fetch', (event) => {
                     });
                 })
                 .catch(() => {
-                    return caches.match(event.request);
+                    return caches.match(event.request).then(fallback =>
+                        fallback || new Response('Offline', { status: 503 })
+                    );
                 })
         );
     }

@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { getPresignedUploadUrl } from "@/integrations/s3/client";
+import { extractVideoThumbnail } from "@/utils/videoThumbnail";
 import { CameraCapture } from "./CameraCapture";
 
 interface CreateModalProps {
@@ -137,6 +138,7 @@ export const CreateModal = ({ isOpen, onClose, onPostCreated }: CreateModalProps
 
         try {
             let mediaUrl = null;
+            let thumbnailUrl = null;
 
             // Upload media if present
             if (mediaFile) {
