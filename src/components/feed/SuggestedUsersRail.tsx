@@ -7,6 +7,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { X } from "lucide-react";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 interface Profile {
     id: string;
