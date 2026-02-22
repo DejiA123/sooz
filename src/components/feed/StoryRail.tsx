@@ -253,7 +253,7 @@ export const StoryRail = () => {
                                             <Avatar className="w-[72px] h-[72px] rounded-[28px] border-[3px] border-background/50 group-hover:border-transparent transition-all duration-500">
                                                 <AvatarImage src={user?.user_metadata?.avatar_url} className="object-cover" />
                                                 <AvatarFallback className="bg-secondary text-secondary-foreground font-bold text-lg">ME</AvatarFallback>
-                                            </ Avatar>
+                                            </Avatar>
                                         </div>
                                         {!userStory && (
                                             <div className="absolute -bottom-1 -right-1 bg-primary text-primary-foreground rounded-full p-2 border-[4px] border-background shadow-xl scale-90 sm:scale-100">
