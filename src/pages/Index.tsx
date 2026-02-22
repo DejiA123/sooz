@@ -95,6 +95,8 @@ export default function Index() {
             <StoryRail />
           </div>
 
+          <LivePostCard />
+
           {isLoading ? (
             <div className="flex justify-center pt-24">
               <div className="w-10 h-10 border-4 border-primary/10 border-t-primary rounded-full animate-spin" />
@@ -106,7 +108,6 @@ export default function Index() {
             </div>
           ) : (
             <div className="space-y-4">
-              <LivePostCard />
               {posts.map((post, index) => (
                 <div key={`${post.id}-${index}`} className="animate-fade-in" style={{ animationDelay: `${index * 0.1}s` }}>
                   <PostCard

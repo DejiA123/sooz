@@ -22,6 +22,7 @@ export const LiveStudio = ({ onStreamStarted, onStreamEnded }: LiveStudioProps) 
     const chunksRef = useRef<number>(0);
     const playlistRef = useRef<string[]>([]);
     const timerRef = useRef<NodeJS.Timeout | null>(null);
+    const configIdRef = useRef<string | null>(null);
 
     // Clear resources on unmount
     useEffect(() => {
@@ -133,15 +134,30 @@ export const LiveStudio = ({ onStreamStarted, onStreamEnded }: LiveStudioProps) 
                     if (chunkUrl) {
                         const m3u8Url = await updatePlaylist(chunkUrl);
                         if (chunksRef.current === 1 && m3u8Url) {
+                            // Fetch config ID if we don't have it
+                            if (!configIdRef.current) {
+                                const { data } = await supabase
+                                    .from('live_stream_config')
+                                    .select('id')
+                                    .limit(1)
+                                    .maybeSingle();
+                                if (data) configIdRef.current = data.id;
+                            }
+
                             // On first chunk, update database status
-                            await supabase
+                            const query = supabase
                                 .from('live_stream_config')
                                 .update({
                                     status: 'live',
                                     playback_url: m3u8Url,
                                     updated_at: new Date().toISOString()
-                                })
-                                .eq('is_active', true);
+                                });
+
+                            if (configIdRef.current) {
+                                await query.eq('id', configIdRef.current);
+                            } else {
+                                await query.eq('is_active', true);
+                            }
 
                             onStreamStarted?.(m3u8Url);
                         }
@@ -175,13 +191,18 @@ export const LiveStudio = ({ onStreamStarted, onStreamEnded }: LiveStudioProps) 
             }
             if (timerRef.current) clearInterval(timerRef.current);
 
-            await supabase
+            const query = supabase
                 .from('live_stream_config')
                 .update({
                     status: 'offline',
                     updated_at: new Date().toISOString()
-                })
-                .eq('is_active', true);
+                });
+
+            if (configIdRef.current) {
+                await query.eq('id', configIdRef.current);
+            } else {
+                await query.eq('is_active', true);
+            }
 
             setIsStreaming(false);
             setStreamDuration(0);

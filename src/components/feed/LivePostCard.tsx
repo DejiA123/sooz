@@ -14,11 +14,17 @@ export const LivePostCard = () => {
 
     useEffect(() => {
         const checkStatus = async () => {
-            const { data } = await supabase
+            const { data, error } = await supabase
                 .from('live_stream_config')
                 .select('playback_url, status')
                 .eq('status', 'live')
+                .limit(1)
                 .maybeSingle();
+
+            if (error) {
+                console.error("Error fetching live stream:", error);
+                return;
+            }
 
             if (data) {
                 setStreamConfig(data);
