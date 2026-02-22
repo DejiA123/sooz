@@ -89,8 +89,8 @@ Deno.serve(async (req) => {
   const isBot = /facebookexternalhit|twitterbot|whatsapp|linkedinbot|pinterest|slackbot|telegrambot|discordbot|googlebot|bingbot|applebot/i.test(userAgent);
 
   if (isBot) {
-    // For bots, we serve a minimal HTML page WITH tags but WITHOUT redirection logic.
-    // This forces the crawler to stay on the page and read our unique tags.
+    // For bots, we serve the ABSOLUTE minimum: Just the <head> with tags.
+    // No body, no javascript, no redirects. This ensures zero parser confusion.
 
     // For videos, add additional metadata
     let videoMetaTags = '';
@@ -104,43 +104,30 @@ Deno.serve(async (req) => {
         <meta name="twitter:player:height" content="720" />`;
     }
 
-    const html = `
-    <!DOCTYPE html>
-    <html lang="en" prefix="og: http://ogp.me/ns#">
-      <head>
-        <meta charset="utf-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
-
-        <!-- Mobile-First Social Head (iPhone WhatsApp Priority) -->
-        <meta property="og:url" content="${shareUrl}" />
-        <meta property="og:image" content="${image}" />
-        <meta property="og:image:secure_url" content="${image}" />
-        <meta property="og:image:width" content="1200" />
-        <meta property="og:image:height" content="630" />
-        <meta property="og:image:type" content="image/jpeg" />
-        <meta property="og:image:alt" content="SOOZ Preview" />
-        
-        <meta property="og:title" content="${title.replace(/"/g, '&quot;')}" />
-        <meta property="og:description" content="${description.replace(/"/g, '&quot;')}" />
-        <meta property="og:type" content="${ogType}" />
-        <meta property="og:site_name" content="SOOZ" />
-        <meta property="og:locale" content="en_US" />
-        
-        ${videoMetaTags}
-
-        <!-- Twitter Card (Mirrors OG for robustness) -->
-        <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content="${title.replace(/"/g, '&quot;')}" />
-        <meta name="twitter:description" content="${description.replace(/"/g, '&quot;')}" />
-        <meta name="twitter:image" content="${image}" />
-
-        <title>${title}</title>
-      </head>
-      <body style="background: #030303; color: white; display: flex; align-items: center; justify-content: center; height: 100vh; font-family: sans-serif;">
-         <p>Redirecting to SOOZ...</p>
-      </body>
-    </html>
-    `;
+    const html = `<!DOCTYPE html>
+<html lang="en" prefix="og: http://ogp.me/ns#">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta property="og:url" content="${shareUrl}" />
+<meta property="og:image" content="${image}" />
+<meta property="og:image:secure_url" content="${image}" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:type" content="image/jpeg" />
+<meta property="og:image:alt" content="SOOZ Preview" />
+<meta property="og:title" content="${title.replace(/"/g, '&quot;')}" />
+<meta property="og:description" content="${description.replace(/"/g, '&quot;')}" />
+<meta property="og:type" content="${ogType}" />
+<meta property="og:site_name" content="SOOZ" />
+<meta property="og:locale" content="en_US" />
+${videoMetaTags}
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="${title.replace(/"/g, '&quot;')}" />
+<meta name="twitter:description" content="${description.replace(/"/g, '&quot;')}" />
+<meta name="twitter:image" content="${image}" />
+<title>${title}</title>
+</head></html>`;
 
     return new Response(html, {
       headers: {
@@ -152,6 +139,5 @@ Deno.serve(async (req) => {
   }
 
   // Real users get a clean, instant 302 redirect. 
-  // No waiting, no intermediate pages.
   return Response.redirect(redirectUrl, 302);
 })
