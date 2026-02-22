@@ -88,12 +88,34 @@ export const LivePlayer = ({ src, poster, className, autoPlay = true }: LivePlay
                             videoRef.current.play().catch(e => console.log("Autoplay blocked", e));
                         }
 
-                        // Keep buffer lean, jump to live edge
+                        // Robust Gap Jumping and Live Edge Tracking
                         if (sourceBuffer.buffered.length > 0 && videoRef.current) {
-                            const end = sourceBuffer.buffered.end(0);
+                            const ranges = sourceBuffer.buffered;
+                            const lastIdx = ranges.length - 1;
+                            const latestStart = ranges.start(lastIdx);
+                            const latestEnd = ranges.end(lastIdx);
                             const current = videoRef.current.currentTime;
-                            if (end - current > 15) {
-                                videoRef.current.currentTime = end - 4; // Jump back near live edge
+
+                            const isStuckBehind = current < latestStart;
+                            const isLagging = (latestEnd - current) > 15;
+
+                            if (isStuckBehind || isLagging) {
+                                let targetTime = current;
+                                if (isStuckBehind) {
+                                    targetTime = latestStart + 0.1; // Jump over gap explicitly
+                                }
+                                if (latestEnd - targetTime > 15) {
+                                    targetTime = latestEnd - 3; // Keep a 3-second buffer at live edge
+                                }
+
+                                if (Math.abs(videoRef.current.currentTime - targetTime) > 0.1) {
+                                    videoRef.current.currentTime = targetTime;
+                                }
+                            }
+
+                            // Prevent Out of Memory by clearing ancient buffer segments
+                            if (current - ranges.start(0) > 60 && !sourceBuffer.updating) {
+                                try { sourceBuffer.remove(0, current - 30); } catch (e) { }
                             }
                         }
                     }
@@ -128,6 +150,7 @@ export const LivePlayer = ({ src, poster, className, autoPlay = true }: LivePlay
                     }
 
                     for (const chunk of chunkUrls) {
+                        if (chunk === initUrl) continue; // Skip duplicating init segment
                         const res = await fetch(chunk);
                         const buf = await res.arrayBuffer();
                         queue.push(buf);
@@ -169,7 +192,7 @@ export const LivePlayer = ({ src, poster, className, autoPlay = true }: LivePlay
                         } finally {
                             isFetching = false;
                         }
-                    }, 4000);
+                    }, 2500); // Poll more aggressively than 4s to prevent starving the buffer
 
                 } catch (e) {
                     console.error("MSE Error", e);
