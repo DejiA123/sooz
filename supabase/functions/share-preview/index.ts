@@ -106,21 +106,19 @@ Deno.serve(async (req) => {
 
     const html = `
     <!DOCTYPE html>
-    <html lang="en">
+    <html lang="en" prefix="og: http://ogp.me/ns#">
       <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-        <!-- Meta Verification -->
-        <meta property="fb:app_id" content="123456789" />
-
-        <!-- Mobile-First Social Head (WhatsApp Priority) -->
+        <!-- Mobile-First Social Head (iPhone WhatsApp Priority) -->
         <meta property="og:url" content="${shareUrl}" />
         <meta property="og:image" content="${image}" />
         <meta property="og:image:secure_url" content="${image}" />
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />
         <meta property="og:image:type" content="image/jpeg" />
+        <meta property="og:image:alt" content="SOOZ Preview" />
         
         <meta property="og:title" content="${title.replace(/"/g, '&quot;')}" />
         <meta property="og:description" content="${description.replace(/"/g, '&quot;')}" />
@@ -130,7 +128,7 @@ Deno.serve(async (req) => {
         
         ${videoMetaTags}
 
-        <!-- Twitter Card -->
+        <!-- Twitter Card (Mirrors OG for robustness) -->
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="${title.replace(/"/g, '&quot;')}" />
         <meta name="twitter:description" content="${description.replace(/"/g, '&quot;')}" />
