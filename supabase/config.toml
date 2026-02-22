@@ -2,3 +2,6 @@ project_id = "xhqpojnmcibkaydidnex"
 
 [functions.share-preview]
 verify_jwt = false
+
+[functions.get-r2-upload-url]
+verify_jwt = false
