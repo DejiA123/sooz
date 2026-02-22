@@ -103,20 +103,24 @@ Deno.serve(async (req) => {
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-        <!-- Social Meta Tags (Priority Order for Mobile) -->
-        <meta property="og:title" content="${title.replace(/"/g, '&quot;')}" />
-        <meta property="og:description" content="${description.replace(/"/g, '&quot;')}" />
+        <!-- Mobile-First Social Head (WhatsApp Priority) -->
         <meta property="og:image" content="${image}" />
         <meta property="og:image:secure_url" content="${image}" />
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />
         <meta property="og:image:type" content="image/jpeg" />
+        
+        <meta property="og:title" content="${title.replace(/"/g, '&quot;')}" />
+        <meta property="og:description" content="${description.replace(/"/g, '&quot;')}" />
         <meta property="og:type" content="${ogType}" />
         <meta property="og:url" content="${shareUrl}" />
         <meta property="og:site_name" content="SOOZ" />
+        <meta property="og:locale" content="en_US" />
+        <meta property="fb:app_id" content="123456789" /> <!-- Placeholder for Meta crawler validation -->
+        
         ${videoMetaTags}
 
-        <!-- Twitter Optimized -->
+        <!-- Twitter Card -->
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="${title.replace(/"/g, '&quot;')}" />
         <meta name="twitter:description" content="${description.replace(/"/g, '&quot;')}" />

@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { StoryViewer } from "./StoryViewer";
@@ -214,7 +214,7 @@ export const StoryRail = () => {
                         variants={containerVariants}
                         initial="hidden"
                         animate="visible"
-                        className="flex items-center gap-6 p-6 px-7 w-max min-w-full justify-center"
+                        className="flex items-center gap-6 p-6 px-8 w-max min-w-full"
                     >
                         <input
                             type="file"
@@ -324,12 +324,13 @@ export const StoryRail = () => {
                             </>
                         )}
                     </motion.div>
+                    <ScrollBar orientation="horizontal" className="bg-white/5" />
                 </ScrollArea>
             </div>
 
             {viewerOpen && (
                 <StoryViewer
-                    users={viewerStories}
+                    stories={viewerStories}
                     initialUserIndex={initialUserIndex}
                     onClose={() => setViewerOpen(false)}
                 />
