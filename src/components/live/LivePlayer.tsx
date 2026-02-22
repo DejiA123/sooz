@@ -60,17 +60,13 @@ export const LivePlayer = ({ src, poster, className, autoPlay = true }: LivePlay
                 if (!res.ok) throw new Error("Stream offline");
                 const text = await res.text();
                 const lines = text.split('\n');
-                let initUrl = null;
                 const chunkUrls = [];
                 for (const line of lines) {
-                    if (line.startsWith('#EXT-X-MAP:URI="')) {
-                        const match = line.match(/URI="(.*)"/);
-                        if (match) initUrl = match[1];
-                    } else if (line && !line.startsWith('#')) {
+                    if (line && !line.startsWith('#')) {
                         chunkUrls.push(line);
                     }
                 }
-                return { initUrl, chunkUrls };
+                return { chunkUrls };
             };
 
             const processQueue = async () => {
@@ -88,34 +84,12 @@ export const LivePlayer = ({ src, poster, className, autoPlay = true }: LivePlay
                             videoRef.current.play().catch(e => console.log("Autoplay blocked", e));
                         }
 
-                        // Robust Gap Jumping and Live Edge Tracking
+                        // Prevent Out of Memory by clearing ancient buffer segments
                         if (sourceBuffer.buffered.length > 0 && videoRef.current) {
-                            const ranges = sourceBuffer.buffered;
-                            const lastIdx = ranges.length - 1;
-                            const latestStart = ranges.start(lastIdx);
-                            const latestEnd = ranges.end(lastIdx);
                             const current = videoRef.current.currentTime;
-
-                            const isStuckBehind = current < latestStart;
-                            const isLagging = (latestEnd - current) > 15;
-
-                            if (isStuckBehind || isLagging) {
-                                let targetTime = current;
-                                if (isStuckBehind) {
-                                    targetTime = latestStart + 0.1; // Jump over gap explicitly
-                                }
-                                if (latestEnd - targetTime > 15) {
-                                    targetTime = latestEnd - 3; // Keep a 3-second buffer at live edge
-                                }
-
-                                if (Math.abs(videoRef.current.currentTime - targetTime) > 0.1) {
-                                    videoRef.current.currentTime = targetTime;
-                                }
-                            }
-
-                            // Prevent Out of Memory by clearing ancient buffer segments
-                            if (current - ranges.start(0) > 60 && !sourceBuffer.updating) {
-                                try { sourceBuffer.remove(0, current - 30); } catch (e) { }
+                            const start = sourceBuffer.buffered.start(0);
+                            if (current - start > 60 && !sourceBuffer.updating) {
+                                try { sourceBuffer.remove(start, current - 30); } catch (e) { }
                             }
                         }
                     }
@@ -142,15 +116,12 @@ export const LivePlayer = ({ src, poster, className, autoPlay = true }: LivePlay
                         sourceBuffer = mediaSource.addSourceBuffer('video/webm');
                     }
 
-                    const { initUrl, chunkUrls } = await fetchM3U8(src);
-                    if (initUrl) {
-                        const initRes = await fetch(initUrl);
-                        const initBuffer = await initRes.arrayBuffer();
-                        queue.push(initBuffer);
-                    }
+                    // CRITICAL: Sequence mode enables stitching of standalone WebM files
+                    sourceBuffer.mode = 'sequence';
+
+                    const { chunkUrls } = await fetchM3U8(src);
 
                     for (const chunk of chunkUrls) {
-                        if (chunk === initUrl) continue; // Skip duplicating init segment
                         const res = await fetch(chunk);
                         const buf = await res.arrayBuffer();
                         queue.push(buf);
