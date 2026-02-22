@@ -60,11 +60,13 @@ async function getSignedUploadUrl(
         .join('&')
 
     const encodedKey = key.split('/').map(p => encodeURIComponent(p)).join('/')
+    // For path-style S3: canonical URI must include bucket AND key
+    const canonicalUri = `/${bucket}/${encodedKey}`
     const canonicalRequest = [
         'PUT',
-        `/${encodedKey}`,
+        canonicalUri,
         sortedQuery,
-        `host:${host}\n`, // canonical headers
+        `host:${host}\n`, // canonical headers (must end with \n)
         signedHeaders,    // signed headers
         'UNSIGNED-PAYLOAD',
     ].join('\n')
