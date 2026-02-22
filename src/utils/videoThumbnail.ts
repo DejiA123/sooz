@@ -34,9 +34,23 @@ export async function extractVideoThumbnail(
 
         video.onseeked = () => {
             try {
+                const maxDimension = 600;
+                let width = video.videoWidth;
+                let height = video.videoHeight;
+
+                if (width > maxDimension || height > maxDimension) {
+                    if (width > height) {
+                        height = Math.round((height * maxDimension) / width);
+                        width = maxDimension;
+                    } else {
+                        width = Math.round((width * maxDimension) / height);
+                        height = maxDimension;
+                    }
+                }
+
                 const canvas = document.createElement('canvas');
-                canvas.width = video.videoWidth;
-                canvas.height = video.videoHeight;
+                canvas.width = width;
+                canvas.height = height;
 
                 const ctx = canvas.getContext('2d');
                 if (!ctx) {
@@ -45,7 +59,7 @@ export async function extractVideoThumbnail(
                     return;
                 }
 
-                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                ctx.drawImage(video, 0, 0, width, height);
 
                 canvas.toBlob(
                     (blob) => {
@@ -57,7 +71,7 @@ export async function extractVideoThumbnail(
                         }
                     },
                     'image/jpeg',
-                    0.7 // Quality
+                    0.6 // Quality optimized for smaller size
                 );
             } catch (error) {
                 cleanup();

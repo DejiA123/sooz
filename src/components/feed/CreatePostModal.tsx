@@ -77,7 +77,11 @@ export default function CreatePostModal({ isOpen, onClose, onPostCreated }: Crea
                 });
 
                 await mediaUploadPromise;
-                mediaType = mediaFile.type.startsWith('video/') ? 'video' : 'image';
+                const isVideo = mediaFile.type.startsWith('video/') ||
+                    mediaFile.name.match(/\.(mp4|mov|avi|webm)$/i);
+                mediaType = isVideo ? 'video' : 'image';
+
+                console.log("Determined media type:", mediaType);
 
                 // Generate and upload thumbnail for videos
                 if (mediaType === 'video') {

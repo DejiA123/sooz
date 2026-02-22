@@ -52,18 +52,26 @@ Deno.serve(async (req) => {
 
     // Logic for image/video
     let image = `${appDomain}/sooz-logo-v3.png`; // Default
+    let isVideoPost = post.media_type === 'video';
+
+    // Fallback: Check extension if media_type isn't explicitly video
+    if (!isVideoPost && post.media_url) {
+        if (post.media_url.match(/\.(mp4|mov|avi|webm)$/i)) {
+            isVideoPost = true;
+        }
+    }
 
     if (post.media_url) {
         if (post.media_type === 'image') {
             image = post.media_url;
-        } else if (post.media_type === 'video') {
+        } else if (isVideoPost) {
             // For video: use thumbnail if available, fallback to logo
             if (post.thumbnail_url) {
                 image = post.thumbnail_url;
             }
         } else {
-            // Fallback check extension
-            if (!post.media_url.match(/\.(mp4|mov|avi)$/i)) {
+            // Fallback for unknown media_type
+            if (!post.media_url.match(/\.(mp4|mov|avi|webm)$/i)) {
                 image = post.media_url;
             }
         }
@@ -78,11 +86,11 @@ Deno.serve(async (req) => {
     // If it's a bot/crawler, serve HTML with OG tags (no redirect)
     if (isBot) {
         // Determine og:type based on media
-        const ogType = post.media_type === 'video' ? 'video.other' : 'website';
+        const ogType = isVideoPost ? 'video.other' : 'website';
 
         // For videos, add additional metadata
         let videoMetaTags = '';
-        if (post.media_type === 'video' && post.media_url) {
+        if (isVideoPost && post.media_url) {
             videoMetaTags = `
             <meta property="og:video" content="${post.media_url}" />
             <meta property="og:video:secure_url" content="${post.media_url}" />
@@ -107,10 +115,13 @@ Deno.serve(async (req) => {
             <meta property="og:description" content="${description.replace(/"/g, '&quot;')}" />
             <meta property="og:image" content="${image}" />
             <meta property="og:image:secure_url" content="${image}" />
+            <meta property="og:image:type" content="image/jpeg" />
+            <meta property="og:image:width" content="600" />
+            <meta property="og:image:height" content="600" />
             <meta property="og:image:alt" content="Preview of ${title.replace(/"/g, '&quot;')}" />
             <meta property="og:site_name" content="SOOZ" />
             ${videoMetaTags}
-            <meta name="twitter:card" content="${post.media_type === 'video' ? 'player' : 'summary_large_image'}" />
+            <meta name="twitter:card" content="${isVideoPost ? 'player' : 'summary_large_image'}" />
             <meta name="twitter:title" content="${title.replace(/"/g, '&quot;')}" />
             <meta name="twitter:description" content="${description.replace(/"/g, '&quot;')}" />
             <meta name="twitter:image" content="${image}" />

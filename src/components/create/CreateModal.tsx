@@ -112,15 +112,9 @@ export const CreateModal = ({ isOpen, onClose, onPostCreated }: CreateModalProps
 
     const handleFileSelect = (file: File) => {
         const isImage = file.type.startsWith("image/");
-        const isVideo = file.type.startsWith("video/");
-
-        if (!isImage && !isVideo) {
-            toast.error("Please select an image or video file");
-            return;
-        }
-
+        const isVideo = file.type.startsWith("video/") || file.name.match(/\.(mp4|mov|avi|webm)$/i);
         setMediaFile(file);
-        setMediaType(isImage ? "image" : "video");
+        setMediaType(isVideo ? "video" : "image");
         setMediaPreview(URL.createObjectURL(file));
     };
 
@@ -172,12 +166,38 @@ export const CreateModal = ({ isOpen, onClose, onPostCreated }: CreateModalProps
                 });
 
                 await uploadPromise;
+
+                // Thumbnail generation for video posts
+                if (mediaType === "video" && activeTab === "post") {
+                    try {
+                        const thumbnailBlob = await extractVideoThumbnail(mediaFile);
+                        const thumbnailFile = new File([thumbnailBlob], "thumbnail.jpg", { type: "image/jpeg" });
+
+                        const { signedUrl: thumbSignedUrl, publicUrl: thumbPublicUrl } = await getPresignedUploadUrl("thumbnail.jpg", "image/jpeg");
+
+                        const thumbXhr = new XMLHttpRequest();
+                        thumbXhr.open("PUT", thumbSignedUrl, true);
+                        thumbXhr.setRequestHeader("Content-Type", "image/jpeg");
+
+                        const thumbUploadPromise = new Promise((resolve, reject) => {
+                            thumbXhr.onload = () => (thumbXhr.status === 200 ? resolve(true) : reject(new Error("Thumb failed")));
+                            thumbXhr.onerror = () => reject(new Error("Thumb failed"));
+                            thumbXhr.send(thumbnailFile);
+                        });
+
+                        await thumbUploadPromise;
+                        thumbnailUrl = thumbPublicUrl;
+                    } catch (err) {
+                        console.error("Failed to generate thumbnail:", err);
+                    }
+                }
             }
 
             const commonData = {
                 user_id: user.id,
                 media_url: mediaUrl,
-                media_type: mediaType || "image", // Default to image if text-only post, but text-only is handled below
+                media_type: mediaType || (mediaFile ? "image" : null),
+                thumbnail_url: thumbnailUrl || null
             };
 
             if (activeTab === "post") {
