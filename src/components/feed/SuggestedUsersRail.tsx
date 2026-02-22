@@ -19,6 +19,7 @@ export const SuggestedUsersRail = () => {
     const { user } = useAuth();
     const [profiles, setProfiles] = useState<Profile[]>([]);
     const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());
+    const [followedIds, setFollowedIds] = useState<Set<string>>(new Set());
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -61,9 +62,8 @@ export const SuggestedUsersRail = () => {
                 following_id: profileId
             });
             if (error) throw error;
-            toast.success("Followed!");
-            // Remove from list
-            setHiddenIds(prev => new Set(prev).add(profileId));
+            // Update button state to show following
+            setFollowedIds(prev => new Set(prev).add(profileId));
         } catch (error) {
             toast.error("Failed to follow");
         }
@@ -132,10 +132,16 @@ export const SuggestedUsersRail = () => {
                             </Link>
 
                             <Button
-                                className="w-full mt-auto h-9 rounded-2xl text-[12px] font-bold bg-primary hover:bg-primary/90 transition-all active:scale-95 shadow-lg shadow-primary/20"
+                                className={cn(
+                                    "w-full mt-auto h-9 rounded-2xl text-[12px] font-bold shadow-lg transition-all active:scale-95",
+                                    followedIds.has(profile.id)
+                                        ? "bg-secondary text-foreground hover:bg-secondary/80 border border-white/10"
+                                        : "bg-primary hover:bg-primary/90 shadow-primary/20"
+                                )}
                                 onClick={() => handleFollow(profile.id)}
+                                disabled={followedIds.has(profile.id)}
                             >
-                                Follow
+                                {followedIds.has(profile.id) ? "Following" : "Follow"}
                             </Button>
                         </div>
                     ))}

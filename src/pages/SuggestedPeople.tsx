@@ -5,6 +5,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { ArrowLeft, Loader2 } from "lucide-react";
+import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 interface Profile {
     id: string;
@@ -17,6 +19,7 @@ export default function SuggestedPeople() {
     const { user } = useAuth();
     const navigate = useNavigate();
     const [profiles, setProfiles] = useState<Profile[]>([]);
+    const [followedIds, setFollowedIds] = useState<Set<string>>(new Set());
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
@@ -48,6 +51,26 @@ export default function SuggestedPeople() {
 
         fetchProfiles();
     }, [user]);
+
+    const handleFollow = async (profileId: string) => {
+        if (!user) {
+            toast.error("You must be logged in to follow");
+            return;
+        }
+
+        try {
+            const { error } = await supabase.from('follows').insert({
+                follower_id: user.id,
+                following_id: profileId
+            });
+            if (error) throw error;
+
+            setFollowedIds(prev => new Set(prev).add(profileId));
+        } catch (error) {
+            toast.error("Failed to follow user");
+            console.error(error);
+        }
+    };
 
     return (
         <div className="pb-20 max-w-xl mx-auto">
@@ -84,8 +107,18 @@ export default function SuggestedPeople() {
                                     </span>
                                 </div>
                             </Link>
-                            <Button size="sm" className="font-semibold">
-                                Follow
+                            <Button
+                                size="sm"
+                                className={cn(
+                                    "font-semibold transition-all active:scale-95",
+                                    followedIds.has(profile.id)
+                                        ? "bg-secondary text-foreground hover:bg-secondary/80 border border-white/10"
+                                        : "bg-primary text-white hover:bg-primary/90"
+                                )}
+                                onClick={() => handleFollow(profile.id)}
+                                disabled={followedIds.has(profile.id)}
+                            >
+                                {followedIds.has(profile.id) ? "Following" : "Follow"}
                             </Button>
                         </div>
                     ))

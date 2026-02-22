@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
+import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 interface Profile {
     id: string;
@@ -16,6 +18,7 @@ export const SuggestedAccounts = () => {
     const { user } = useAuth();
     const [profiles, setProfiles] = useState<Profile[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [followedIds, setFollowedIds] = useState<Set<string>>(new Set());
 
     useEffect(() => {
         const fetchProfiles = async () => {
@@ -55,6 +58,26 @@ export const SuggestedAccounts = () => {
     if (isLoading) return null; // Or skeleton
     if (profiles.length === 0) return null;
 
+    const handleFollow = async (profileId: string) => {
+        if (!user) {
+            toast.error("You must be logged in to follow");
+            return;
+        }
+
+        try {
+            const { error } = await supabase.from('follows').insert({
+                follower_id: user.id,
+                following_id: profileId
+            });
+            if (error) throw error;
+
+            setFollowedIds(prev => new Set(prev).add(profileId));
+        } catch (error) {
+            toast.error("Failed to follow user");
+            console.error(error);
+        }
+    };
+
     return (
         <div className="w-full space-y-8 animate-fade-in pl-6 pt-4">
             <div className="space-y-6">
@@ -82,8 +105,20 @@ export const SuggestedAccounts = () => {
                                     </span>
                                 </div>
                             </Link>
-                            <button className="text-[12px] font-bold text-primary hover:text-primary/70 transition-colors px-2 py-1 rounded-lg hover:bg-primary/5">
-                                Follow
+                            <button
+                                className={cn(
+                                    "text-[12px] font-bold transition-all px-3 py-1.5 rounded-lg",
+                                    followedIds.has(profile.id)
+                                        ? "text-foreground bg-secondary hover:bg-secondary/80 border border-white/5"
+                                        : "text-primary hover:text-primary/70 hover:bg-primary/5"
+                                )}
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    handleFollow(profile.id);
+                                }}
+                                disabled={followedIds.has(profile.id)}
+                            >
+                                {followedIds.has(profile.id) ? "Following" : "Follow"}
                             </button>
                         </div>
                     ))}
