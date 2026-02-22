@@ -144,19 +144,31 @@ export const LiveStudio = ({ onStreamStarted, onStreamEnded }: LiveStudioProps) 
                                 if (data) configIdRef.current = data.id;
                             }
 
-                            // On first chunk, update database status
-                            const query = supabase
-                                .from('live_stream_config')
-                                .update({
-                                    status: 'live',
-                                    playback_url: m3u8Url,
-                                    updated_at: new Date().toISOString()
-                                });
-
+                            // On first chunk, update or insert database status
                             if (configIdRef.current) {
-                                await query.eq('id', configIdRef.current);
+                                await supabase
+                                    .from('live_stream_config')
+                                    .update({
+                                        status: 'live',
+                                        playback_url: m3u8Url,
+                                        is_active: true,
+                                        updated_at: new Date().toISOString()
+                                    })
+                                    .eq('id', configIdRef.current);
                             } else {
-                                await query.eq('is_active', true);
+                                const { data: newConfig } = await supabase
+                                    .from('live_stream_config')
+                                    .insert([{
+                                        status: 'live',
+                                        playback_url: m3u8Url,
+                                        is_active: true
+                                    }])
+                                    .select('id')
+                                    .single();
+
+                                if (newConfig) {
+                                    configIdRef.current = newConfig.id;
+                                }
                             }
 
                             onStreamStarted?.(m3u8Url);
@@ -191,17 +203,23 @@ export const LiveStudio = ({ onStreamStarted, onStreamEnded }: LiveStudioProps) 
             }
             if (timerRef.current) clearInterval(timerRef.current);
 
-            const query = supabase
-                .from('live_stream_config')
-                .update({
-                    status: 'offline',
-                    updated_at: new Date().toISOString()
-                });
-
             if (configIdRef.current) {
-                await query.eq('id', configIdRef.current);
+                await supabase
+                    .from('live_stream_config')
+                    .update({
+                        status: 'offline',
+                        updated_at: new Date().toISOString()
+                    })
+                    .eq('id', configIdRef.current);
             } else {
-                await query.eq('is_active', true);
+                // Fallback attempt just in case
+                await supabase
+                    .from('live_stream_config')
+                    .update({
+                        status: 'offline',
+                        updated_at: new Date().toISOString()
+                    })
+                    .eq('is_active', true);
             }
 
             setIsStreaming(false);
