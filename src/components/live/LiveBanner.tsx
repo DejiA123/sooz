@@ -11,8 +11,6 @@ export const LiveBanner = () => {
 
     useEffect(() => {
         const checkStatus = async () => {
-            // In a real scenario, we might use Realtime subscription here
-            // But checking on mount is good enough for now, or polling.
             const { data } = await supabase
                 .from('live_stream_config')
                 .select('playback_url, status')
@@ -21,15 +19,39 @@ export const LiveBanner = () => {
 
             if (data) {
                 setStreamConfig(data);
-                setIsExpanded(true); // Auto expand if live
+                setIsExpanded(true);
+            } else {
+                setStreamConfig(null);
+                setIsExpanded(false);
             }
         };
 
         checkStatus();
 
-        // Optional: Poll every 30s
-        const interval = setInterval(checkStatus, 30000);
-        return () => clearInterval(interval);
+        // Subscribe to changes in live_stream_config
+        const channel = supabase
+            .channel('live_status_changes')
+            .on(
+                'postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'live_stream_config'
+                },
+                () => {
+                    console.log("Stream config changed, re-fetching...");
+                    checkStatus();
+                }
+            )
+            .subscribe();
+
+        // Fallback polling (less frequent now)
+        const interval = setInterval(checkStatus, 60000);
+
+        return () => {
+            supabase.removeChannel(channel);
+            clearInterval(interval);
+        };
     }, []);
 
     if (!streamConfig || !isVisible) return null;

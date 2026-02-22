@@ -12,6 +12,7 @@ import { Progress } from "@/components/ui/progress";
 import { getPresignedUploadUrl } from "@/integrations/s3/client";
 import { extractVideoThumbnail, extractImageThumbnail } from "@/utils/videoThumbnail";
 import { CameraCapture } from "./CameraCapture";
+import { LiveStudio } from "../live/LiveStudio";
 
 interface CreateModalProps {
     isOpen: boolean;
@@ -32,6 +33,7 @@ export const CreateModal = ({ isOpen, onClose, onPostCreated }: CreateModalProps
     const [captureMode, setCaptureMode] = useState<"upload" | "camera">("upload");
     const [cameraMediaType, setCameraMediaType] = useState<"photo" | "video">("photo");
     const [streamConfig, setStreamConfig] = useState<{ id?: string; playback_url: string; status: string } | null>(null);
+    const [liveMode, setLiveMode] = useState<"internal" | "youtube">("internal");
 
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -281,55 +283,78 @@ export const CreateModal = ({ isOpen, onClose, onPostCreated }: CreateModalProps
                             {/* Live Stream Tab Content */}
                             {activeTab === "live" ? (
                                 <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2">
-                                    <div className="bg-primary/5 rounded-2xl p-6 text-center border border-primary/10">
-                                        <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
-                                            {/* We can use Youtube icon if available, or Radio */}
-                                            <Radio className="w-8 h-8 text-red-600 animate-pulse" />
-                                        </div>
-                                        <h3 className="text-xl font-bold mb-2">YouTube Live</h3>
-                                        <p className="text-sm text-muted-foreground mb-6">
-                                            Paste your YouTube Live link here to start streaming to the app.
-                                        </p>
+                                    <div className="flex gap-2 p-1 bg-black/5 dark:bg-white/5 rounded-2xl mb-4">
+                                        <Button
+                                            variant={liveMode === "internal" ? "default" : "ghost"}
+                                            onClick={() => setLiveMode("internal")}
+                                            className="flex-1 rounded-xl h-10 text-xs font-bold transition-all"
+                                        >
+                                            Self-Hosted
+                                        </Button>
+                                        <Button
+                                            variant={liveMode === "youtube" ? "default" : "ghost"}
+                                            onClick={() => setLiveMode("youtube")}
+                                            className="flex-1 rounded-xl h-10 text-xs font-bold transition-all"
+                                        >
+                                            YouTube
+                                        </Button>
+                                    </div>
 
-                                        <div className="space-y-4 text-left">
-                                            <div className="space-y-2">
-                                                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">YouTube URL</label>
-                                                <input
-                                                    type="text"
-                                                    placeholder="https://youtu.be/..."
-                                                    className="w-full p-3 rounded-xl bg-black/5 dark:bg-white/5 border-none focus:ring-1 focus:ring-primary/50 text-sm font-mono"
-                                                    value={streamConfig?.playback_url || ""}
-                                                    onChange={(e) => setStreamConfig(prev => ({ ...prev!, playback_url: e.target.value }))}
-                                                />
+                                    {liveMode === "internal" ? (
+                                        <LiveStudio
+                                            onStreamStarted={(url) => setStreamConfig(prev => ({ ...prev!, playback_url: url, status: 'live' }))}
+                                            onStreamEnded={() => setStreamConfig(prev => ({ ...prev!, status: 'offline' }))}
+                                        />
+                                    ) : (
+                                        <div className="bg-primary/5 rounded-2xl p-6 text-center border border-primary/10">
+                                            <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
+                                                <Radio className="w-8 h-8 text-red-600 animate-pulse" />
                                             </div>
+                                            <h3 className="text-xl font-bold mb-2">YouTube Live</h3>
+                                            <p className="text-sm text-muted-foreground mb-6">
+                                                Paste your YouTube Live link here to start streaming to the app.
+                                            </p>
 
-                                            <div className="pt-2">
-                                                {streamConfig?.status === 'live' ? (
-                                                    <Button
-                                                        onClick={() => handleToggleLive(false)}
-                                                        className="w-full h-12 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold shadow-lg shadow-red-500/20"
-                                                        disabled={isLoading}
-                                                    >
-                                                        {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : "End Live Stream"}
-                                                    </Button>
-                                                ) : (
-                                                    <Button
-                                                        onClick={() => handleToggleLive(true)}
-                                                        className="w-full h-12 rounded-xl bg-green-600 hover:bg-green-700 text-white font-bold shadow-lg shadow-green-500/20"
-                                                        disabled={isLoading || !streamConfig?.playback_url}
-                                                    >
-                                                        {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : "Go Live Now"}
-                                                    </Button>
+                                            <div className="space-y-4 text-left">
+                                                <div className="space-y-2">
+                                                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">YouTube URL</label>
+                                                    <input
+                                                        type="text"
+                                                        placeholder="https://youtu.be/..."
+                                                        className="w-full p-3 rounded-xl bg-black/5 dark:bg-white/5 border-none focus:ring-1 focus:ring-primary/50 text-sm font-mono"
+                                                        value={streamConfig?.playback_url || ""}
+                                                        onChange={(e) => setStreamConfig(prev => ({ ...prev!, playback_url: e.target.value }))}
+                                                    />
+                                                </div>
+
+                                                <div className="pt-2">
+                                                    {streamConfig?.status === 'live' ? (
+                                                        <Button
+                                                            onClick={() => handleToggleLive(false)}
+                                                            className="w-full h-12 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold shadow-lg shadow-red-500/20"
+                                                            disabled={isLoading}
+                                                        >
+                                                            {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : "End Live Stream"}
+                                                        </Button>
+                                                    ) : (
+                                                        <Button
+                                                            onClick={() => handleToggleLive(true)}
+                                                            className="w-full h-12 rounded-xl bg-green-600 hover:bg-green-700 text-white font-bold shadow-lg shadow-green-500/20"
+                                                            disabled={isLoading || !streamConfig?.playback_url}
+                                                        >
+                                                            {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : "Go Live Now"}
+                                                        </Button>
+                                                    )}
+                                                </div>
+
+                                                {streamConfig?.status === 'live' && (
+                                                    <p className="text-xs text-center text-green-600 font-medium animate-pulse">
+                                                        ● You are currently LIVE in the app
+                                                    </p>
                                                 )}
                                             </div>
-
-                                            {streamConfig?.status === 'live' && (
-                                                <p className="text-xs text-center text-green-600 font-medium animate-pulse">
-                                                    ● You are currently LIVE in the app
-                                                </p>
-                                            )}
                                         </div>
-                                    </div>
+                                    )}
                                 </div>
                             ) : (
                                 <>
