@@ -25,6 +25,7 @@ export const LiveStudio = ({ onStreamStarted, onStreamEnded }: LiveStudioProps) 
     const playlistRef = useRef<string[]>([]);
     const timerRef = useRef<NodeJS.Timeout | null>(null);
     const configIdRef = useRef<string | null>(null);
+    const initChunkUrlRef = useRef<string | null>(null);
 
     // Clear resources on unmount
     useEffect(() => {
@@ -84,16 +85,19 @@ export const LiveStudio = ({ onStreamStarted, onStreamEnded }: LiveStudioProps) 
             playlistRef.current.shift();
         }
 
+        const seqNum = Math.max(0, chunksRef.current - playlistRef.current.length);
+
         const playlistContent = [
             "#EXTM3U",
-            "#EXT-X-VERSION:3",
+            "#EXT-X-VERSION:6",
             "#EXT-X-TARGETDURATION:5",
-            "#EXT-X-MEDIA-SEQUENCE:" + (chunksRef.current - playlistRef.current.length),
+            "#EXT-X-MEDIA-SEQUENCE:" + seqNum,
+            initChunkUrlRef.current ? `#EXT-X-MAP:URI="${initChunkUrlRef.current}"` : "",
             ...playlistRef.current.flatMap(url => [
                 "#EXTINF:4.0,",
                 url
             ])
-        ].join("\n");
+        ].filter(Boolean).join("\n");
 
         try {
             const fileName = `live/index.m3u8`;
@@ -121,8 +125,8 @@ export const LiveStudio = ({ onStreamStarted, onStreamEnded }: LiveStudioProps) 
 
         try {
             // Check for supported types
-            const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=h264')
-                ? 'video/webm;codecs=h264'
+            const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp8')
+                ? 'video/webm;codecs=vp8'
                 : 'video/webm';
 
             const recorder = new MediaRecorder(previewStream, {
@@ -132,10 +136,16 @@ export const LiveStudio = ({ onStreamStarted, onStreamEnded }: LiveStudioProps) 
 
             recorder.ondataavailable = async (e) => {
                 if (e.data.size > 0) {
-                    const chunkUrl = await uploadChunk(e.data, chunksRef.current++);
+                    const chunkIndex = chunksRef.current++;
+                    const chunkUrl = await uploadChunk(e.data, chunkIndex);
+
                     if (chunkUrl) {
+                        if (chunkIndex === 0) {
+                            initChunkUrlRef.current = chunkUrl;
+                        }
+
                         const m3u8Url = await updatePlaylist(chunkUrl);
-                        if (chunksRef.current === 1 && m3u8Url) {
+                        if (chunkIndex === 0 && m3u8Url) {
                             // Fetch config ID if we don't have it
                             if (!configIdRef.current) {
                                 const { data } = await supabase

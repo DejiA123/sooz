@@ -29,21 +29,170 @@ export const LivePlayer = ({ src, poster, className, autoPlay = true }: LivePlay
         return url;
     };
 
+    const isInternal = (url: string) => url.includes('live/index.m3u8') || url.includes('.r2.dev');
+
     useEffect(() => {
         if (isYouTube(src)) {
             setIsHls(false);
             return;
         }
 
-        const hlsUrl = src;
+        const isInternalStream = isInternal(src);
         setIsHls(true);
 
+        // Custom MSE Player for internal WebM browser streams
+        if (isInternalStream && window.MediaSource) {
+            const mediaSource = new MediaSource();
+            if (videoRef.current) {
+                videoRef.current.src = URL.createObjectURL(mediaSource);
+            }
+
+            let sourceBuffer: SourceBuffer | null = null;
+            let isFetching = false;
+            let lastFetchedChunk: string | null = null;
+            let pollInterval: NodeJS.Timeout | null = null;
+            const queue: ArrayBuffer[] = [];
+            let isAppending = false;
+            let isActive = true;
+
+            const fetchM3U8 = async (url: string) => {
+                const res = await fetch(`${url}?t=${Date.now()}`);
+                if (!res.ok) throw new Error("Stream offline");
+                const text = await res.text();
+                const lines = text.split('\n');
+                let initUrl = null;
+                const chunkUrls = [];
+                for (const line of lines) {
+                    if (line.startsWith('#EXT-X-MAP:URI="')) {
+                        const match = line.match(/URI="(.*)"/);
+                        if (match) initUrl = match[1];
+                    } else if (line && !line.startsWith('#')) {
+                        chunkUrls.push(line);
+                    }
+                }
+                return { initUrl, chunkUrls };
+            };
+
+            const processQueue = async () => {
+                if (isAppending || queue.length === 0 || !sourceBuffer || sourceBuffer.updating || !isActive) return;
+                isAppending = true;
+                try {
+                    const buffer = queue.shift();
+                    if (buffer) {
+                        sourceBuffer.appendBuffer(buffer);
+                        await new Promise(r => {
+                            sourceBuffer!.addEventListener('updateend', r, { once: true });
+                        });
+
+                        if (videoRef.current && videoRef.current.paused && autoPlay) {
+                            videoRef.current.play().catch(e => console.log("Autoplay blocked", e));
+                        }
+
+                        // Keep buffer lean, jump to live edge
+                        if (sourceBuffer.buffered.length > 0 && videoRef.current) {
+                            const end = sourceBuffer.buffered.end(0);
+                            const current = videoRef.current.currentTime;
+                            if (end - current > 15) {
+                                videoRef.current.currentTime = end - 4; // Jump back near live edge
+                            }
+                        }
+                    }
+                } catch (e) {
+                    console.error("Append error", e);
+                } finally {
+                    isAppending = false;
+                    processQueue();
+                }
+            };
+
+            mediaSource.addEventListener('sourceopen', async () => {
+                if (!isActive) return;
+                try {
+                    // We standardise on VP8 for broad compatibility of WebM internal streams
+                    const mime = 'video/webm; codecs="vp8, opus"';
+                    const fallbackMime = 'video/webm; codecs="vp8"';
+
+                    if (MediaSource.isTypeSupported(mime)) {
+                        sourceBuffer = mediaSource.addSourceBuffer(mime);
+                    } else if (MediaSource.isTypeSupported(fallbackMime)) {
+                        sourceBuffer = mediaSource.addSourceBuffer(fallbackMime);
+                    } else {
+                        sourceBuffer = mediaSource.addSourceBuffer('video/webm');
+                    }
+
+                    const { initUrl, chunkUrls } = await fetchM3U8(src);
+                    if (initUrl) {
+                        const initRes = await fetch(initUrl);
+                        const initBuffer = await initRes.arrayBuffer();
+                        queue.push(initBuffer);
+                    }
+
+                    for (const chunk of chunkUrls) {
+                        const res = await fetch(chunk);
+                        const buf = await res.arrayBuffer();
+                        queue.push(buf);
+                        lastFetchedChunk = chunk;
+                    }
+                    processQueue();
+                    setIsLoading(false);
+                    setError(null);
+
+                    pollInterval = setInterval(async () => {
+                        if (isFetching || !isActive) return;
+                        isFetching = true;
+                        try {
+                            const { chunkUrls: newChunks } = await fetchM3U8(src);
+                            const newUrls = [];
+                            let foundLast = false;
+                            for (const c of newChunks) {
+                                if (foundLast) newUrls.push(c);
+                                if (c === lastFetchedChunk) foundLast = true;
+                            }
+
+                            if (!foundLast && lastFetchedChunk && newChunks.length > 0) {
+                                // Stream lagged behind, fast forward to newest chunks
+                                newUrls.push(...newChunks.slice(-2));
+                            } else if (!lastFetchedChunk) {
+                                newUrls.push(...newChunks);
+                            }
+
+                            for (const chunk of newUrls) {
+                                const res = await fetch(chunk);
+                                const buf = await res.arrayBuffer();
+                                queue.push(buf);
+                                lastFetchedChunk = chunk;
+                            }
+                            processQueue();
+                        } catch (e) {
+                            console.error("Poll error", e);
+                            // Only set error if it repeatedly fails, maybe stream ended
+                        } finally {
+                            isFetching = false;
+                        }
+                    }, 4000);
+
+                } catch (e) {
+                    console.error("MSE Error", e);
+                    setError("Stream unavailable");
+                    setIsLoading(false);
+                }
+            });
+
+            return () => {
+                isActive = false;
+                if (pollInterval) clearInterval(pollInterval);
+                if (mediaSource.readyState === 'open') {
+                    try { mediaSource.endOfStream(); } catch (e) { }
+                }
+            };
+        }
+
+        // Fallback for standard HLS (e.g. externally generated streams)
         if (Hls.isSupported() && videoRef.current) {
             const hls = new Hls({
                 enableWorker: true,
                 lowLatencyMode: true,
                 xhrSetup: (xhr, url) => {
-                    // Prevent browser caching of the dynamic live playlist
                     if (url.includes('.m3u8')) {
                         const spacer = url.includes('?') ? '&' : '?';
                         xhr.open('GET', `${url}${spacer}t=${Date.now()}`, true);
@@ -51,7 +200,7 @@ export const LivePlayer = ({ src, poster, className, autoPlay = true }: LivePlay
                 }
             });
 
-            hls.loadSource(hlsUrl);
+            hls.loadSource(src);
             hls.attachMedia(videoRef.current);
 
             hls.on(Hls.Events.MANIFEST_PARSED, () => {
@@ -88,7 +237,7 @@ export const LivePlayer = ({ src, poster, className, autoPlay = true }: LivePlay
             };
         } else if (videoRef.current?.canPlayType("application/vnd.apple.mpegurl")) {
             // Built-in HLS support (Safari)
-            videoRef.current.src = hlsUrl;
+            videoRef.current.src = src;
             videoRef.current.addEventListener("loadedmetadata", () => {
                 setIsLoading(false);
                 if (autoPlay) {
