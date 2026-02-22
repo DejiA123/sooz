@@ -55,6 +55,8 @@ export const ChatWindow = ({ chatId, onBack }: ChatWindowProps) => {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [uploading, setUploading] = useState(false);
     const { startCall } = useCall();
+    const [showGroupInfo, setShowGroupInfo] = useState(false);
+    const [isSending, setIsSending] = useState(false);
 
     // Fetch Chat Info & Messages
     useEffect(() => {
@@ -269,223 +271,320 @@ export const ChatWindow = ({ chatId, onBack }: ChatWindowProps) => {
         setInputValue(prev => prev + emojiObject.emoji);
     };
 
+    const isGroup = chatInfo.isGroup;
+    const otherUserOnline = chatInfo.id && onlineUsers.has(chatInfo.id);
+    const chatName = chatInfo.name;
+
     return (
-        <div className="flex flex-col h-full bg-background/95 backdrop-blur-xl">
-            {/* Header */}
-            <div className="flex items-center justify-between p-3 border-b border-white/5 bg-background/80 backdrop-blur-md sticky top-0 z-10 shadow-sm">
-                <div className="flex items-center gap-3">
-                    <Button variant="ghost" size="icon" className="md:hidden" onClick={onBack}>
-                        <ArrowLeft className="w-5 h-5" />
-                    </Button>
-                    <div className="relative">
-                        <Avatar className="w-10 h-10 border border-white/10 ring-2 ring-transparent group-hover:ring-primary transition-all">
-                            <AvatarImage src={chatInfo.avatar || undefined} className="object-cover" />
-                            <AvatarFallback>{chatInfo.name[0]}</AvatarFallback>
-                        </Avatar>
-                        {chatInfo.id && onlineUsers.has(chatInfo.id) && (
-                            <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-background" />
-                        )}
+        <div className="flex flex-col h-full bg-background relative overflow-hidden">
+            {/* High-End Header */}
+            <header className="sticky top-0 z-40 pwa-fixed-top">
+                <div className="glass px-6 py-4 flex items-center justify-between border-b-0 shadow-glass">
+                    <div className="flex items-center gap-4">
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={onBack}
+                            className="md:hidden rounded-full hover:bg-white/10 h-10 w-10"
+                        >
+                            <ArrowLeft className="w-5 h-5" />
+                        </Button>
+
+                        <div className="relative group cursor-pointer" onClick={() => setShowGroupInfo(true)}>
+                            <Avatar className="w-11 h-11 border border-white/10 ring-2 ring-transparent group-hover:ring-primary/20 transition-all duration-500 rounded-2xl">
+                                <AvatarImage src={chatInfo.avatar || ""} className="object-cover" />
+                                <AvatarFallback className="bg-primary/5 text-primary text-sm font-medium uppercase">
+                                    {chatName?.[0] || "?"}
+                                </AvatarFallback>
+                            </Avatar>
+                            {!isGroup && (
+                                <div className={cn(
+                                    "absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-4 border-background shadow-lg transition-transform duration-500",
+                                    otherUserOnline ? "bg-green-500 animate-pulse scale-110" : "bg-gray-500/50 scale-100"
+                                )} />
+                            )}
+                        </div>
+
+                        <div className="min-w-0">
+                            <h3 className="font-medium text-[17px] tracking-tight truncate leading-tight hover:underline cursor-pointer" onClick={() => setShowGroupInfo(true)}>
+                                {chatName}
+                            </h3>
+                            {isGroup ? (
+                                <p className="text-[11px] font-medium uppercase tracking-widest text-muted-foreground/50">
+                                    {Object.keys(participants).length} Members
+                                </p>
+                            ) : (
+                                <div className="flex items-center gap-1.5">
+                                    <p className={cn(
+                                        "text-[11px] font-medium uppercase tracking-widest transition-colors",
+                                        otherUserOnline ? "text-green-500/80" : "text-muted-foreground/40"
+                                    )}>
+                                        {otherUserOnline ? "Active now" : "Offline"}
+                                    </p>
+                                    {otherUserOnline && <span className="w-1 h-1 rounded-full bg-green-500/50" />}
+                                </div>
+                            )}
+                        </div>
                     </div>
-                    <div>
-                        <h3 className="font-semibold text-sm">{chatInfo.name}</h3>
-                        <p className="text-xs text-muted-foreground">
-                            {chatInfo.id && onlineUsers.has(chatInfo.id)
-                                ? 'Active now'
-                                : chatInfo.lastSeen
-                                    ? `Last seen ${formatDistanceToNow(new Date(chatInfo.lastSeen), { addSuffix: true })}`
-                                    : ''}
-                        </p>
+
+                    <div className="flex items-center gap-1">
+                        <Button
+                            size="icon"
+                            variant="ghost"
+                            className="rounded-full hover:bg-white/10 h-10 w-10 active:scale-95 transition-all text-muted-foreground hover:text-foreground"
+                            onClick={() => chatInfo.id && startCall(chatInfo.id, chatInfo.name, chatInfo.avatar, false)}
+                            disabled={!chatInfo.id}
+                        >
+                            <Phone className="w-5 h-5" />
+                        </Button>
+                        <Button
+                            size="icon"
+                            variant="ghost"
+                            className="rounded-full hover:bg-white/10 h-10 w-10 active:scale-95 transition-all text-muted-foreground hover:text-foreground"
+                            onClick={() => chatInfo.id && startCall(chatInfo.id, chatInfo.name, chatInfo.avatar, true)}
+                            disabled={!chatInfo.id}
+                        >
+                            <Video className="w-5 h-5" />
+                        </Button>
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button size="icon" variant="ghost" className="rounded-full hover:bg-white/10 h-10 w-10 active:scale-95 transition-all text-muted-foreground hover:text-foreground">
+                                    <MoreVertical className="w-5 h-5" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="glass border-white/10 rounded-2xl w-48 p-1 shadow-2xl">
+                                <DropdownMenuItem onClick={() => setShowGroupInfo(true)} className="rounded-xl font-bold py-2 focus:bg-white/5">
+                                    View information
+                                </DropdownMenuItem>
+                                {isGroup && (
+                                    <DropdownMenuItem className="rounded-xl font-bold py-2 text-destructive focus:bg-destructive/10">
+                                        Leave group
+                                    </DropdownMenuItem>
+                                )}
+                            </DropdownMenuContent>
+                        </DropdownMenu>
                     </div>
                 </div>
-                <div className="flex gap-2">
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        className="text-muted-foreground hover:text-primary"
-                        onClick={() => chatInfo.id && startCall(chatInfo.id, chatInfo.name, chatInfo.avatar, false)}
-                        disabled={!chatInfo.id}
-                        title="Start Audio Call"
-                    >
-                        <Phone className="w-5 h-5" />
-                    </Button>
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        className="text-muted-foreground hover:text-primary"
-                        onClick={() => chatInfo.id && startCall(chatInfo.id, chatInfo.name, chatInfo.avatar, true)}
-                        disabled={!chatInfo.id}
-                        title="Start Video Call"
-                    >
-                        <Video className="w-5 h-5" />
-                    </Button>
+            </header>
 
-                    {chatInfo.isGroup && (
-                        <Dialog>
-                            <DialogTrigger asChild>
-                                <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary" title="Group Info">
-                                    <Info className="w-5 h-5" />
-                                </Button>
-                            </DialogTrigger>
-                            <DialogContent className="max-w-sm bg-background/95 backdrop-blur-xl border-white/10 text-foreground">
-                                <DialogHeader>
-                                    <DialogTitle>Group Members</DialogTitle>
-                                </DialogHeader>
-                                <div className="space-y-4 max-h-[60vh] overflow-y-auto mt-2">
+            {/* Messages Feed */}
+            <ScrollArea className="flex-1 px-4 md:px-8 bg-gradient-to-b from-transparent to-black/20" ref={scrollRef}>
+                <div className="flex flex-col gap-4 py-8">
+                    {isLoading ? (
+                        <div className="flex flex-col gap-6 py-4">
+                            {[1, 2, 3].map((i) => (
+                                <div key={i} className={cn("flex items-end gap-3 max-w-[80%]", i % 2 === 0 ? "self-end flex-row-reverse" : "self-start")}>
+                                    <Skeleton className="w-8 h-8 rounded-full flex-shrink-0 bg-white/5" />
+                                    <Skeleton className={cn("h-12 w-48 rounded-2xl bg-white/5")} />
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        messages.map((msg, idx) => {
+                            const isMe = msg.senderId === user?.id;
+                            const showAvatar = !isMe && (idx === 0 || messages[idx - 1].senderId !== msg.senderId);
+                            const senderProfile = participants[msg.senderId];
+                            const isLong = msg.content.length > 50;
+
+                            return (
+                                <div
+                                    key={msg.id}
+                                    className={cn(
+                                        "group flex items-end gap-3 max-w-[85%] md:max-w-[75%] transition-all animate-in fade-in slide-in-from-bottom-2 duration-500",
+                                        isMe ? "self-end flex-row-reverse" : "self-start"
+                                    )}
+                                >
+                                    {!isMe && (
+                                        <div className="w-8 flex-shrink-0">
+                                            {showAvatar && (
+                                                <Avatar className="w-8 h-8 border border-white/10 rounded-xl shadow-lg">
+                                                    <AvatarImage src={senderProfile?.avatar || ""} className="object-cover" />
+                                                    <AvatarFallback className="bg-secondary/50 text-[10px] font-medium uppercase">
+                                                        {senderProfile?.username?.[0] || "?"}
+                                                    </AvatarFallback>
+                                                </Avatar>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    <div className={cn("flex flex-col", isMe ? "items-end" : "items-start")}>
+                                        {isGroup && !isMe && showAvatar && (
+                                            <span className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground/50 mb-1 ml-1">
+                                                {senderProfile?.username || "User"}
+                                            </span>
+                                        )}
+                                        <div className="relative group">
+                                            <div
+                                                className={cn(
+                                                    "px-4 py-3 rounded-2xl text-[15px] leading-snug font-medium shadow-sm transition-all duration-300",
+                                                    isMe
+                                                        ? "bg-primary text-white rounded-br-none shadow-primary/20 hover:shadow-primary/30"
+                                                        : "bg-white/5 text-foreground rounded-bl-none border border-white/5 hover:bg-white/10",
+                                                    msg.isDeleted ? "italic opacity-50" : "",
+                                                    isLong ? "whitespace-pre-wrap break-words" : ""
+                                                )}
+                                            >
+                                                {msg.isDeleted ? (
+                                                    <span className="flex items-center gap-1.5 text-xs">
+                                                        <Info className="w-3 h-3" />
+                                                        This message was deleted
+                                                    </span>
+                                                ) : msg.type === 'image' ? (
+                                                    <img
+                                                        src={msg.content}
+                                                        alt="Sent content"
+                                                        className="rounded-xl w-full h-auto max-h-60 object-cover cursor-pointer"
+                                                        onClick={() => window.open(msg.content, '_blank')}
+                                                    />
+                                                ) : (
+                                                    msg.content
+                                                )}
+                                            </div>
+
+                                            {/* Message Actions */}
+                                            {isMe && !msg.isDeleted && (
+                                                <div className="absolute top-0 -left-14 opacity-0 group-hover:opacity-100 transition-all duration-300 flex flex-row-reverse items-center gap-1">
+                                                    <DropdownMenu>
+                                                        <DropdownMenuTrigger asChild>
+                                                            <Button size="icon" variant="ghost" className="h-7 w-7 rounded-full bg-white/5 hover:bg-white/10 border-0">
+                                                                <MoreVertical className="w-3.5 h-3.5 text-muted-foreground" />
+                                                            </Button>
+                                                        </DropdownMenuTrigger>
+                                                        <DropdownMenuContent align="end" className="glass border-white/10 rounded-xl p-1 shadow-2xl">
+                                                            <DropdownMenuItem
+                                                                onClick={() => handleDeleteMessage(msg.id)}
+                                                                className="text-destructive font-bold py-1.5 focus:bg-destructive/10 rounded-lg text-xs"
+                                                            >
+                                                                Unsend message
+                                                            </DropdownMenuItem>
+                                                        </DropdownMenuContent>
+                                                    </DropdownMenu>
+                                                </div>
+                                            )}
+                                        </div>
+                                        <span className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground/30 mt-1.5 px-1">
+                                            {formatDistanceToNow(new Date(msg.timestamp), { addSuffix: true })}
+                                        </span>
+                                    </div>
+                                </div>
+                            );
+                        })
+                    )}
+                    <div className="h-4" />
+                </div>
+            </ScrollArea>
+
+            {/* Premium Input Bar */}
+            <footer className="p-4 md:p-8 bg-gradient-to-t from-background via-background to-transparent relative z-10">
+                <div className="max-w-4xl mx-auto glass p-2 rounded-[2rem] border border-white/10 shadow-2xl animate-in slide-in-from-bottom-4 duration-700">
+                    <div className="flex items-end gap-2 pr-2">
+                        <div className="flex mb-1.5">
+                            <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={() => fileInputRef.current?.click()}
+                                disabled={uploading}
+                                className="rounded-full hover:bg-white/5 h-10 w-10 transition-colors"
+                            >
+                                {uploading ? (
+                                    <div className="w-4 h-4 border-2 border-primary border-t-transparent animate-spin rounded-full" />
+                                ) : (
+                                    <ImageIcon className="w-5 h-5 text-primary" />
+                                )}
+                            </Button>
+                            <input
+                                type="file"
+                                ref={fileInputRef}
+                                onChange={handleFileUpload}
+                                accept="image/*"
+                                className="hidden"
+                            />
+                        </div>
+
+                        <div className="flex-1 relative">
+                            <textarea
+                                value={inputValue}
+                                onChange={(e) => setInputValue(e.target.value)}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter' && !e.shiftKey) {
+                                        e.preventDefault();
+                                        handleSend();
+                                    }
+                                }}
+                                placeholder="Message..."
+                                className="w-full bg-transparent border-none focus:ring-0 placeholder:text-muted-foreground/30 text-[15px] font-medium py-3 px-4 resize-none max-h-32 min-h-[44px] transition-all scrollbar-none"
+                                rows={1}
+                            />
+                        </div>
+
+                        <div className="flex items-center gap-1 mb-1.5">
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                    <Button size="icon" variant="ghost" className="rounded-full hover:bg-white/5 h-10 w-10 hidden sm:flex">
+                                        <Smile className="w-5 h-5 text-muted-foreground/60" />
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0 border-white/10 glass rounded-3xl overflow-hidden shadow-2xl" align="end" sideOffset={12}>
+                                    <EmojiPicker onEmojiClick={onEmojiClick} theme={Theme.DARK} width={300} height={400} />
+                                </PopoverContent>
+                            </Popover>
+
+                            <Button
+                                onClick={handleSend}
+                                disabled={!inputValue.trim() || isSending}
+                                className={cn(
+                                    "rounded-full h-10 w-10 flex items-center justify-center transition-all p-0 shadow-lg",
+                                    inputValue.trim()
+                                        ? "bg-primary text-white scale-100 shadow-primary/20"
+                                        : "bg-white/5 text-muted-foreground/30 scale-90"
+                                )}
+                            >
+                                <Send className="w-5 h-5" />
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            </footer>
+
+            {/* Info Drawer */}
+            <Dialog open={showGroupInfo} onOpenChange={setShowGroupInfo}>
+                <DialogContent className="glass border-white/10 rounded-[3rem] max-w-md p-0 overflow-hidden shadow-2xl text-foreground">
+                    <DialogTitle className="sr-only">Conversation Info</DialogTitle>
+                    <div className="p-8 text-center space-y-6">
+                        <Avatar className="w-24 h-24 mx-auto rounded-[2rem] border-4 border-white/5 shadow-2xl ring-4 ring-primary/5">
+                            <AvatarImage src={chatInfo.avatar || ""} className="object-cover" />
+                            <AvatarFallback className="bg-primary/5 text-primary text-3xl font-black uppercase">
+                                {chatName?.[0] || "?"}
+                            </AvatarFallback>
+                        </Avatar>
+                        <div className="space-y-1">
+                            <h2 className="text-2xl font-black tracking-tight">{chatName}</h2>
+                            <p className="text-muted-foreground/60 font-bold uppercase tracking-widest text-[10px]">
+                                {isGroup ? "Group Conversation" : "Direct Message"}
+                            </p>
+                        </div>
+
+                        {isGroup && (
+                            <div className="space-y-4">
+                                <h3 className="text-left font-black text-sm uppercase tracking-widest text-muted-foreground/50 px-2">Members</h3>
+                                <div className="space-y-1 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
                                     {Object.entries(participants).map(([id, p]) => (
-                                        <div key={id} className="flex items-center gap-3 p-2 hover:bg-white/5 rounded-lg transition-colors">
-                                            <Avatar className="h-9 w-9 border border-white/10">
-                                                <AvatarImage src={p.avatar || undefined} />
-                                                <AvatarFallback>{p.username[0]}</AvatarFallback>
+                                        <div key={id} className="flex items-center gap-4 p-3 rounded-2xl hover:bg-white/[0.03] transition-colors">
+                                            <Avatar className="w-10 h-10 rounded-xl border border-white/5">
+                                                <AvatarImage src={p.avatar || ""} className="object-cover" />
+                                                <AvatarFallback className="font-bold text-xs uppercase">{p.username?.[0]}</AvatarFallback>
                                             </Avatar>
-                                            <span className="text-sm font-medium">{p.username}</span>
+                                            <div className="flex-1 text-left min-w-0">
+                                                <p className="font-bold text-sm truncate">{p.username}</p>
+                                            </div>
                                         </div>
                                     ))}
                                 </div>
-                            </DialogContent>
-                        </Dialog>
-                    )}
-                </div>
-            </div>
-
-            {/* Messages */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-3" ref={scrollRef}>
-                {messages.length === 0 && (
-                    <div className="text-center text-muted-foreground mt-10">
-                        <p>No messages yet.</p>
-                        <p className="text-sm">Say hello! 👋</p>
-                    </div>
-                )}
-                {messages.map((msg, index) => {
-                    const isMe = msg.senderId === user?.id;
-                    const showAvatar = !isMe && (index === 0 || messages[index - 1].senderId !== msg.senderId);
-                    const senderProfile = participants[msg.senderId];
-
-                    return (
-                        <div
-                            key={msg.id}
-                            className={cn(
-                                "flex w-full animate-fade-in items-end gap-2 group", // Added group for hover effects
-                                isMe ? "justify-end" : "justify-start"
-                            )}
-                        >
-                            {!isMe && (
-                                <div className="w-8 flex-shrink-0">
-                                    {showAvatar ? (
-                                        <Avatar className="w-8 h-8 border border-white/10">
-                                            <AvatarImage src={senderProfile?.avatar || undefined} className="object-cover" />
-                                            <AvatarFallback className="text-[10px]">{senderProfile?.username?.[0] || "?"}</AvatarFallback>
-                                        </Avatar>
-                                    ) : (
-                                        <div className="w-8" />
-                                    )}
-                                </div>
-                            )}
-
-                            <div className="flex items-center gap-2 max-w-[70%]">
-                                {/* Message Bubble */}
-                                <div
-                                    className={cn(
-                                        "text-sm leading-relaxed shadow-sm break-words relative",
-                                        isMe
-                                            ? "bg-gradient-to-br from-indigo-600 to-violet-600 text-white rounded-2xl rounded-tr-sm selectable"
-                                            : "bg-secondary/80 backdrop-blur-sm text-foreground rounded-2xl rounded-tl-sm border border-white/5 selectable",
-                                        msg.isDeleted ? "px-4 py-3 italic text-white/70 bg-white/5 border border-white/10" : (msg.type === 'image' ? "p-1" : "px-4 py-3")
-                                    )}
-                                >
-                                    {msg.isDeleted ? (
-                                        <span className="flex items-center gap-1.5 text-xs">
-                                            <Info className="w-3 h-3 text-white/70" />
-                                            This message was deleted
-                                        </span>
-                                    ) : msg.type === 'image' ? (
-                                        <img
-                                            src={msg.content}
-                                            alt="Sent image"
-                                            className="rounded-xl w-full h-auto max-h-60 object-cover"
-                                            loading="lazy"
-                                        />
-                                    ) : (
-                                        msg.content
-                                    )}
-                                </div>
-
-                                {/* Actions Dropdown (Only for me and not deleted) */}
-                                {isMe && !msg.isDeleted && (
-                                    <DropdownMenu>
-                                        <DropdownMenuTrigger asChild>
-                                            <Button variant="ghost" size="icon" className="h-6 w-6 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
-                                                <MoreVertical className="w-3 h-3 text-muted-foreground" />
-                                            </Button>
-                                        </DropdownMenuTrigger>
-                                        <DropdownMenuContent align="end">
-                                            <DropdownMenuItem className="text-red-500 focus:text-red-500 cursor-pointer" onClick={() => handleDeleteMessage(msg.id)}>
-                                                <Trash2 className="w-4 h-4 mr-2" />
-                                                Delete for everyone
-                                            </DropdownMenuItem>
-                                        </DropdownMenuContent>
-                                    </DropdownMenu>
-                                )}
                             </div>
-                        </div>
-                    );
-                })}
-            </div>
-
-            {/* Input - Raised Position */}
-            <div className="p-3 pb-8 bg-background/80 backdrop-blur-md border-t border-white/5 z-20">
-                <div className="flex items-center gap-2 max-w-3xl mx-auto">
-                    <input
-                        type="file"
-                        ref={fileInputRef}
-                        className="hidden"
-                        accept="image/*"
-                        onChange={handleFileUpload}
-                    />
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        className="shrink-0 text-muted-foreground hover:text-primary"
-                        onClick={() => fileInputRef.current?.click()}
-                        disabled={uploading}
-                    >
-                        <ImageIcon className="w-5 h-5" />
-                    </Button>
-
-                    <div className="flex-1 relative">
-                        <Input
-                            value={inputValue}
-                            onChange={(e) => setInputValue(e.target.value)}
-                            onKeyDown={(e) => e.key === "Enter" && handleSend()}
-                            placeholder="Message..."
-                            className="bg-muted/50 border-none rounded-full pl-4 pr-10 focus-visible:ring-1 focus-visible:ring-primary/50"
-                        />
-
-                        <Popover>
-                            <PopoverTrigger asChild>
-                                <Button
-                                    size="icon"
-                                    variant="ghost"
-                                    className="absolute right-1 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full text-muted-foreground hover:text-primary"
-                                >
-                                    <Smile className="w-5 h-5" />
-                                </Button>
-                            </PopoverTrigger>
-                            <PopoverContent side="top" align="end" className="w-auto p-0 border-none bg-transparent shadow-none">
-                                <EmojiPicker onEmojiClick={onEmojiClick} theme={Theme.DARK} width={300} height={400} />
-                            </PopoverContent>
-                        </Popover>
+                        )}
                     </div>
-
-                    <Button
-                        onClick={handleSend}
-                        size="icon"
-                        className="shrink-0 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg"
-                        disabled={(!inputValue.trim() && !uploading)}
-                    >
-                        <Send className="w-4 h-4 ml-0.5" />
-                    </Button>
-                </div>
-            </div>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 };

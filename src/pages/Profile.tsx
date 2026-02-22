@@ -6,7 +6,7 @@ import { Link as LinkIcon } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-import { Settings, Grid3X3, Bookmark, Heart, Loader2, Camera, Play, X, VideoOff } from "lucide-react";
+import { Settings, Grid3X3, Bookmark, Heart, Loader2, Camera, Play, X, VideoOff, MessageCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import EditProfileModal from "@/components/profile/EditProfileModal";
@@ -315,203 +315,241 @@ const Profile = () => {
   if (!profile) return null;
 
   return (
-    <div className="pb-20">
-      {/* Cover Photo */}
-      <div className="relative h-32 bg-gradient-to-br from-secondary/30 to-primary/20 -mx-4 md:rounded-t-xl overflow-hidden">
-        {profile.cover_url && (
-          <img
-            src={profile.cover_url}
-            alt="Cover"
-            className="w-full h-full object-cover"
-          />
-        )}
-      </div>
+    <div className="min-h-screen bg-background pb-32">
+      {/* Premium Cover & Avatar Header */}
+      <div className="relative">
+        <div className="h-44 md:h-60 bg-gradient-to-br from-indigo-950/40 via-background to-violet-950/20 overflow-hidden relative border-b border-white/5">
+          {profile.cover_url ? (
+            <img
+              src={profile.cover_url}
+              alt="Cover"
+              className="w-full h-full object-cover opacity-60 transition-opacity duration-700"
+            />
+          ) : (
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_120%,rgba(120,119,198,0.1),rgba(255,255,255,0))]" />
+          )}
 
-      {/* Profile Info */}
-      <div className="px-1">
-        {/* Avatar */}
-        <div className="relative -mt-12 mb-4">
-          <button
-            onClick={() => setShowAvatarModal(true)}
-            className="group relative"
-          >
-            <div className="w-24 h-24 md:w-32 md:h-32 rounded-full border-4 border-background bg-secondary overflow-hidden">
-              {profile.avatar_url ? (
-                <img
-                  src={profile.avatar_url}
-                  alt={profile.username}
-                  className="w-full h-full object-cover transition-transform group-hover:scale-105"
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center bg-muted text-muted-foreground text-4xl">
-                  {profile.username[0].toUpperCase()}
-                </div>
-              )}
-              {/* Overlay hint */}
-              <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-full">
-                <Grid3X3 className="w-6 h-6 text-white drop-shadow-md" />
-              </div>
-            </div>
-          </button>
-        </div>
-
-        {/* Name and Actions */}
-        <div className="flex items-start justify-between mb-4">
-          <div>
-            <h1 className="text-xl font-bold">{profile.display_name || profile.username}</h1>
-            <p className="text-muted-foreground">@{profile.username}</p>
-          </div>
-
-          {isOwnProfile ? (
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                className="bg-background/50 backdrop-blur-sm border-white/10 hover:bg-white/10"
-                onClick={() => setShowEditModal(true)}
-              >
-                Edit Profile
-              </Button>
+          {/* Top Actions Overlay */}
+          <div className="absolute top-4 right-4 flex gap-2 z-10">
+            {isOwnProfile && (
               <Link
                 to="/settings"
-                className="flex items-center justify-center h-9 w-9 rounded-md bg-background/50 backdrop-blur-sm border border-white/10 hover:bg-white/10 transition-colors"
-                title="Settings"
+                className="flex items-center justify-center h-10 w-10 rounded-full bg-black/20 backdrop-blur-md border border-white/10 hover:bg-white/10 transition-all active:scale-95"
               >
-                <Settings className="w-4 h-4" />
+                <Settings className="w-5 h-5" />
               </Link>
+            )}
+          </div>
+        </div>
+
+        {/* Profile Info Overlay - Standard "Threads" Layout */}
+        <div className="px-6 -mt-10 relative z-10">
+          <div className="flex flex-col gap-5">
+            <div className="flex items-end justify-between">
+              <button
+                onClick={() => setShowAvatarModal(true)}
+                className="group relative"
+              >
+                <div className="w-24 h-24 md:w-32 md:h-32 rounded-[2.5rem] border-4 border-background bg-secondary/80 backdrop-blur-sm overflow-hidden shadow-2xl transition-transform duration-500 group-hover:scale-[1.02]">
+                  {profile.avatar_url ? (
+                    <img
+                      src={profile.avatar_url}
+                      alt={profile.username}
+                      className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center bg-muted text-muted-foreground text-4xl font-black">
+                      {profile.username[0].toUpperCase()}
+                    </div>
+                  )}
+                </div>
+                <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity rounded-[2.5rem]">
+                  <Camera className="w-6 h-6 text-white" />
+                </div>
+              </button>
+
+              <div className="flex gap-2 mb-2">
+                {isOwnProfile ? (
+                  <Button
+                    onClick={() => setShowEditModal(true)}
+                    className="h-10 px-6 rounded-full bg-foreground text-background font-bold hover:opacity-90 transition-all active:scale-95 shadow-lg"
+                  >
+                    Edit Profile
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={handleFollow}
+                    className={cn(
+                      "h-10 px-8 rounded-full font-bold transition-all active:scale-95 shadow-lg",
+                      profileData?.isFollowing
+                        ? "bg-secondary/80 backdrop-blur-sm border border-white/10 text-foreground"
+                        : "bg-primary text-white hover:opacity-90"
+                    )}
+                  >
+                    {profileData?.isFollowing ? "Following" : "Follow"}
+                  </Button>
+                )}
+              </div>
             </div>
-          ) : (
-            <Button
-              className={profileData?.isFollowing ? "bg-background/50 backdrop-blur-sm border-white/10" : "bg-primary text-primary-foreground hover:bg-primary/90"}
-              size="sm"
-              onClick={handleFollow}
-            >
-              {profileData?.isFollowing ? "Following" : "Follow"}
-            </Button>
-          )}
+
+            <div className="space-y-1">
+              <h1 className="text-3xl font-black tracking-tighter sm:text-4xl">
+                {profile.display_name || profile.username}
+              </h1>
+              <div className="flex items-center gap-2">
+                <span className="text-muted-foreground font-medium text-sm">@{profile.username}</span>
+                <span className="w-1 h-1 rounded-full bg-muted-foreground/30" />
+                <span className="text-xs bg-secondary/80 border border-white/5 py-0.5 px-2 rounded-full font-bold text-muted-foreground/70">
+                  sooz.app
+                </span>
+              </div>
+            </div>
+
+            {profile.bio && (
+              <p className="text-[15px] leading-relaxed max-w-xl text-foreground/90 font-medium">
+                {profile.bio}
+              </p>
+            )}
+
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+              {profile.website && (
+                <a
+                  href={profile.website.match(/^https?:\/\//) ? profile.website : `https://${profile.website}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 text-sm font-bold text-primary hover:opacity-80 transition-opacity"
+                >
+                  <LinkIcon className="w-4 h-4" />
+                  {profile.website.replace(/^https?:\/\//, '')}
+                </a>
+              )}
+
+              <div className="flex items-center gap-4 text-sm font-medium text-muted-foreground">
+                <button className="hover:text-foreground transition-colors">
+                  <span className="text-foreground font-bold">{formatNumber(profileData?.followersCount || 0)}</span> followers
+                </button>
+                <button className="hover:text-foreground transition-colors">
+                  <span className="text-foreground font-bold">{formatNumber(profileData?.followingCount || 0)}</span> following
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
+      </div>
 
-        {/* Bio */}
-        {profile.bio && (
-          <p className="text-sm mb-2">{profile.bio}</p>
-        )}
-
-        {/* Link */}
-        {profile.website && (
-          <a
-            href={profile.website.match(/^https?:\/\//) ? profile.website : `https://${profile.website}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-1 text-sm font-medium text-blue-400 hover:text-blue-300 mb-4 transition-colors"
-          >
-            <LinkIcon className="w-3.5 h-3.5" />
-            {profile.website.replace(/^https?:\/\//, '')}
-          </a>
-        )}
-
-        {/* Stats */}
-        <div className="flex gap-6 mb-6">
-          <div className="text-center">
-            <div className="font-bold">{posts.length}</div>
-            <div className="text-xs text-muted-foreground">Posts</div>
-          </div>
-          <div className="text-center">
-            <div className="font-bold">{formatNumber(profileData?.followersCount || 0)}</div>
-            <div className="text-xs text-muted-foreground">Followers</div>
-          </div>
-          <div className="text-center">
-            <div className="font-bold">{formatNumber(profileData?.followingCount || 0)}</div>
-            <div className="text-xs text-muted-foreground">Following</div>
-          </div>
-        </div>
-
-        {/* Tabs */}
-        <div className="flex border-b border-white/10 mb-1">
+      {/* Tabs - Modern Minimalist */}
+      <div className="mt-8 px-4">
+        <div className="flex border-b border-white/5">
           <button
             onClick={() => setActiveTab("posts")}
             className={cn(
-              "flex-1 py-3 flex items-center justify-center gap-2 border-b-2 transition-colors",
-              activeTab === "posts"
-                ? "border-primary text-primary"
-                : "border-transparent text-muted-foreground"
+              "flex-1 py-4 text-sm font-bold transition-all relative",
+              activeTab === "posts" ? "text-foreground" : "text-muted-foreground/50 hover:text-muted-foreground"
             )}
           >
-            <Grid3X3 className="w-5 h-5" />
+            Posts
+            {activeTab === "posts" && (
+              <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-foreground rounded-full animate-in fade-in slide-in-from-bottom-1 duration-300" />
+            )}
           </button>
           {isOwnProfile && (
             <>
               <button
                 onClick={() => setActiveTab("saved")}
                 className={cn(
-                  "flex-1 py-3 flex items-center justify-center gap-2 border-b-2 transition-colors",
-                  activeTab === "saved"
-                    ? "border-primary text-primary"
-                    : "border-transparent text-muted-foreground"
+                  "flex-1 py-4 text-sm font-bold transition-all relative",
+                  activeTab === "saved" ? "text-foreground" : "text-muted-foreground/50 hover:text-muted-foreground"
                 )}
               >
-                <Bookmark className="w-5 h-5" />
+                Saved
+                {activeTab === "saved" && (
+                  <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-foreground rounded-full animate-in fade-in slide-in-from-bottom-1 duration-300" />
+                )}
               </button>
               <button
                 onClick={() => setActiveTab("liked")}
                 className={cn(
-                  "flex-1 py-3 flex items-center justify-center gap-2 border-b-2 transition-colors",
-                  activeTab === "liked"
-                    ? "border-primary text-primary"
-                    : "border-transparent text-muted-foreground"
+                  "flex-1 py-4 text-sm font-bold transition-all relative",
+                  activeTab === "liked" ? "text-foreground" : "text-muted-foreground/50 hover:text-muted-foreground"
                 )}
               >
-                <Heart className="w-5 h-5" />
+                Liked
+                {activeTab === "liked" && (
+                  <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-foreground rounded-full animate-in fade-in slide-in-from-bottom-1 duration-300" />
+                )}
               </button>
             </>
           )}
         </div>
+      </div>
 
-        {/* Posts Grid */}
+      {/* Posts Grid - Refined with better spacing and high-end feel */}
+      <div className="px-[1px] mt-1">
         {(isProfileLoading || authLoading || isPostsLoading) ? (
-          <div className="grid grid-cols-3 gap-0.5">
-            {[...Array(12)].map((_, i) => (
-              <div key={i} className="aspect-square">
-                <Skeleton className="w-full h-full" />
+          <div className="grid grid-cols-3 gap-[1px]">
+            {[...Array(9)].map((_, i) => (
+              <div key={i} className="aspect-square bg-white/[0.02]">
+                <Skeleton className="w-full h-full rounded-none" />
               </div>
             ))}
           </div>
         ) : posts.length > 0 ? (
-          <div className="grid grid-cols-3 gap-0.5">
+          <div className="grid grid-cols-3 gap-[1px]">
             {posts.map((post, index) => (
               <div
                 key={post.id}
-                className="aspect-square bg-muted overflow-hidden relative group cursor-pointer"
+                className="aspect-square bg-secondary/20 overflow-hidden relative group cursor-pointer"
                 onClick={() => setSelectedPost(post)}
               >
                 {post.media_type === 'video' ? (
                   <div className="w-full h-full relative">
                     <GridVideo
                       src={post.media_url || ""}
-                      poster={post.thumbnail_url || ""} // Pass poster
+                      poster={post.thumbnail_url || ""}
                       className="pointer-events-none"
-                      priority={index < 6}
+                      priority={index < 9}
                     />
+                    <div className="absolute top-2 right-2 z-30">
+                      <Play className="w-4 h-4 text-white drop-shadow-md fill-white/20" />
+                    </div>
                   </div>
                 ) : post.media_url ? (
                   <LazyImage
                     src={post.media_url}
                     alt=""
-                    className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
-                    priority={index < 6}
+                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                    priority={index < 9}
                   />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center text-muted-foreground bg-card">
-                    <Camera className="w-6 h-6" />
+                  <div className="w-full h-full flex items-center justify-center text-muted-foreground/20 bg-card">
+                    <Camera className="w-8 h-8" />
                   </div>
                 )}
-                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors pointer-events-none" />
+                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-all duration-300 pointer-events-none" />
+
+                {/* Desktop Hover Stats */}
+                <div className="absolute inset-0 flex items-center justify-center gap-4 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 hidden md:flex pointer-events-none">
+                  <div className="flex items-center gap-1.5 text-white font-bold">
+                    <Heart className="w-5 h-5 fill-white" />
+                    <span>{formatNumber(post.likes_count)}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-white font-bold">
+                    <MessageCircle className="w-5 h-5 fill-white" />
+                    <span>{formatNumber(post.comments_count)}</span>
+                  </div>
+                </div>
               </div>
             ))}
           </div>
         ) : (
-          <div className="py-12 text-center">
-            <Camera className="w-12 h-12 mx-auto text-muted-foreground/50 mb-3" />
-            <p className="text-muted-foreground">No posts yet</p>
+          <div className="py-24 text-center">
+            <div className="w-20 h-20 rounded-full bg-secondary/30 flex items-center justify-center mx-auto mb-6">
+              <Camera className="w-10 h-10 text-muted-foreground/30" />
+            </div>
+            <h3 className="text-xl font-bold">No posts yet</h3>
+            <p className="text-muted-foreground mt-2 max-w-[200px] mx-auto text-sm">
+              Capture and share moments with your community.
+            </p>
           </div>
         )}
       </div>
@@ -526,30 +564,28 @@ const Profile = () => {
               display_name: profile.display_name,
               avatar_url: profile.avatar_url
             },
-            likes: p.is_liked_by_user ? [{ user_id: user?.id }] : [], // Mock like structure for modal
-            comments: [{ count: p.comments_count }] // Mock comment structure for modal
+            likes: p.is_liked_by_user ? [{ user_id: user?.id }] : [],
+            comments: [{ count: p.comments_count }]
           }))}
           initialIndex={posts.findIndex(p => p.id === selectedPost.id)}
           onClose={() => setSelectedPost(null)}
         />
       )}
 
-      {
-        showEditModal && (
-          <EditProfileModal
-            profile={profile}
-            onClose={() => setShowEditModal(false)}
-            onUpdate={() => queryClient.invalidateQueries({ queryKey: ['profile', username] })}
-          />
-        )
-      }
+      {showEditModal && (
+        <EditProfileModal
+          profile={profile}
+          onClose={() => setShowEditModal(false)}
+          onUpdate={() => queryClient.invalidateQueries({ queryKey: ['profile', username] })}
+        />
+      )}
 
       {/* Avatar Lightbox */}
       <Dialog open={showAvatarModal} onOpenChange={setShowAvatarModal}>
-        <DialogContent className="p-0 border-none bg-transparent max-w-lg w-full overflow-hidden shadow-none flex items-center justify-center outline-none">
+        <DialogContent className="p-0 border-none bg-black/90 max-w-[95vw] sm:max-w-lg overflow-hidden shadow-none flex items-center justify-center outline-none">
           <DialogTitle className="sr-only">Profile Picture</DialogTitle>
           <DialogDescription className="sr-only">Viewing profile picture in full size</DialogDescription>
-          <div className="relative w-full aspect-square max-h-[80vh] rounded-full overflow-hidden border-4 border-white/20 shadow-2xl">
+          <div className="relative w-full aspect-square max-h-[80vh] rounded-[3rem] overflow-hidden border border-white/10 shadow-2xl">
             {profile.avatar_url ? (
               <img
                 src={profile.avatar_url}
@@ -564,7 +600,7 @@ const Profile = () => {
           </div>
         </DialogContent>
       </Dialog>
-    </div >
+    </div>
   );
 };
 
