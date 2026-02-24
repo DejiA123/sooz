@@ -51,7 +51,6 @@ export const LivePlayer = ({ src, poster, className, autoPlay = true }: LivePlay
             let isFetching = false;
             let lastFetchedChunk: string | null = null;
             let pollInterval: NodeJS.Timeout | null = null;
-            let gapJumperInterval: NodeJS.Timeout | null = null;
             const queue: ArrayBuffer[] = [];
             let isAppending = false;
             let isActive = true;
@@ -143,8 +142,8 @@ export const LivePlayer = ({ src, poster, className, autoPlay = true }: LivePlay
                     setIsLoading(false);
                     setError(null);
 
-                    // Aggressive Gap Jumper to solve the 4-second freeze for late joiners
-                    gapJumperInterval = setInterval(() => {
+                    // Event-driven Gap Jumper to instantly solve the 4-second freeze for late joiners
+                    const handleWaiting = () => {
                         if (!videoRef.current || !sourceBuffer || sourceBuffer.buffered.length === 0 || !isActive) return;
 
                         const current = videoRef.current.currentTime;
@@ -176,7 +175,11 @@ export const LivePlayer = ({ src, poster, className, autoPlay = true }: LivePlay
                                 }
                             }
                         }
-                    }, 500);
+                    };
+
+                    if (videoRef.current) {
+                        videoRef.current.addEventListener('waiting', handleWaiting);
+                    }
 
                     pollInterval = setInterval(async () => {
                         if (isFetching || !isActive) return;
@@ -222,7 +225,9 @@ export const LivePlayer = ({ src, poster, className, autoPlay = true }: LivePlay
             return () => {
                 isActive = false;
                 if (pollInterval) clearInterval(pollInterval);
-                if (gapJumperInterval) clearInterval(gapJumperInterval);
+                if (videoRef.current) {
+                    videoRef.current.removeEventListener('waiting', handleWaiting);
+                }
                 if (mediaSource.readyState === 'open') {
                     try { mediaSource.endOfStream(); } catch (e) { }
                 }
