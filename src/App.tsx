@@ -1,3 +1,4 @@
+// v2.1.3 - Triggering Vercel Redeploy
 import { useEffect, Suspense, lazy } from "react";
 import { HelmetProvider } from 'react-helmet-async';
 import { Toaster } from "@/components/ui/toaster";
