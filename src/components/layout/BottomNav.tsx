@@ -57,8 +57,11 @@ export const BottomNav = () => {
         <motion.div
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
-          className="max-w-md mx-auto pointer-events-auto"
+          className="max-w-md mx-auto pointer-events-auto relative"
         >
+          <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-2 py-0.5 bg-black/50 backdrop-blur-md rounded-full border border-white/5 text-[8px] text-white/40 pointer-events-none uppercase tracking-widest font-medium">
+            v1.0.1-revamp
+          </div>
           <div className="flex items-center justify-around p-2 rounded-full bg-background/80 backdrop-blur-2xl border border-white/10 shadow-premium overflow-hidden">
             {navItems.map(({ icon: Icon, label, path, isCreate }) => {
               const isActive = location.pathname === path || (isCreate && showCreateModal);
