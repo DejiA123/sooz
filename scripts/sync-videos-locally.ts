@@ -337,7 +337,7 @@ async function downloadVideo(videoId: string, hasFfmpeg: boolean): Promise<strin
             "--force-ipv4",
             "--js-runtimes", "node:/usr/local/bin/node",   // Node must be explicitly enabled for EJS
             "--remote-components", "ejs:github",            // Download EJS solver scripts if not bundled
-            "--proxy", `http://127.0.0.1:${PROXY_PORT}`,
+            "--proxy", process.env.EXTERNAL_PROXY || `http://127.0.0.1:${PROXY_PORT}`,
             ...(stage.useCookies && hasCookies ? ["--cookies", cookieFile] : []),
             "--user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
             "--extractor-args", extractorArgs,
@@ -467,7 +467,12 @@ async function main() {
     if (!hasFfmpeg) console.warn("⚠️ ffmpeg not found. Quality might be limited.");
 
     await runDiagnostics();
-    startLocalDnsProxy();
+    const EXTERNAL_PROXY = process.env.EXTERNAL_PROXY || "";
+    if (!EXTERNAL_PROXY) {
+        startLocalDnsProxy();
+    } else {
+        console.log(`📡 Using external proxy: ${EXTERNAL_PROXY} (bypasses local DNS proxy)`);
+    }
 
     while (true) {
         // Fetch pending videos
