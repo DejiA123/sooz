@@ -207,14 +207,14 @@ export const StoryRail = () => {
 
     return (
         <div className="w-full relative px-1 sm:px-0">
-            {/* The "Best" Glass Container */}
-            <div className="bg-white/5 backdrop-blur-3xl border border-white/10 rounded-[2.5rem] shadow-premium overflow-hidden transition-all duration-700">
-                <ScrollArea className="w-full">
+            {/* Seamless, unconstrained horizontal scroll area */}
+            <div className="transition-all duration-700">
+                <ScrollArea className="w-full pb-4">
                     <motion.div
                         variants={containerVariants}
                         initial="hidden"
                         animate="visible"
-                        className="flex items-center gap-6 p-6 px-8 w-max min-w-full"
+                        className="flex items-center gap-4 p-2 px-2 md:px-4 w-max min-w-full"
                     >
                         <input
                             type="file"

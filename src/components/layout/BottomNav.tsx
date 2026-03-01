@@ -53,13 +53,13 @@ export const BottomNav = () => {
 
   return (
     <>
-      <div className="fixed bottom-0 left-0 right-0 z-50 px-4 pb-8 pointer-events-none">
+      <div className="fixed bottom-0 left-0 right-0 z-50 px-4 pb-2 sm:pb-4 pointer-events-none">
         <motion.div
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           className="max-w-md mx-auto pointer-events-auto"
         >
-          <div className="flex items-center justify-around p-2 rounded-[2rem] bg-background/80 backdrop-blur-2xl border border-white/10 shadow-premium overflow-hidden">
+          <div className="flex items-center justify-around p-2 rounded-full bg-background/80 backdrop-blur-2xl border border-white/10 shadow-premium overflow-hidden">
             {navItems.map(({ icon: Icon, label, path, isCreate }) => {
               const isActive = location.pathname === path || (isCreate && showCreateModal);
               const IconComponent = Icon!;

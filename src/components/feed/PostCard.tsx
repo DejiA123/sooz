@@ -219,7 +219,7 @@ export const PostCard = ({
 
   return (
     <>
-      <article ref={postRef} className="mb-10 overflow-hidden bg-card border border-white/5 sm:rounded-[2.5rem] shadow-premium transition-shadow duration-500 hover:shadow-2xl">
+      <article ref={postRef} className="mb-10 sm:mb-12 overflow-hidden bg-card border-y sm:border sm:rounded-[2.5rem] border-white/5 sm:shadow-premium transition-shadow duration-500 hover:shadow-2xl">
         {/* Header */}
         <div className="flex items-center justify-between p-4 px-5">
           <div className="flex items-center gap-3">

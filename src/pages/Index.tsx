@@ -90,7 +90,7 @@ export default function Index() {
     <div className="min-h-screen bg-background/50">
       <div className="flex justify-center items-start lg:gap-8 px-4 sm:px-0">
         {/* Feed Column */}
-        <div className="w-full md:max-w-[500px] pt-8">
+        <div className="w-full md:max-w-[500px] pt-2 md:pt-4">
           <div className="mb-10 animate-fade-in-up">
             <StoryRail />
           </div>
