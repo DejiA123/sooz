@@ -1,4 +1,4 @@
-// v2.1.3 - Triggering Vercel Redeploy
+// v2.1.4 - Sync Check After Reconnect
 import { useEffect, Suspense, lazy } from "react";
 import { HelmetProvider } from 'react-helmet-async';
 import { Toaster } from "@/components/ui/toaster";
