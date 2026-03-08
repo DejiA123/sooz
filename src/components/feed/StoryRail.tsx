@@ -132,7 +132,7 @@ export const StoryRail = () => {
 
     const containerVariants = {
         hidden: { opacity: 0 },
-        visible: { opacity: 1, transition: { staggerChildren: 0.06, duration: 0.5 } }
+        visible: { opacity: 1, transition: { staggerChildren: 0.05, duration: 0.4 } }
     } as const;
 
     const itemVariants = {
@@ -140,24 +140,24 @@ export const StoryRail = () => {
         visible: { scale: 1, opacity: 1, transition: { type: "spring" as const, stiffness: 300, damping: 20 } }
     } as const;
 
-    const StoryThumb = ({ image, hasStory, children }: { image?: string | null; hasStory?: boolean; children?: React.ReactNode }) => (
+    const StoryThumb = ({ image, hasStory, seen, children }: { image?: string | null; hasStory?: boolean; seen?: boolean; children?: React.ReactNode }) => (
         <div className={cn(
-            "relative w-14 h-20 rounded-xl overflow-hidden shrink-0 transition-all duration-300",
-            hasStory ? "ring-2 ring-primary ring-offset-1 ring-offset-background" : ""
+            "relative w-[72px] h-24 rounded-2xl overflow-hidden shrink-0 transition-all duration-300",
+            hasStory && !seen ? "story-unseen-border p-[2px]" : "",
+            seen ? "opacity-60" : ""
         )}>
-            {image ? (
-                <img src={image} alt="" className="w-full h-full object-cover" />
-            ) : children}
-            {hasStory && (
-                <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary/60" />
-            )}
+            <div className="w-full h-full rounded-[14px] overflow-hidden bg-secondary shadow-inner">
+                {image ? (
+                    <img src={image} alt="" className="w-full h-full object-cover" />
+                ) : children}
+            </div>
         </div>
     );
 
     return (
         <div className="w-full relative px-1 sm:px-0">
             <div className="transition-all duration-700">
-                <ScrollArea className="w-full pb-3">
+                <ScrollArea className="w-full pb-2">
                     <motion.div
                         variants={containerVariants}
                         initial="hidden"
@@ -170,7 +170,7 @@ export const StoryRail = () => {
                             <div className="flex gap-3">
                                 {[1, 2, 3, 4, 5].map((i) => (
                                     <div key={i} className="flex flex-col items-center gap-1.5">
-                                        <Skeleton className="w-14 h-20 rounded-xl" />
+                                        <Skeleton className="w-[72px] h-24 rounded-2xl" />
                                         <Skeleton className="h-2.5 w-10 rounded-full" />
                                     </div>
                                 ))}
@@ -187,19 +187,19 @@ export const StoryRail = () => {
                                     <div className="relative">
                                         <StoryThumb image={userStory ? (user?.user_metadata?.avatar_url || null) : null} hasStory={!!userStory}>
                                             {!userStory && (
-                                                <div className="w-full h-full border-2 border-dashed border-muted-foreground/30 bg-card flex items-center justify-center rounded-xl">
-                                                    <Plus className="w-5 h-5 text-primary" />
+                                                <div className="w-full h-full bg-primary/10 flex items-center justify-center">
+                                                    <Plus className="w-6 h-6 text-primary" />
                                                 </div>
                                             )}
                                         </StoryThumb>
                                         {uploading && (
-                                            <div className="absolute inset-0 flex items-center justify-center bg-background/60 rounded-xl backdrop-blur-sm">
+                                            <div className="absolute inset-0 flex items-center justify-center bg-background/60 rounded-2xl backdrop-blur-sm">
                                                 <div className="w-6 h-6 border-2 border-muted-foreground/20 border-t-primary rounded-full animate-spin" />
                                             </div>
                                         )}
                                     </div>
-                                    <span className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground group-hover:text-foreground transition-colors">
-                                        You
+                                    <span className="text-[11px] font-medium text-muted-foreground group-hover:text-foreground transition-colors">
+                                        Add
                                     </span>
                                 </motion.div>
 
@@ -213,7 +213,7 @@ export const StoryRail = () => {
                                         onClick={() => openViewer(userStory ? storyUsers.indexOf(storyUser) + 1 : storyUsers.indexOf(storyUser))}
                                     >
                                         <StoryThumb image={storyUser.avatar} hasStory={true} />
-                                        <span className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground group-hover:text-foreground transition-colors max-w-14 truncate text-center">
+                                        <span className="text-[11px] font-medium text-muted-foreground group-hover:text-foreground transition-colors max-w-[72px] truncate text-center">
                                             {storyUser.username}
                                         </span>
                                     </motion.div>
@@ -224,7 +224,7 @@ export const StoryRail = () => {
                                     <motion.div key={followedUser.id} variants={itemVariants} whileTap={{ scale: 0.95 }}>
                                         <Link to={`/profile/${followedUser.username}`} className="flex flex-col items-center gap-1.5 cursor-pointer group">
                                             <StoryThumb image={followedUser.avatar} hasStory={false} />
-                                            <span className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground/60 group-hover:text-foreground transition-colors max-w-14 truncate text-center">
+                                            <span className="text-[11px] font-medium text-muted-foreground/50 group-hover:text-foreground transition-colors max-w-[72px] truncate text-center">
                                                 {followedUser.username}
                                             </span>
                                         </Link>

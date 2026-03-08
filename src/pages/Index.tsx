@@ -39,7 +39,6 @@ export default function Index() {
   const activeVideoId = useVideoStore((state) => state.activeVideoId);
   const setActiveVideo = useVideoStore((state) => state.setActiveVideo);
 
-  // Global interaction unlock
   const handleInteractionUnlock = useCallback(() => {
     const videos = document.querySelectorAll("video");
     videos.forEach((video) => {
@@ -52,7 +51,6 @@ export default function Index() {
 
   useEffect(() => {
     handleInteractionUnlock();
-    // Start at top on mount as per user preference
     window.scrollTo(0, 0);
   }, []);
 
@@ -63,11 +61,11 @@ export default function Index() {
     isFetchingNextPage,
     status
   } = useInfiniteQuery({
-    queryKey: ['posts', user?.id], // Key includes user ID to refresh on auth change
+    queryKey: ['posts', user?.id],
     queryFn: ({ pageParam }) => fetchPosts({ pageParam, userId: user?.id }),
     initialPageParam: 0,
     getNextPageParam: (lastPage) => lastPage.nextPage,
-    staleTime: 1000 * 60 * 5, // 5 minutes cache
+    staleTime: 1000 * 60 * 5,
     refetchOnWindowFocus: true,
   });
 
@@ -79,19 +77,35 @@ export default function Index() {
     }
   }, [inView, hasNextPage, fetchNextPage]);
 
-  // Flatten pages
   const posts = data?.pages.flatMap(page => page.posts) || [];
   const isLoading = status === 'pending';
 
-  // Enable aggressive video preloading for the feed
   useVideoPreloader(posts);
 
+  // Greeting based on time of day
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return "Good morning";
+    if (hour < 18) return "Good afternoon";
+    return "Good evening";
+  };
+
+  const today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+
   return (
-    <div className="min-h-screen bg-background/50">
-      <div className="flex justify-center items-start lg:gap-8 px-4 sm:px-0">
+    <div className="min-h-screen bg-background">
+      <div className="flex justify-center items-start lg:gap-8 px-0 sm:px-0">
         {/* Feed Column */}
         <div className="w-full md:max-w-[500px] pt-2 md:pt-4">
-          <div className="mb-10 animate-fade-in-up">
+          {/* Greeting header */}
+          <div className="px-5 pt-2 pb-4">
+            <h2 className="text-2xl font-display font-bold tracking-tight text-foreground">
+              {getGreeting()}
+            </h2>
+            <p className="text-[13px] text-muted-foreground mt-0.5">{today}</p>
+          </div>
+
+          <div className="mb-6 animate-fade-in">
             <StoryRail />
           </div>
 
@@ -102,14 +116,14 @@ export default function Index() {
               <div className="w-10 h-10 border-4 border-primary/10 border-t-primary rounded-full animate-spin" />
             </div>
           ) : posts.length === 0 ? (
-            <div className="py-20 text-center bg-card/30 rounded-[2rem] border border-dashed border-border/50 mx-4">
+            <div className="py-20 text-center mx-4">
               <p className="text-muted-foreground font-medium">No posts to show yet.</p>
               <button className="text-primary font-bold mt-2">Discover New People</button>
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-8 px-3">
               {posts.map((post, index) => (
-                <div key={`${post.id}-${index}`} className="animate-fade-in" style={{ animationDelay: `${index * 0.1}s` }}>
+                <div key={`${post.id}-${index}`} className="animate-fade-in" style={{ animationDelay: `${index * 0.05}s` }}>
                   <PostCard
                     id={post.id}
                     user={post.profiles}
@@ -130,11 +144,11 @@ export default function Index() {
                     priority={index < 2}
                   />
                   {index === 0 && (
-                    <div className="lg:hidden -mx-4 mb-8">
+                    <div className="lg:hidden -mx-3 mb-4 mt-4">
                       <div className="px-4 mb-2">
-                        <h4 className="text-[14px] font-bold tracking-tight">Suggested for you</h4>
+                        <h4 className="text-[13px] font-bold tracking-tight text-muted-foreground">Suggested for you</h4>
                       </div>
-                      <div className="py-4 bg-secondary/20 border-y border-white/5 backdrop-blur-md">
+                      <div className="py-3">
                         <SuggestedUsersRail />
                       </div>
                     </div>
@@ -148,11 +162,9 @@ export default function Index() {
                   <div className="w-6 h-6 border-2 border-primary/20 border-t-primary rounded-full animate-spin" />
                 ) : (
                   !hasNextPage && posts.length > 0 && (
-                    <div className="flex flex-col items-center gap-2 grayscale opacity-40">
-                      <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center">
-                        <Heart className="w-5 h-5 fill-current" />
-                      </div>
-                      <span className="text-[11px] font-bold uppercase tracking-widest">End of the road</span>
+                    <div className="flex flex-col items-center gap-2 opacity-30">
+                      <Heart className="w-5 h-5 fill-current" />
+                      <span className="text-[11px] font-bold uppercase tracking-widest">You're all caught up</span>
                     </div>
                   )
                 )}

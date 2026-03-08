@@ -1,7 +1,8 @@
 
 import { useState, useEffect } from "react";
-import { Check, Palette, Moon, ArrowLeft, LogOut, Bell } from "lucide-react";
+import { Check, ArrowLeft, LogOut, Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -9,10 +10,9 @@ import { toast } from "sonner";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 
 const THEMES = [
-    { id: "blue", name: "Deep Blue (Default)", primary: "240 100% 27%" },
-
-    { id: "rose", name: "Neon Rose", primary: "340 75% 55%" },
-    { id: "emerald", name: "Cyber Emerald", primary: "142 71% 45%" },
+    { id: "blue", name: "Deep Blue", primary: "240 100% 27%", color: "hsl(240, 100%, 27%)" },
+    { id: "rose", name: "Neon Rose", primary: "340 75% 55%", color: "hsl(340, 75%, 55%)" },
+    { id: "emerald", name: "Cyber Emerald", primary: "142 71% 45%", color: "hsl(142, 71%, 45%)" },
 ];
 
 export default function Settings() {
@@ -21,7 +21,6 @@ export default function Settings() {
     const { isSubscribed, subscribeToPush, unsubscribeFromPush } = usePushNotifications();
 
     useEffect(() => {
-        // Check local storage or current style
         const theme = localStorage.getItem("sooz-theme") || "blue";
         setCurrentTheme(theme);
         applyTheme(theme);
@@ -31,7 +30,6 @@ export default function Settings() {
         const theme = THEMES.find(t => t.id === themeId);
         if (theme) {
             document.documentElement.style.setProperty("--primary", theme.primary);
-            // We could also adjust ring colors, accents, etc.
             localStorage.setItem("sooz-theme", themeId);
             setCurrentTheme(themeId);
         }
@@ -43,11 +41,8 @@ export default function Settings() {
         } catch (error) {
             console.error("Error signing out:", error);
         } finally {
-            // Manual cleanup to ensure no loop
             Object.keys(localStorage).forEach((key) => {
-                if (key.startsWith("sb-")) {
-                    localStorage.removeItem(key);
-                }
+                if (key.startsWith("sb-")) localStorage.removeItem(key);
             });
             window.location.href = "/auth";
         }
@@ -55,108 +50,87 @@ export default function Settings() {
 
     return (
         <div className="pb-20 min-h-screen bg-background">
-            <div className="px-4 py-6">
+            <div className="px-5 py-6">
                 <div className="flex items-center gap-4 mb-8">
-                    <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+                    <Button variant="ghost" size="icon" className="rounded-full" onClick={() => navigate(-1)}>
                         <ArrowLeft className="w-5 h-5" />
                     </Button>
-                    <h1 className="text-2xl font-bold">Settings</h1>
+                    <h1 className="text-2xl font-display font-bold">Settings</h1>
                 </div>
 
-                <section className="space-y-6">
-                    <div className="flex items-center gap-2 text-primary mb-4">
-                        <Palette className="w-5 h-5" />
-                        <h2 className="text-lg font-semibold">Appearance</h2>
-                    </div>
-
-                    <div className="grid grid-cols-1 gap-4">
-                        {THEMES.map((theme) => (
-                            <button
-                                key={theme.id}
-                                onClick={() => applyTheme(theme.id)}
-                                className={cn(
-                                    "flex items-center justify-between p-4 rounded-xl border transition-all",
-                                    currentTheme === theme.id
-                                        ? "bg-primary/10 border-primary"
-                                        : "bg-card border-white/5 hover:bg-white/5"
-                                )}
-                            >
-                                <div className="flex items-center gap-4">
-                                    <div
-                                        className="w-10 h-10 rounded-full shadow-lg"
-                                        style={{ backgroundColor: `hsl(${theme.primary})` }}
-                                    />
-                                    <span className="font-medium">{theme.name}</span>
-                                </div>
-                                {currentTheme === theme.id && (
-                                    <div className="bg-primary text-primary-foreground rounded-full p-1">
-                                        <Check className="w-4 h-4" />
-                                    </div>
-                                )}
-                            </button>
-                        ))}
-                    </div>
-                </section>
-
-                <section className="space-y-6 mt-10">
-                    <div className="flex items-center gap-2 text-primary mb-4">
-                        <Moon className="w-5 h-5" />
-                        <h2 className="text-lg font-semibold">Display</h2>
-                    </div>
-                    <div className="bg-card border border-border rounded-xl p-4 flex items-center justify-between">
-                        <span className="font-medium">Dark Mode</span>
-                        <button
-                            onClick={() => {
-                                const isDark = document.documentElement.classList.toggle("dark");
-                                localStorage.setItem("sooz-mode", isDark ? "dark" : "light");
-                            }}
-                            className="w-12 h-6 bg-muted rounded-full relative transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-primary/50"
-                        >
-                            <div className="absolute left-1 top-1 w-4 h-4 rounded-full bg-foreground transition-transform duration-300 dark:translate-x-6" />
-                        </button>
-                    </div>
-                </section>
-
-                <section className="space-y-6 mt-10">
-                    <div className="flex items-center gap-2 text-primary mb-4">
-                        <Bell className="w-5 h-5" />
-                        <h2 className="text-lg font-semibold">Notifications</h2>
-                    </div>
-                    <div className="bg-card border border-border rounded-xl p-4 space-y-3">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="font-medium">Push Notifications</p>
-                                <p className="text-sm text-muted-foreground">Receive notifications for messages and calls</p>
-                            </div>
-                            <button
-                                onClick={() => isSubscribed ? unsubscribeFromPush() : subscribeToPush()}
-                                className={cn(
-                                    "w-12 h-6 rounded-full relative transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-primary/50",
-                                    isSubscribed ? "bg-primary" : "bg-muted"
-                                )}
-                            >
-                                <div className={cn(
-                                    "absolute left-1 top-1 w-4 h-4 rounded-full bg-white transition-transform duration-300",
-                                    isSubscribed && "translate-x-6"
-                                )} />
-                            </button>
+                {/* Theme Section */}
+                <section className="mb-8">
+                    <h2 className="text-[12px] font-bold uppercase tracking-widest text-muted-foreground/50 mb-4 px-1">Appearance</h2>
+                    <div className="bg-card rounded-2xl border border-border/30 p-5">
+                        <p className="text-sm font-medium mb-4">Accent Color</p>
+                        <div className="flex items-center gap-3">
+                            {THEMES.map((theme) => (
+                                <button
+                                    key={theme.id}
+                                    onClick={() => applyTheme(theme.id)}
+                                    className={cn(
+                                        "w-12 h-12 rounded-full transition-all duration-200 relative flex items-center justify-center",
+                                        currentTheme === theme.id ? "ring-2 ring-offset-2 ring-offset-background ring-foreground scale-110" : "hover:scale-105"
+                                    )}
+                                    style={{ backgroundColor: theme.color }}
+                                >
+                                    {currentTheme === theme.id && (
+                                        <Check className="w-5 h-5 text-white" />
+                                    )}
+                                </button>
+                            ))}
                         </div>
                     </div>
                 </section>
 
-                <section className="space-y-6 mt-10">
-                    <div className="flex items-center gap-2 text-primary mb-4">
-                        <LogOut className="w-5 h-5" />
-                        <h2 className="text-lg font-semibold">Account</h2>
+                {/* Display Section */}
+                <section className="mb-8">
+                    <h2 className="text-[12px] font-bold uppercase tracking-widest text-muted-foreground/50 mb-4 px-1">Display</h2>
+                    <div className="bg-card rounded-2xl border border-border/30 p-5">
+                        <div className="flex items-center justify-between">
+                            <span className="font-medium">Dark Mode</span>
+                            <Switch
+                                defaultChecked={document.documentElement.classList.contains("dark")}
+                                onCheckedChange={(checked) => {
+                                    if (checked) document.documentElement.classList.add("dark");
+                                    else document.documentElement.classList.remove("dark");
+                                    localStorage.setItem("sooz-mode", checked ? "dark" : "light");
+                                }}
+                            />
+                        </div>
                     </div>
-                    <Button
-                        variant="destructive"
-                        className="w-full justify-start gap-2"
-                        onClick={handleLogout}
-                    >
-                        <LogOut className="w-4 h-4" />
-                        Log Out
-                    </Button>
+                </section>
+
+                {/* Notifications Section */}
+                <section className="mb-8">
+                    <h2 className="text-[12px] font-bold uppercase tracking-widest text-muted-foreground/50 mb-4 px-1">Notifications</h2>
+                    <div className="bg-card rounded-2xl border border-border/30 p-5">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="font-medium">Push Notifications</p>
+                                <p className="text-[13px] text-muted-foreground mt-0.5">Messages and calls</p>
+                            </div>
+                            <Switch
+                                checked={isSubscribed}
+                                onCheckedChange={() => isSubscribed ? unsubscribeFromPush() : subscribeToPush()}
+                            />
+                        </div>
+                    </div>
+                </section>
+
+                {/* Account Section */}
+                <section>
+                    <h2 className="text-[12px] font-bold uppercase tracking-widest text-muted-foreground/50 mb-4 px-1">Account</h2>
+                    <div className="bg-card rounded-2xl border border-border/30 overflow-hidden">
+                        <Button
+                            variant="ghost"
+                            className="w-full justify-start gap-3 h-14 text-destructive hover:text-destructive hover:bg-destructive/5 rounded-2xl"
+                            onClick={handleLogout}
+                        >
+                            <LogOut className="w-5 h-5" />
+                            <span className="font-bold">Log Out</span>
+                        </Button>
+                    </div>
                 </section>
             </div>
         </div>
