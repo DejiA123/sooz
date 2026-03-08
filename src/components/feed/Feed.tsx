@@ -74,7 +74,7 @@ const Feed = () => {
     return (
       <div className="pt-16 pb-24">
         <StoriesBar />
-        <div className="px-0 md:px-4 space-y-6">
+        <div className="px-0 md:px-4 divide-y divide-border/20">
           {[1, 2, 3].map((i) => (
             <PostCardSkeleton key={i} />
           ))}
