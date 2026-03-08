@@ -1,66 +1,29 @@
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useCallback } from "react";
 import { LiveBanner } from "@/components/live/LiveBanner";
 import { StoryRail } from "@/components/feed/StoryRail";
 import { PostCard } from "@/components/feed/PostCard";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { Loader2, Heart } from "lucide-react";
+import { Heart } from "lucide-react";
 import { useInView } from "react-intersection-observer";
-import { toast } from "sonner";
 import { SuggestedAccounts } from "@/components/home/SuggestedAccounts";
-import { SuggestedUsersRail } from "@/components/feed/SuggestedUsersRail";
 import { useVideoStore } from "@/store/useVideoStore";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { fetchPosts } from "@/services/api/posts";
 import { useVideoPreloader } from "@/hooks/useVideoPreloader";
 import { LivePostCard } from "@/components/feed/LivePostCard";
 
-interface PostWithUser {
-  id: string;
-  caption: string | null;
-  media_url: string | null;
-  media_type: string | null;
-  created_at: string;
-  user_id: string;
-  profiles: {
-    id: string;
-    username: string;
-    avatar_url: string | null;
-    display_name: string | null;
-  };
-  likes: { count: number }[];
-  comments: { count: number }[];
-  user_likes: { id: string }[];
-  is_saved_by_user?: boolean;
-}
-
 export default function Index() {
   const { user } = useAuth();
-  const activeVideoId = useVideoStore((state) => state.activeVideoId);
-  const setActiveVideo = useVideoStore((state) => state.setActiveVideo);
 
   const handleInteractionUnlock = useCallback(() => {
     const videos = document.querySelectorAll("video");
-    videos.forEach((video) => {
-      if (video.paused) {
-        video.muted = true;
-        video.play().catch(() => { });
-      }
-    });
+    videos.forEach((video) => { if (video.paused) { video.muted = true; video.play().catch(() => {}); } });
   }, []);
 
-  useEffect(() => {
-    handleInteractionUnlock();
-    window.scrollTo(0, 0);
-  }, []);
+  useEffect(() => { handleInteractionUnlock(); window.scrollTo(0, 0); }, []);
 
-  const {
-    data,
-    fetchNextPage,
-    hasNextPage,
-    isFetchingNextPage,
-    status
-  } = useInfiniteQuery({
+  const { data, fetchNextPage, hasNextPage, isFetchingNextPage, status } = useInfiniteQuery({
     queryKey: ['posts', user?.id],
     queryFn: ({ pageParam }) => fetchPosts({ pageParam, userId: user?.id }),
     initialPageParam: 0,
@@ -70,44 +33,19 @@ export default function Index() {
   });
 
   const { ref, inView } = useInView();
-
-  useEffect(() => {
-    if (inView && hasNextPage) {
-      fetchNextPage();
-    }
-  }, [inView, hasNextPage, fetchNextPage]);
+  useEffect(() => { if (inView && hasNextPage) fetchNextPage(); }, [inView, hasNextPage, fetchNextPage]);
 
   const posts = data?.pages.flatMap(page => page.posts) || [];
   const isLoading = status === 'pending';
 
   useVideoPreloader(posts);
 
-  // Greeting based on time of day
-  const getGreeting = () => {
-    const hour = new Date().getHours();
-    if (hour < 12) return "Good morning";
-    if (hour < 18) return "Good afternoon";
-    return "Good evening";
-  };
-
-  const today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
-
   return (
     <div className="min-h-screen bg-background">
-      <div className="flex justify-center items-start lg:gap-8 px-0 sm:px-0">
-        {/* Feed Column */}
-        <div className="w-full md:max-w-[500px] pt-2 md:pt-4">
-          {/* Greeting header */}
-          <div className="px-5 pt-2 pb-4">
-            <h2 className="text-2xl font-display font-bold tracking-tight text-foreground">
-              {getGreeting()}
-            </h2>
-            <p className="text-[13px] text-muted-foreground mt-0.5">{today}</p>
-          </div>
-
-          <div className="mb-6 animate-fade-in">
-            <StoryRail />
-          </div>
+      <div className="flex justify-center items-start lg:gap-8">
+        {/* Feed — full width, zero padding for immersive media */}
+        <div className="w-full md:max-w-[500px] pt-14">
+          <StoryRail />
 
           <LivePostCard />
 
@@ -121,9 +59,9 @@ export default function Index() {
               <button className="text-primary font-bold mt-2">Discover New People</button>
             </div>
           ) : (
-            <div className="space-y-8 px-3">
+            <div className="space-y-1">
               {posts.map((post, index) => (
-                <div key={`${post.id}-${index}`} className="animate-fade-in" style={{ animationDelay: `${index * 0.05}s` }}>
+                <div key={`${post.id}-${index}`}>
                   <PostCard
                     id={post.id}
                     user={post.profiles}
@@ -135,7 +73,6 @@ export default function Index() {
                     likes_count={post.likes_count}
                     // @ts-ignore
                     comments_count={post.comments_count}
-                    // @ts-ignore
                     views_count={0}
                     // @ts-ignore
                     is_liked_by_user={post.is_liked_by_user}
@@ -143,20 +80,9 @@ export default function Index() {
                     is_saved_by_user={post.is_saved_by_user}
                     priority={index < 2}
                   />
-                  {index === 0 && (
-                    <div className="lg:hidden -mx-3 mb-4 mt-4">
-                      <div className="px-4 mb-2">
-                        <h4 className="text-[13px] font-bold tracking-tight text-muted-foreground">Suggested for you</h4>
-                      </div>
-                      <div className="py-3">
-                        <SuggestedUsersRail />
-                      </div>
-                    </div>
-                  )}
                 </div>
               ))}
 
-              {/* Infinite Scroll Loader */}
               <div ref={ref} className="h-20 flex items-center justify-center p-8">
                 {isFetchingNextPage ? (
                   <div className="w-6 h-6 border-2 border-primary/20 border-t-primary rounded-full animate-spin" />
@@ -173,9 +99,9 @@ export default function Index() {
           )}
         </div>
 
-        {/* Suggested Accounts Sidebar (Desktop Only) */}
+        {/* Desktop sidebar */}
         {!isLoading && posts.length > 0 && (
-          <div className="hidden lg:block w-[320px] sticky top-[calc(5rem+env(safe-area-inset-top,0px))]">
+          <div className="hidden lg:block w-[320px] sticky top-20">
             <SuggestedAccounts />
           </div>
         )}

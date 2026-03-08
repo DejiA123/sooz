@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Heart, MessageCircle, Share2, MoreHorizontal, Bookmark, Trash2, Edit, Eye } from "lucide-react";
@@ -13,10 +12,7 @@ import { toast } from "sonner";
 import { CommentDrawer } from "./CommentDrawer";
 import { VideoFeedModal } from "./VideoFeedModal";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { EditPostDialog } from "./EditPostDialog";
 import { LazyVideo } from "./LazyVideo";
@@ -25,12 +21,7 @@ import { motion } from "framer-motion";
 
 interface PostCardProps {
   id: string;
-  user: {
-    id: string;
-    username: string;
-    avatar_url: string | null;
-    display_name: string | null;
-  };
+  user: { id: string; username: string; avatar_url: string | null; display_name: string | null; };
   caption: string | null;
   media_url: string | null;
   media_type: string | null;
@@ -44,18 +35,9 @@ interface PostCardProps {
 }
 
 export const PostCard = ({
-  id,
-  user,
-  caption: initialCaption,
-  media_url,
-  media_type,
-  created_at,
-  likes_count: initialLikes,
-  comments_count,
-  views_count: initialViews = 0,
-  is_liked_by_user: initialLiked,
-  is_saved_by_user: initialSaved,
-  priority = false
+  id, user, caption: initialCaption, media_url, media_type, created_at,
+  likes_count: initialLikes, comments_count, views_count: initialViews = 0,
+  is_liked_by_user: initialLiked, is_saved_by_user: initialSaved, priority = false
 }: PostCardProps) => {
   const { user: currentUser } = useAuth();
   const isMobile = useIsMobile();
@@ -66,32 +48,19 @@ export const PostCard = ({
   const [isSaved, setIsSaved] = useState(false);
   const [isSaveLoading, setIsSaveLoading] = useState(false);
 
-  useEffect(() => {
-    if (typeof initialSaved !== 'undefined') setIsSaved(initialSaved);
-  }, [initialSaved]);
+  useEffect(() => { if (typeof initialSaved !== 'undefined') setIsSaved(initialSaved); }, [initialSaved]);
 
   const handleSave = async () => {
     if (!currentUser) { toast.error("Please login to save posts"); return; }
     if (isSaveLoading) return;
     setIsSaveLoading(true);
-    const previousSaved = isSaved;
+    const prev = isSaved;
     setIsSaved(!isSaved);
     try {
-      if (previousSaved) {
-        const { error } = await supabase.from('bookmarks').delete().eq('user_id', currentUser.id).eq('post_id', id);
-        if (error) throw error;
-        toast.success("Post unsaved");
-      } else {
-        const { error } = await supabase.from('bookmarks').insert({ user_id: currentUser.id, post_id: id });
-        if (error) throw error;
-        toast.success("Post saved");
-      }
-    } catch (error) {
-      setIsSaved(previousSaved);
-      toast.error("Failed to update bookmark");
-    } finally {
-      setIsSaveLoading(false);
-    }
+      if (prev) { const { error } = await supabase.from('bookmarks').delete().eq('user_id', currentUser.id).eq('post_id', id); if (error) throw error; toast.success("Post unsaved"); }
+      else { const { error } = await supabase.from('bookmarks').insert({ user_id: currentUser.id, post_id: id }); if (error) throw error; toast.success("Post saved"); }
+    } catch { setIsSaved(prev); toast.error("Failed to update bookmark"); }
+    finally { setIsSaveLoading(false); }
   };
 
   const [showEditDialog, setShowEditDialog] = useState(false);
@@ -103,21 +72,14 @@ export const PostCard = ({
   const postRef = useRef<HTMLElement>(null);
   const [showDoubleTapHeart, setShowDoubleTapHeart] = useState(false);
   const lastTapRef = useRef(0);
+  const [showCaption, setShowCaption] = useState(false);
 
   const isOwner = currentUser?.id === user.id;
 
   useEffect(() => {
     if (hasTrackedView || !postRef.current) return;
     const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting && !hasTrackedView) {
-          setHasTrackedView(true);
-          setViews(prev => prev + 1);
-          (async () => {
-            try { await supabase.from('post_views').insert({ post_id: id }); } catch (err) { console.error(err); }
-          })();
-        }
-      },
+      (entries) => { if (entries[0].isIntersecting && !hasTrackedView) { setHasTrackedView(true); setViews(prev => prev + 1); (async () => { try { await supabase.from('post_views').insert({ post_id: id }); } catch (err) { console.error(err); } })(); } },
       { threshold: 0.5 }
     );
     observer.observe(postRef.current);
@@ -130,134 +92,120 @@ export const PostCard = ({
     if (!currentUser) { toast.error("Please login to like posts"); navigate("/auth"); return; }
     if (isLikeLoading) return;
     setIsLikeLoading(true);
-    const newLikedState = !isLiked;
-    setIsLiked(newLikedState);
-    setLikes(prev => newLikedState ? prev + 1 : prev - 1);
+    const newState = !isLiked;
+    setIsLiked(newState);
+    setLikes(prev => newState ? prev + 1 : prev - 1);
     try {
-      if (newLikedState) {
-        const { error } = await supabase.from("likes").insert({ post_id: id, user_id: currentUser.id });
-        if (error) throw error;
-      } else {
-        const { error } = await supabase.from("likes").delete().eq("post_id", id).eq("user_id", currentUser.id);
-        if (error) throw error;
-      }
-    } catch (error) {
-      setIsLiked(!newLikedState);
-      setLikes(prev => !newLikedState ? prev + 1 : prev - 1);
-      toast.error("Failed to update like");
-    } finally {
-      setIsLikeLoading(false);
-    }
+      if (newState) { const { error } = await supabase.from("likes").insert({ post_id: id, user_id: currentUser.id }); if (error) throw error; }
+      else { const { error } = await supabase.from("likes").delete().eq("post_id", id).eq("user_id", currentUser.id); if (error) throw error; }
+    } catch { setIsLiked(!newState); setLikes(prev => !newState ? prev + 1 : prev - 1); toast.error("Failed to update like"); }
+    finally { setIsLikeLoading(false); }
   };
 
   const handleDoubleTap = () => {
     const now = Date.now();
-    if (now - lastTapRef.current < 300) {
-      if (!isLiked) handleLike();
-      setShowDoubleTapHeart(true);
-      setTimeout(() => setShowDoubleTapHeart(false), 800);
-    }
+    if (now - lastTapRef.current < 300) { if (!isLiked) handleLike(); setShowDoubleTapHeart(true); setTimeout(() => setShowDoubleTapHeart(false), 800); }
     lastTapRef.current = now;
   };
 
   const handleDelete = async () => {
     if (!currentUser || currentUser.id !== user.id) { toast.error("You can only delete your own posts"); return; }
     if (!confirm("Are you sure you want to delete this post?")) return;
-    try {
-      const { error } = await supabase.from("posts").delete().eq("id", id);
-      if (error) throw error;
-      setIsDeleted(true);
-    } catch (error) {
-      toast.error("Failed to delete post");
-    }
+    try { const { error } = await supabase.from("posts").delete().eq("id", id); if (error) throw error; setIsDeleted(true); }
+    catch { toast.error("Failed to delete post"); }
   };
 
   if (isDeleted) return null;
-
   const timeAgo = formatDistanceToNow(new Date(created_at), { addSuffix: false });
 
   return (
     <>
       <motion.article
         ref={postRef}
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] }}
-        className="group"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.6 }}
+        className="group relative"
       >
-        {/* Full-bleed media with rounded corners */}
+        {/* Full-bleed media — edge to edge, no radius */}
         {media_url && (
-          <div
-            className="relative w-full overflow-hidden rounded-2xl shadow-sm mx-auto"
-            onClick={handleDoubleTap}
-          >
+          <div className="relative w-full overflow-hidden" onClick={handleDoubleTap}>
             {media_type === 'video' ? (
               <LazyVideo
                 src={media_url}
                 id={id}
                 priority={priority}
-                onClick={isMobile ? (time) => {
-                  setVideoStartTime(time);
-                  setShowVideoFeed(true);
-                } : undefined}
+                onClick={isMobile ? (time) => { setVideoStartTime(time); setShowVideoFeed(true); } : undefined}
               />
             ) : (
               <LazyImage
                 src={media_url}
                 alt="Post"
-                className="w-full h-full object-cover max-h-[560px]"
+                className="w-full h-full object-cover max-h-[600px]"
                 priority={priority}
               />
             )}
 
-            {/* Double-tap heart animation */}
-            {showDoubleTapHeart && (
-              <motion.div
-                initial={{ scale: 0, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 1.5, opacity: 0 }}
-                transition={{ duration: 0.4 }}
-                className="absolute inset-0 flex items-center justify-center pointer-events-none z-20"
-              >
-                <Heart className="w-20 h-20 text-white fill-white drop-shadow-2xl" />
-              </motion.div>
-            )}
+            {/* Gradient overlay at bottom */}
+            <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-black/70 via-black/30 to-transparent pointer-events-none" />
 
-            {/* Video view count */}
-            {media_type === 'video' && initialViews > 0 && (
-              <div className="absolute bottom-3 left-3 flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-background/60 backdrop-blur-xl">
-                <Eye className="w-3.5 h-3.5 text-muted-foreground" />
-                <span className="text-[11px] font-bold text-muted-foreground">{initialViews.toLocaleString()}</span>
+            {/* Username + time on image */}
+            <div className="absolute bottom-3 left-3 z-10 flex items-center gap-2">
+              <Link to={`/profile/${user.username}`}>
+                <Avatar className="w-7 h-7 ring-2 ring-white/20">
+                  <AvatarImage src={user.avatar_url || ""} className="object-cover" />
+                  <AvatarFallback className="bg-white/20 text-white text-[10px] font-bold">{(user.display_name || user.username)[0].toUpperCase()}</AvatarFallback>
+                </Avatar>
+              </Link>
+              <div>
+                <Link to={`/profile/${user.username}`} className="text-white text-[14px] font-bold hover:underline decoration-1 underline-offset-2 drop-shadow-md">
+                  {user.display_name || user.username}
+                </Link>
+                <span className="text-white/50 text-[11px] ml-2 drop-shadow-md">{timeAgo}</span>
               </div>
-            )}
-          </div>
-        )}
+            </div>
 
-        {/* Content section — editorial newspaper style */}
-        <div className="px-1 py-3">
-          {/* Bold username on its own line */}
-          <Link to={`/profile/${user.username}`} className="text-[16px] font-extrabold text-foreground hover:underline decoration-1 underline-offset-2">
-            {user.display_name || user.username}
-          </Link>
+            {/* Floating action pills — right edge */}
+            <div className="absolute right-3 bottom-14 z-10 flex flex-col items-center gap-3">
+              <motion.button whileTap={{ scale: 1.3 }} onClick={handleLike} className="flex flex-col items-center">
+                <div className={cn("w-10 h-10 rounded-full bg-black/30 backdrop-blur-md flex items-center justify-center", isLiked && "bg-destructive/80")}>
+                  <Heart className={cn("w-5 h-5 text-white", isLiked && "fill-current")} strokeWidth={1.8} />
+                </div>
+                {likes > 0 && <span className="text-white text-[10px] font-bold mt-0.5 drop-shadow-md">{likes.toLocaleString()}</span>}
+              </motion.button>
 
-          {/* Avatar + timestamp row */}
-          <div className="flex items-center gap-2 mt-1 mb-2.5">
-            <Link to={`/profile/${user.username}`}>
-              <Avatar className="w-5 h-5">
-                <AvatarImage src={user.avatar_url || ""} className="object-cover" />
-                <AvatarFallback className="bg-primary/10 text-primary text-[8px] font-bold">{(user.display_name || user.username)[0].toUpperCase()}</AvatarFallback>
-              </Avatar>
-            </Link>
-            <span className="text-[12px] text-muted-foreground">@{user.username}</span>
-            <span className="text-[12px] text-muted-foreground/50">·</span>
-            <span className="text-[12px] text-muted-foreground/50">{timeAgo}</span>
+              <CommentDrawer
+                postId={id}
+                postOwnerUsername={user.username}
+                trigger={
+                  <button className="flex flex-col items-center">
+                    <div className="w-10 h-10 rounded-full bg-black/30 backdrop-blur-md flex items-center justify-center">
+                      <MessageCircle className="w-5 h-5 text-white" strokeWidth={1.8} />
+                    </div>
+                    {comments_count > 0 && <span className="text-white text-[10px] font-bold mt-0.5 drop-shadow-md">{comments_count}</span>}
+                  </button>
+                }
+              />
 
-            <div className="ml-auto">
+              <button
+                className="flex flex-col items-center"
+                onClick={async () => {
+                  const appDomain = import.meta.env.VITE_APP_DOMAIN || 'https://sooz.vercel.app';
+                  const postUrl = `${appDomain}/share/${id}`;
+                  try { if (navigator.share) await navigator.share({ url: postUrl }); else { await navigator.clipboard.writeText(postUrl); toast.success("Link copied!"); } }
+                  catch { await navigator.clipboard.writeText(postUrl); toast.success("Link copied!"); }
+                }}
+              >
+                <div className="w-10 h-10 rounded-full bg-black/30 backdrop-blur-md flex items-center justify-center">
+                  <Share2 className="w-5 h-5 text-white" strokeWidth={1.8} />
+                </div>
+              </button>
+
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg hover:bg-secondary">
-                    <MoreHorizontal className="w-4 h-4 text-muted-foreground" />
-                  </Button>
+                  <button className="w-10 h-10 rounded-full bg-black/30 backdrop-blur-md flex items-center justify-center">
+                    <MoreHorizontal className="w-5 h-5 text-white" />
+                  </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="rounded-xl border-border bg-popover backdrop-blur-xl">
                   <DropdownMenuItem onClick={handleSave} className="rounded-lg">
@@ -265,79 +213,43 @@ export const PostCard = ({
                   </DropdownMenuItem>
                   {isOwner && (
                     <>
-                      <DropdownMenuItem onClick={() => setShowEditDialog(true)} className="rounded-lg">
-                        <Edit className="w-4 h-4 mr-2" /> Edit Post
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={handleDelete} className="rounded-lg text-destructive focus:text-destructive focus:bg-destructive/10">
-                        <Trash2 className="w-4 h-4 mr-2" /> Delete Post
-                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setShowEditDialog(true)} className="rounded-lg"><Edit className="w-4 h-4 mr-2" /> Edit Post</DropdownMenuItem>
+                      <DropdownMenuItem onClick={handleDelete} className="rounded-lg text-destructive focus:text-destructive focus:bg-destructive/10"><Trash2 className="w-4 h-4 mr-2" /> Delete Post</DropdownMenuItem>
                     </>
                   )}
-                  {!isOwner && (
-                    <DropdownMenuItem onClick={() => toast.success("Reported")} className="rounded-lg">
-                      Report Post
-                    </DropdownMenuItem>
-                  )}
+                  {!isOwner && <DropdownMenuItem onClick={() => toast.success("Reported")} className="rounded-lg">Report Post</DropdownMenuItem>}
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
-          </div>
 
-          {/* Caption — serif editorial font */}
-          {caption && (
-            <p className="text-[15px] leading-relaxed text-foreground/85 font-serif line-clamp-3 mb-3">
+            {/* View count badge */}
+            {media_type === 'video' && initialViews > 0 && (
+              <div className="absolute bottom-3 right-3 flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-black/30 backdrop-blur-md z-10">
+                <Eye className="w-3 h-3 text-white/60" />
+                <span className="text-[10px] font-bold text-white/60">{initialViews.toLocaleString()}</span>
+              </div>
+            )}
+
+            {/* Double-tap heart */}
+            {showDoubleTapHeart && (
+              <motion.div initial={{ scale: 0, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 1.5, opacity: 0 }} transition={{ duration: 0.4 }} className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
+                <Heart className="w-20 h-20 text-white fill-white drop-shadow-2xl" />
+              </motion.div>
+            )}
+          </div>
+        )}
+
+        {/* Caption — tap to reveal */}
+        {caption && (
+          <button onClick={() => setShowCaption(!showCaption)} className="w-full text-left px-4 py-2">
+            <p className={cn(
+              "text-[14px] leading-relaxed text-foreground/70 font-serif transition-all duration-300",
+              showCaption ? "" : "line-clamp-1"
+            )}>
               {caption}
             </p>
-          )}
-
-          {/* Action row — text links style */}
-          <div className="flex items-center gap-1 text-[13px] text-muted-foreground">
-            <motion.button
-              whileTap={{ scale: 1.2 }}
-              onClick={handleLike}
-              className={cn(
-                "flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-secondary/50 transition-colors",
-                isLiked && "text-destructive"
-              )}
-            >
-              <Heart className={cn("w-4 h-4", isLiked && "fill-current")} strokeWidth={1.8} />
-              {likes > 0 && <span className="font-semibold">{likes.toLocaleString()}</span>}
-            </motion.button>
-
-            <span className="text-muted-foreground/30">·</span>
-
-            <CommentDrawer
-              postId={id}
-              postOwnerUsername={user.username}
-              trigger={
-                <button className="flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-secondary/50 transition-colors">
-                  <MessageCircle className="w-4 h-4" strokeWidth={1.8} />
-                  {comments_count > 0 && <span className="font-semibold">{comments_count}</span>}
-                </button>
-              }
-            />
-
-            <span className="text-muted-foreground/30">·</span>
-
-            <button
-              className="flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-secondary/50 transition-colors"
-              onClick={async () => {
-                const appDomain = import.meta.env.VITE_APP_DOMAIN || 'https://sooz.vercel.app';
-                const postUrl = `${appDomain}/share/${id}`;
-                try {
-                  if (navigator.share) { await navigator.share({ url: postUrl }); }
-                  else { await navigator.clipboard.writeText(postUrl); toast.success("Link copied!"); }
-                } catch (err) {
-                  await navigator.clipboard.writeText(postUrl);
-                  toast.success("Link copied!");
-                }
-              }}
-            >
-              <Share2 className="w-4 h-4" strokeWidth={1.8} />
-              <span className="font-medium">Share</span>
-            </button>
-          </div>
-        </div>
+          </button>
+        )}
       </motion.article>
 
       {showVideoFeed && (
