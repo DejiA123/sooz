@@ -227,7 +227,7 @@ export const LivePlayer = ({ src, poster, className, autoPlay = true }: LivePlay
             return () => {
                 isActive = false;
                 if (pollInterval) clearInterval(pollInterval);
-                if (videoRef.current) {
+                if (videoRef.current && handleWaiting) {
                     videoRef.current.removeEventListener('waiting', handleWaiting);
                 }
                 if (mediaSource.readyState === 'open') {
