@@ -1,63 +1,82 @@
 
 
-## Enhance Discover Page with Video Archive and Download Feature
+# Unique Mobile UI Overhaul — Move Away from Instagram
 
-### What We're Building
+## Problem
+The current mobile UI closely resembles Instagram with its circular story avatars, standard post card layout, floating pill nav bar, and familiar icon set. The user wants a distinctive, premium feel.
 
-1. **Add Video Archive content to the Discover page** -- mix video archive videos alongside user posts for a richer discovery experience
-2. **Add a Download button** so users can save videos to their phone
+## Design Direction
+Shift toward a **Twitter/Threads meets Arc Browser** aesthetic — text-forward, editorial, with unique interaction patterns that don't mirror any single social app.
 
-### Current State
+## Changes
 
-- The Discover page only shows user-created posts (from the `posts` table)
-- You have 1,904 videos in `video_archive` (20 synced to R2 with direct video files)
-- The Video Archive page (`/archive`) exists separately but isn't integrated into Discover
+### 1. Bottom Navigation — Segmented Pill Bar
+Replace the current floating dock (which looks like every iOS social app) with a **segmented control** style nav:
+- Remove text labels entirely — icons only, larger (24px)
+- Replace the raised Create button with an inline glowing accent button (same height, no float)
+- Use a **sliding highlight background** (animated pill that moves behind the active item) instead of a dot indicator
+- Rounded rectangle shape with subtle inner shadow, no outer border
+- Icons: Replace `House` with `Compass`, `Heart` with `Bell`, keep `MessageCircle`, `User`, `Sparkles`
 
----
+### 2. Post Card — Editorial / Magazine Layout
+Redesign to feel like a **news/editorial card** rather than an Instagram post:
+- Remove floating avatar/username badge overlay on media — move user info **below** media in a clean row
+- Add a subtle **left accent bar** (2px primary-colored vertical line) on the content section
+- Caption gets more prominence: larger text (15px), max 3 lines
+- Action bar: Replace individual pill buttons with **icon-only row** with counts underneath (vertical stacking like Twitter), no background pills
+- Remove the rounded-[20px] card wrapper — use **flat cards with subtle dividers** between posts instead of floating cards with shadows
+- Double-tap to like animation stays
 
-### Changes
+### 3. Stories Rail — Rectangular Thumbnails
+Replace circular Instagram-style avatars with **small rectangular preview cards** (like Snapchat/BeReal):
+- 56x80px rounded-xl thumbnails showing actual story content preview
+- Username below in small caps
+- "Your Story" becomes a "+" card with dashed border
+- Gradient ring replaced with a subtle bottom-edge glow for unseen stories
 
-#### 1. Discover Page -- Add Video Archive Section
+### 4. Feed Container
+- Remove `space-y-6` gaps between cards — use thin `border-b border-border/30` dividers instead
+- Full-bleed media (no horizontal margins on mobile)
+- Tighter vertical rhythm
 
-Add a "Videos" section to the Discover page that shows video archive thumbnails in a horizontal scrollable rail at the top (above user posts), plus a mixed grid below. Tapping a video opens the `VideoPlayerModal`.
+### 5. TopBar Refinement
+- Slightly reduce height
+- Make the "Discover" button more subtle (ghost style, no border/bg)
 
-- Import `fetchVideos`, `VideoItem`, and `VideoPlayerModal` into `src/pages/Discover.tsx`
-- Fetch video archive data alongside posts
-- Show a horizontal "Videos" rail near the top with thumbnails
-- Tapping opens the video player modal
-
-#### 2. Download Button in VideoPlayerModal
-
-Add a download button to `src/components/videoArchive/VideoPlayerModal.tsx`:
-
-- For **R2-synced videos** (`r2_video_url` exists): Use a direct download link (`<a href="..." download>`)
-- For **non-synced videos**: Link to YouTube (since we can't force-download YouTube embeds from the browser)
-- Show a Download icon button in the modal's video info section
-
-#### 3. Download Button on VideoCard
-
-Add a small download icon on each `VideoCard` so users can download directly from the grid without opening the modal.
-
----
-
-### Technical Details
+## Technical Details
 
 **Files to modify:**
+- `src/components/layout/BottomNav.tsx` — Segmented pill with sliding highlight
+- `src/components/feed/PostCard.tsx` — Editorial flat card layout
+- `src/components/feed/StoriesBar.tsx` — Rectangular story thumbnails
+- `src/components/feed/StoryRail.tsx` — Match rectangular thumbnail style
+- `src/components/feed/Feed.tsx` — Remove card spacing, add dividers
+- `src/components/layout/TopBar.tsx` — Subtle Discover button
 
-1. **`src/pages/Discover.tsx`**
-   - Add state for `archiveVideos` and `selectedVideo`
-   - Fetch from `fetchVideos()` in `fetchData()`
-   - Render a horizontal scrollable rail of video thumbnails above the posts grid
-   - Render `VideoPlayerModal` when a video is selected
+**BottomNav sliding highlight approach:**
+```tsx
+// Track active index, animate a background pill with layoutId
+<motion.div layoutId="nav-highlight" className="absolute inset-y-1 rounded-xl bg-primary/10" />
+```
 
-2. **`src/components/videoArchive/VideoPlayerModal.tsx`**
-   - Add a `Download` lucide icon button next to the "Watch on YouTube" link
-   - For R2 videos: `<a href={video.r2_video_url} download>` triggers native download
-   - For YouTube-only videos: open YouTube link (with a tooltip explaining it's YouTube-only)
+**PostCard structure change:**
+```
+┌────────────────────────┐
+│ [Full-bleed media]     │
+│                        │
+├────────────────────────┤
+│ ▌ @username · 2h       │  ← left accent bar
+│ ▌ Caption text here... │
+│                         │
+│  ♡ 12   💬 3   ↗   ⋯  │  ← icon row, no pills
+└────────────────────────┘
+--- thin divider ---
+```
 
-3. **`src/components/videoArchive/VideoCard.tsx`**
-   - Add an optional `onDownload` callback prop
-   - Show a small download icon overlay on hover/tap
-
-**No database changes needed** -- all data already exists in `video_archive`.
+**StoriesBar rectangular cards:**
+```
+[ + ] [thumb] [thumb] [thumb] [thumb]
+ Add   Grace   David   Faith   Josh
+```
+Each thumb is a 56x80 rounded-xl with object-cover image.
 
