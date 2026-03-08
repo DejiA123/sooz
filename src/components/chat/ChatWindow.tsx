@@ -58,6 +58,7 @@ export const ChatWindow = ({ chatId, onBack }: ChatWindowProps) => {
     const [uploading, setUploading] = useState(false);
     const { startCall } = useCall();
     const [showGroupInfo, setShowGroupInfo] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
     const [isSending, setIsSending] = useState(false);
 
     // Fetch Chat Info & Messages
