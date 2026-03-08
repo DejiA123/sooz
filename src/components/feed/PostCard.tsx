@@ -101,6 +101,8 @@ export const PostCard = ({
   const [views, setViews] = useState(initialViews);
   const [hasTrackedView, setHasTrackedView] = useState(false);
   const postRef = useRef<HTMLElement>(null);
+  const [showDoubleTapHeart, setShowDoubleTapHeart] = useState(false);
+  const lastTapRef = useRef(0);
 
   const isOwner = currentUser?.id === user.id;
 
@@ -148,6 +150,16 @@ export const PostCard = ({
     }
   };
 
+  const handleDoubleTap = () => {
+    const now = Date.now();
+    if (now - lastTapRef.current < 300) {
+      if (!isLiked) handleLike();
+      setShowDoubleTapHeart(true);
+      setTimeout(() => setShowDoubleTapHeart(false), 800);
+    }
+    lastTapRef.current = now;
+  };
+
   const handleDelete = async () => {
     if (!currentUser || currentUser.id !== user.id) { toast.error("You can only delete your own posts"); return; }
     if (!confirm("Are you sure you want to delete this post?")) return;
@@ -168,14 +180,17 @@ export const PostCard = ({
     <>
       <motion.article
         ref={postRef}
-        initial={{ opacity: 0, y: 12 }}
+        initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, ease: [0.25, 0.46, 0.45, 0.94] }}
+        transition={{ duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] }}
         className="group"
       >
-        {/* Full-bleed media */}
+        {/* Full-bleed media with rounded corners */}
         {media_url && (
-          <div className="relative w-full overflow-hidden">
+          <div
+            className="relative w-full overflow-hidden rounded-2xl shadow-sm mx-auto"
+            onClick={handleDoubleTap}
+          >
             {media_type === 'video' ? (
               <LazyVideo
                 src={media_url}
@@ -195,6 +210,19 @@ export const PostCard = ({
               />
             )}
 
+            {/* Double-tap heart animation */}
+            {showDoubleTapHeart && (
+              <motion.div
+                initial={{ scale: 0, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 1.5, opacity: 0 }}
+                transition={{ duration: 0.4 }}
+                className="absolute inset-0 flex items-center justify-center pointer-events-none z-20"
+              >
+                <Heart className="w-20 h-20 text-white fill-white drop-shadow-2xl" />
+              </motion.div>
+            )}
+
             {/* Video view count */}
             {media_type === 'video' && initialViews > 0 && (
               <div className="absolute bottom-3 left-3 flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-background/60 backdrop-blur-xl">
@@ -205,112 +233,109 @@ export const PostCard = ({
           </div>
         )}
 
-        {/* Content section with left accent */}
-        <div className="flex">
-          <div className="w-[3px] bg-primary/40 rounded-full my-2 ml-4 shrink-0" />
-          <div className="flex-1 px-4 py-3">
-            {/* User info row */}
-            <div className="flex items-center gap-2.5 mb-2">
-              <Link to={`/profile/${user.username}`}>
-                <Avatar className="w-7 h-7">
-                  <AvatarImage src={user.avatar_url || ""} className="object-cover" />
-                  <AvatarFallback className="bg-primary/10 text-primary text-[10px] font-bold">{(user.display_name || user.username)[0].toUpperCase()}</AvatarFallback>
-                </Avatar>
-              </Link>
-              <Link to={`/profile/${user.username}`} className="text-[13px] font-bold text-foreground hover:underline">
-                {user.username}
-              </Link>
-              <span className="text-[11px] text-muted-foreground">·</span>
-              <span className="text-[11px] text-muted-foreground">{timeAgo}</span>
-              
-              <div className="ml-auto">
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg hover:bg-secondary">
-                      <MoreHorizontal className="w-4 h-4 text-muted-foreground" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="rounded-xl border-border bg-popover backdrop-blur-xl">
-                    {isOwner && (
-                      <>
-                        <DropdownMenuItem onClick={() => setShowEditDialog(true)} className="rounded-lg">
-                          <Edit className="w-4 h-4 mr-2" /> Edit Post
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={handleDelete} className="rounded-lg text-destructive focus:text-destructive focus:bg-destructive/10">
-                          <Trash2 className="w-4 h-4 mr-2" /> Delete Post
-                        </DropdownMenuItem>
-                      </>
-                    )}
-                    {!isOwner && (
-                      <DropdownMenuItem onClick={() => toast.success("Reported")} className="rounded-lg">
-                        Report Post
+        {/* Content section — editorial newspaper style */}
+        <div className="px-1 py-3">
+          {/* Bold username on its own line */}
+          <Link to={`/profile/${user.username}`} className="text-[16px] font-extrabold text-foreground hover:underline decoration-1 underline-offset-2">
+            {user.display_name || user.username}
+          </Link>
+
+          {/* Avatar + timestamp row */}
+          <div className="flex items-center gap-2 mt-1 mb-2.5">
+            <Link to={`/profile/${user.username}`}>
+              <Avatar className="w-5 h-5">
+                <AvatarImage src={user.avatar_url || ""} className="object-cover" />
+                <AvatarFallback className="bg-primary/10 text-primary text-[8px] font-bold">{(user.display_name || user.username)[0].toUpperCase()}</AvatarFallback>
+              </Avatar>
+            </Link>
+            <span className="text-[12px] text-muted-foreground">@{user.username}</span>
+            <span className="text-[12px] text-muted-foreground/50">·</span>
+            <span className="text-[12px] text-muted-foreground/50">{timeAgo}</span>
+
+            <div className="ml-auto">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg hover:bg-secondary">
+                    <MoreHorizontal className="w-4 h-4 text-muted-foreground" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="rounded-xl border-border bg-popover backdrop-blur-xl">
+                  <DropdownMenuItem onClick={handleSave} className="rounded-lg">
+                    <Bookmark className={cn("w-4 h-4 mr-2", isSaved && "fill-current")} /> {isSaved ? "Unsave" : "Save"}
+                  </DropdownMenuItem>
+                  {isOwner && (
+                    <>
+                      <DropdownMenuItem onClick={() => setShowEditDialog(true)} className="rounded-lg">
+                        <Edit className="w-4 h-4 mr-2" /> Edit Post
                       </DropdownMenuItem>
-                    )}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-            </div>
-
-            {/* Caption */}
-            {caption && (
-              <p className="text-[15px] leading-relaxed text-foreground/90 line-clamp-3 mb-3">
-                {caption}
-              </p>
-            )}
-
-            {/* Action row — icon-only with counts stacked vertically */}
-            <div className="flex items-center gap-5">
-              <motion.button
-                whileTap={{ scale: 1.3 }}
-                onClick={handleLike}
-                className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <Heart className={cn("w-[18px] h-[18px]", isLiked && "fill-current text-destructive")} strokeWidth={1.8} />
-                {likes > 0 && <span className="text-[12px] font-semibold">{likes.toLocaleString()}</span>}
-              </motion.button>
-
-              <CommentDrawer
-                postId={id}
-                postOwnerUsername={user.username}
-                trigger={
-                  <button className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors">
-                    <MessageCircle className="w-[18px] h-[18px]" strokeWidth={1.8} />
-                    {comments_count > 0 && <span className="text-[12px] font-semibold">{comments_count}</span>}
-                  </button>
-                }
-              />
-
-              <button
-                className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors"
-                onClick={async () => {
-                  const appDomain = import.meta.env.VITE_APP_DOMAIN || 'https://sooz.vercel.app';
-                  const postUrl = `${appDomain}/share/${id}`;
-                  try {
-                    if (navigator.share) { await navigator.share({ url: postUrl }); }
-                    else { await navigator.clipboard.writeText(postUrl); toast.success("Link copied!"); }
-                  } catch (err) {
-                    await navigator.clipboard.writeText(postUrl);
-                    toast.success("Link copied!");
-                  }
-                }}
-              >
-                <Share2 className="w-[18px] h-[18px]" strokeWidth={1.8} />
-              </button>
-
-              <div className="ml-auto">
-                <motion.button
-                  whileTap={{ scale: 1.2 }}
-                  className={cn(
-                    "transition-colors",
-                    isSaved ? "text-primary" : "text-muted-foreground hover:text-foreground"
+                      <DropdownMenuItem onClick={handleDelete} className="rounded-lg text-destructive focus:text-destructive focus:bg-destructive/10">
+                        <Trash2 className="w-4 h-4 mr-2" /> Delete Post
+                      </DropdownMenuItem>
+                    </>
                   )}
-                  onClick={handleSave}
-                  disabled={isSaveLoading}
-                >
-                  <Bookmark className={cn("w-[18px] h-[18px]", isSaved && "fill-current")} strokeWidth={1.8} />
-                </motion.button>
-              </div>
+                  {!isOwner && (
+                    <DropdownMenuItem onClick={() => toast.success("Reported")} className="rounded-lg">
+                      Report Post
+                    </DropdownMenuItem>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
+          </div>
+
+          {/* Caption — serif editorial font */}
+          {caption && (
+            <p className="text-[15px] leading-relaxed text-foreground/85 font-serif line-clamp-3 mb-3">
+              {caption}
+            </p>
+          )}
+
+          {/* Action row — text links style */}
+          <div className="flex items-center gap-1 text-[13px] text-muted-foreground">
+            <motion.button
+              whileTap={{ scale: 1.2 }}
+              onClick={handleLike}
+              className={cn(
+                "flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-secondary/50 transition-colors",
+                isLiked && "text-destructive"
+              )}
+            >
+              <Heart className={cn("w-4 h-4", isLiked && "fill-current")} strokeWidth={1.8} />
+              {likes > 0 && <span className="font-semibold">{likes.toLocaleString()}</span>}
+            </motion.button>
+
+            <span className="text-muted-foreground/30">·</span>
+
+            <CommentDrawer
+              postId={id}
+              postOwnerUsername={user.username}
+              trigger={
+                <button className="flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-secondary/50 transition-colors">
+                  <MessageCircle className="w-4 h-4" strokeWidth={1.8} />
+                  {comments_count > 0 && <span className="font-semibold">{comments_count}</span>}
+                </button>
+              }
+            />
+
+            <span className="text-muted-foreground/30">·</span>
+
+            <button
+              className="flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-secondary/50 transition-colors"
+              onClick={async () => {
+                const appDomain = import.meta.env.VITE_APP_DOMAIN || 'https://sooz.vercel.app';
+                const postUrl = `${appDomain}/share/${id}`;
+                try {
+                  if (navigator.share) { await navigator.share({ url: postUrl }); }
+                  else { await navigator.clipboard.writeText(postUrl); toast.success("Link copied!"); }
+                } catch (err) {
+                  await navigator.clipboard.writeText(postUrl);
+                  toast.success("Link copied!");
+                }
+              }}
+            >
+              <Share2 className="w-4 h-4" strokeWidth={1.8} />
+              <span className="font-medium">Share</span>
+            </button>
           </div>
         </div>
       </motion.article>

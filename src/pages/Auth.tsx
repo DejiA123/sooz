@@ -28,187 +28,122 @@ const Auth = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (user) {
-      navigate("/");
-    }
+    if (user) navigate("/");
   }, [user, navigate]);
 
   const validateForm = () => {
     const newErrors: typeof errors = {};
-
     const passwordResult = passwordSchema.safeParse(password);
-    if (!passwordResult.success) {
-      newErrors.password = passwordResult.error.errors[0].message;
-    }
-
+    if (!passwordResult.success) newErrors.password = passwordResult.error.errors[0].message;
     if (!isLogin) {
       const emailResult = emailSchema.safeParse(email);
-      if (!emailResult.success) {
-        newErrors.email = emailResult.error.errors[0].message;
-      }
-
+      if (!emailResult.success) newErrors.email = emailResult.error.errors[0].message;
       const usernameResult = usernameSchema.safeParse(username);
-      if (!usernameResult.success) {
-        newErrors.username = usernameResult.error.errors[0].message;
-      }
+      if (!usernameResult.success) newErrors.username = usernameResult.error.errors[0].message;
     } else {
-      // Login validation
-      const identifierResult = loginIdentifierSchema.safeParse(email); // We reuse 'email' state for identifier
-      if (!identifierResult.success) {
-        newErrors.email = identifierResult.error.errors[0].message;
-      }
+      const identifierResult = loginIdentifierSchema.safeParse(email);
+      if (!identifierResult.success) newErrors.email = identifierResult.error.errors[0].message;
     }
-
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
     if (!validateForm()) return;
-
     setIsLoading(true);
-
     try {
       if (isLogin) {
         let signInEmail = email;
-
-        // Check if input is NOT an email (assume username)
         const isEmail = z.string().email().safeParse(email).success;
         if (!isEmail) {
-          // Try to resolve username to email via profiles table
-          const { data: profile, error: profileError } = await supabase
-            .from('profiles')
-            .select('id')
-            .eq('username', email.toLowerCase())
-            .maybeSingle();
-
-          if (profileError || !profile) {
-            toast.error("Invalid username or password");
-            setIsLoading(false);
-            return;
-          }
-          
-          // Get email from auth - for now just use the username as email hint
-          // Users should use their email to login
-          toast.error("Please use your email address to sign in");
-          setIsLoading(false);
-          return;
+          const { data: profile, error: profileError } = await supabase.from('profiles').select('id').eq('username', email.toLowerCase()).maybeSingle();
+          if (profileError || !profile) { toast.error("Invalid username or password"); setIsLoading(false); return; }
+          toast.error("Please use your email address to sign in"); setIsLoading(false); return;
         }
-
         const { error } = await signIn(signInEmail, password);
         if (error) {
-          if (error.message.includes("Invalid login credentials")) {
-            toast.error("Invalid email/username or password");
-          } else {
-            toast.error(error.message);
-          }
-        } else {
-          navigate("/");
-        }
+          if (error.message.includes("Invalid login credentials")) toast.error("Invalid email/username or password");
+          else toast.error(error.message);
+        } else navigate("/");
       } else {
         const { error } = await signUp(email, password, username, displayName || username);
         if (error) {
-          if (error.message.includes("already registered")) {
-            toast.error("This email is already registered. Please sign in instead.");
-          } else {
-            toast.error(error.message);
-          }
-        } else {
-          toast.success("Account created! Please check your email to verify.");
-        }
+          if (error.message.includes("already registered")) toast.error("This email is already registered. Please sign in instead.");
+          else toast.error(error.message);
+        } else toast.success("Account created! Please check your email to verify.");
       }
-    } finally {
-      setIsLoading(false);
-    }
+    } finally { setIsLoading(false); }
   };
 
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6 relative">
-      {/* Back Button */}
-      {/* Back Button */}
       <Button
-        variant="outline"
+        variant="ghost"
         size="icon"
-        className="absolute top-6 left-6 z-50 bg-background/80 backdrop-blur border-border/50 shadow-sm hover:bg-background hover:scale-105 transition-all text-primary"
+        className="absolute top-6 left-6 z-50 rounded-full"
         onClick={() => navigate("/")}
       >
         <ArrowLeft className="w-5 h-5" />
       </Button>
 
-      {/* Background decoration */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-secondary/20 rounded-full blur-3xl" />
-        <div className="absolute bottom-0 left-1/4 w-[400px] h-[400px] bg-primary/10 rounded-full blur-3xl" />
-      </div>
-
-      <div className="relative z-10 w-full max-w-md">
+      <div className="relative z-10 w-full max-w-[380px]">
         {/* Logo */}
-        <div className="flex flex-col items-center mb-8">
-          <img
-            src="/sooz-logo-v3.svg"
-            alt="SOOZ"
-            className="h-20 w-auto mb-1 object-contain"
-          />
+        <div className="flex flex-col items-center mb-10">
+          <img src="/sooz-logo-v3.svg" alt="SOOZ" className="h-16 w-auto mb-1 object-contain" />
           <p className="text-muted-foreground text-sm">Sound Out Of Zion</p>
         </div>
 
-        {/* Form Card */}
-        <div className="glass rounded-3xl p-8">
-          <h2 className="text-2xl font-semibold text-center mb-6">
-            {isLogin ? "Sign In" : "Join SOOZ"}
+        {/* Form */}
+        <div className="space-y-6">
+          <h2 className="text-2xl font-display font-bold text-center">
+            {isLogin ? "Welcome back" : "Join SOOZ"}
           </h2>
 
-          <form onSubmit={handleSubmit} className="space-y-5">
+          <form onSubmit={handleSubmit} className="space-y-4">
             {!isLogin && (
               <>
-                <div className="space-y-2">
-                  <Label htmlFor="username">Username</Label>
+                <div className="space-y-1.5">
+                  <Label htmlFor="username" className="text-[13px] font-medium">Username</Label>
                   <Input
                     id="username"
                     type="text"
-                    placeholder="Enter your username"
+                    placeholder="Choose a username"
                     value={username}
                     onChange={(e) => setUsername(e.target.value.toLowerCase())}
-                    className="bg-muted/50 border-border/50 h-12"
+                    className="h-14 rounded-full px-5 bg-secondary/50 border-border/30"
                   />
-                  {errors.username && (
-                    <p className="text-destructive text-xs">{errors.username}</p>
-                  )}
+                  {errors.username && <p className="text-destructive text-xs px-2">{errors.username}</p>}
                 </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="displayName">Display Name (optional)</Label>
+                <div className="space-y-1.5">
+                  <Label htmlFor="displayName" className="text-[13px] font-medium">Display Name <span className="text-muted-foreground">(optional)</span></Label>
                   <Input
                     id="displayName"
                     type="text"
                     placeholder="How others will see you"
                     value={displayName}
                     onChange={(e) => setDisplayName(e.target.value)}
-                    className="bg-muted/50 border-border/50 h-12"
+                    className="h-14 rounded-full px-5 bg-secondary/50 border-border/30"
                   />
                 </div>
               </>
             )}
 
-            <div className="space-y-2">
-              <Label htmlFor="email">{isLogin ? "Email or Username" : "Email"}</Label>
+            <div className="space-y-1.5">
+              <Label htmlFor="email" className="text-[13px] font-medium">{isLogin ? "Email or Username" : "Email"}</Label>
               <Input
                 id="email"
-                type="text" // Changed from email to allow username
-                placeholder={isLogin ? "Enter your email or username" : "Enter your email"}
+                type="text"
+                placeholder={isLogin ? "email@example.com" : "Enter your email"}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="bg-muted/50 border-border/50 h-12"
+                className="h-14 rounded-full px-5 bg-secondary/50 border-border/30"
               />
-              {errors.email && (
-                <p className="text-destructive text-xs">{errors.email}</p>
-              )}
+              {errors.email && <p className="text-destructive text-xs px-2">{errors.email}</p>}
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+            <div className="space-y-1.5">
+              <Label htmlFor="password" className="text-[13px] font-medium">Password</Label>
               <div className="relative">
                 <Input
                   id="password"
@@ -216,27 +151,22 @@ const Auth = () => {
                   placeholder="Enter your password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="bg-muted/50 border-border/50 h-12 pr-12"
+                  className="h-14 rounded-full px-5 pr-14 bg-secondary/50 border-border/30"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  className="absolute right-5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                 >
                   {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
               </div>
-              {errors.password && (
-                <p className="text-destructive text-xs">{errors.password}</p>
-              )}
+              {errors.password && <p className="text-destructive text-xs px-2">{errors.password}</p>}
             </div>
 
             {isLogin && (
-              <div className="flex justify-end mt-1 mb-2">
-                <Link
-                  to="/forgot-password"
-                  className="text-sm text-primary hover:underline font-medium"
-                >
+              <div className="flex justify-end px-2">
+                <Link to="/forgot-password" className="text-sm text-primary hover:underline font-medium">
                   Forgot password?
                 </Link>
               </div>
@@ -244,38 +174,25 @@ const Auth = () => {
 
             <Button
               type="submit"
-              variant="blue"
-              className="w-full h-12 text-base font-semibold"
+              className="w-full h-14 rounded-full text-base font-bold bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
               disabled={isLoading}
             >
-              {isLoading ? (
-                <Loader2 className="w-5 h-5 animate-spin" />
-              ) : isLogin ? (
-                "Sign In"
-              ) : (
-                "Create Account"
-              )}
+              {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : isLogin ? "Sign In" : "Create Account"}
             </Button>
           </form>
 
-          <div className="mt-6 text-center">
-            <p className="text-muted-foreground text-sm">
-              {isLogin ? "Don't have an account?" : "Already have an account?"}{" "}
-              <button
-                onClick={() => {
-                  setIsLogin(!isLogin);
-                  setErrors({});
-                }}
-                className="text-primary font-medium hover:underline"
-              >
-                {isLogin ? "Sign Up" : "Sign In"}
-              </button>
-            </p>
-          </div>
+          <p className="text-center text-muted-foreground text-sm">
+            {isLogin ? "Don't have an account?" : "Already have an account?"}{" "}
+            <button
+              onClick={() => { setIsLogin(!isLogin); setErrors({}); }}
+              className="text-primary font-bold hover:underline"
+            >
+              {isLogin ? "Sign Up" : "Sign In"}
+            </button>
+          </p>
         </div>
 
-        {/* Footer */}
-        <p className="text-center text-muted-foreground text-xs mt-8">
+        <p className="text-center text-muted-foreground text-xs mt-10">
           By continuing, you agree to our Terms of Service and Privacy Policy
         </p>
       </div>
