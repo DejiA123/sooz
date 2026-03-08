@@ -143,7 +143,7 @@ export const LivePlayer = ({ src, poster, className, autoPlay = true }: LivePlay
                     setError(null);
 
                     // Event-driven Gap Jumper to instantly solve the 4-second freeze for late joiners
-                    const handleWaiting = () => {
+                    var handleWaiting = () => {
                         if (!videoRef.current || !sourceBuffer || sourceBuffer.buffered.length === 0 || !isActive) return;
 
                         const current = videoRef.current.currentTime;

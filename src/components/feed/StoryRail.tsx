@@ -191,19 +191,19 @@ export const StoryRail = () => {
             transition: {
                 staggerChildren: 0.1,
                 duration: 0.8,
-                ease: [0.22, 1, 0.36, 1]
+                ease: [0.22, 1, 0.36, 1] as const
             }
         }
-    };
+    } as const;
 
     const itemVariants = {
         hidden: { scale: 0.8, opacity: 0 },
         visible: {
             scale: 1,
             opacity: 1,
-            transition: { type: "spring", stiffness: 300, damping: 20 }
+            transition: { type: "spring" as const, stiffness: 300, damping: 20 }
         }
-    };
+    } as const;
 
     return (
         <div className="w-full relative px-1 sm:px-0">
