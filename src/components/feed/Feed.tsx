@@ -89,10 +89,10 @@ const Feed = () => {
       <StoriesBar />
 
       {/* Posts */}
-      <div className="px-0 md:px-4 space-y-6">
+      <div className="px-0 md:px-4 divide-y divide-border/20">
         {posts.length > 0 ? (
           posts.map((post, index) => (
-            <div key={post.id} className="space-y-6">
+            <div key={post.id} className="py-2">
               <PostCard
                 id={post.id}
                 user={{
