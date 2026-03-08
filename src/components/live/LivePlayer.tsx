@@ -105,6 +105,8 @@ export const LivePlayer = ({ src, poster, className, autoPlay = true }: LivePlay
                 }
             };
 
+            let handleWaiting: (() => void) | null = null;
+
             mediaSource.addEventListener('sourceopen', async () => {
                 if (!isActive) return;
                 try {
