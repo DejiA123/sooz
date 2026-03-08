@@ -122,6 +122,7 @@ export const ChatWindow = ({ chatId, onBack }: ChatWindowProps) => {
                     timestamp: m.created_at,
                     isDeleted: false
                 })));
+                setIsLoading(false);
             }
         };
 
