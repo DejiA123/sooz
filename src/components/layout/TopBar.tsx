@@ -54,11 +54,10 @@ export const TopBar = () => {
           {/* Discover / Video Archive Button */}
           <Link
             to="/archive"
-            className="flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 hover:bg-primary/20 border border-primary/20 transition-all duration-300 group overflow-hidden relative shadow-sm hover:shadow-primary/20"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-all duration-200 group"
           >
-            <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-            <PlayCircle className="w-4 h-4 text-primary group-hover:scale-110 group-hover:rotate-6 transition-transform" />
-            <span className="text-[13px] font-bold text-primary tracking-tight">Discover</span>
+            <PlayCircle className="w-4 h-4 group-hover:scale-105 transition-transform" />
+            <span className="text-[13px] font-semibold tracking-tight">Discover</span>
           </Link>
 
           {/* Hamburger Menu on Mobile */}

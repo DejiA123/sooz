@@ -1,7 +1,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Heart, MessageCircle, Share2, MoreHorizontal, Bookmark, Trash2, Edit, Eye, Flame } from "lucide-react";
+import { Heart, MessageCircle, Share2, MoreHorizontal, Bookmark, Trash2, Edit, Eye } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
@@ -71,10 +71,7 @@ export const PostCard = ({
   }, [initialSaved]);
 
   const handleSave = async () => {
-    if (!currentUser) {
-      toast.error("Please login to save posts");
-      return;
-    }
+    if (!currentUser) { toast.error("Please login to save posts"); return; }
     if (isSaveLoading) return;
     setIsSaveLoading(true);
     const previousSaved = isSaved;
@@ -171,175 +168,147 @@ export const PostCard = ({
     <>
       <motion.article
         ref={postRef}
-        initial={{ opacity: 0, y: 20 }}
+        initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] }}
-        className="group relative mx-2 sm:mx-0"
+        transition={{ duration: 0.4, ease: [0.25, 0.46, 0.45, 0.94] }}
+        className="group"
       >
-        {/* Card with media-first design */}
-        <div className="relative overflow-hidden rounded-[20px] sm:rounded-[24px] bg-card border border-border/50 shadow-sm hover:shadow-lg transition-shadow duration-500">
-          
-          {/* Media Section - Hero style */}
-          {media_url && (
-            <div className="relative w-full overflow-hidden">
-              {media_type === 'video' ? (
-                <LazyVideo
-                  src={media_url}
-                  id={id}
-                  priority={priority}
-                  onClick={isMobile ? (time) => {
-                    setVideoStartTime(time);
-                    setShowVideoFeed(true);
-                  } : undefined}
-                />
-              ) : (
-                <LazyImage
-                  src={media_url}
-                  alt="Post"
-                  className="w-full h-full object-cover max-h-[520px]"
-                  priority={priority}
-                />
-              )}
-
-              {/* Floating top-left badge */}
-              <div className="absolute top-3 left-3 flex items-center gap-2">
-                <Link to={`/profile/${user.username}`} className="flex items-center gap-2 px-2.5 py-1.5 rounded-full bg-background/70 backdrop-blur-xl border border-border/30 hover:bg-background/90 transition-all">
-                  <Avatar className="w-6 h-6">
-                    <AvatarImage src={user.avatar_url || ""} className="object-cover" />
-                    <AvatarFallback className="bg-primary/10 text-primary text-[10px] font-bold">{(user.display_name || user.username)[0].toUpperCase()}</AvatarFallback>
-                  </Avatar>
-                  <span className="text-[12px] font-bold text-foreground">{user.username}</span>
-                </Link>
-              </div>
-
-              {/* Floating time badge */}
-              <div className="absolute top-3 right-3 px-2.5 py-1 rounded-full bg-background/60 backdrop-blur-xl border border-border/20 text-[11px] font-semibold text-muted-foreground">
-                {timeAgo}
-              </div>
-
-              {/* Video view count */}
-              {media_type === 'video' && initialViews > 0 && (
-                <div className="absolute bottom-3 left-3 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-background/60 backdrop-blur-xl border border-border/20">
-                  <Eye className="w-3.5 h-3.5 text-muted-foreground" />
-                  <span className="text-[11px] font-bold text-muted-foreground">{initialViews.toLocaleString()}</span>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Content footer - compact & modern */}
-          <div className="px-4 py-3">
-            {/* Caption */}
-            {caption && (
-              <p className="text-[14px] leading-relaxed mb-2.5 line-clamp-2">
-                <span className="text-foreground/90">{caption}</span>
-              </p>
+        {/* Full-bleed media */}
+        {media_url && (
+          <div className="relative w-full overflow-hidden">
+            {media_type === 'video' ? (
+              <LazyVideo
+                src={media_url}
+                id={id}
+                priority={priority}
+                onClick={isMobile ? (time) => {
+                  setVideoStartTime(time);
+                  setShowVideoFeed(true);
+                } : undefined}
+              />
+            ) : (
+              <LazyImage
+                src={media_url}
+                alt="Post"
+                className="w-full h-full object-cover max-h-[560px]"
+                priority={priority}
+              />
             )}
 
-            {/* No media - show user info inline */}
-            {!media_url && (
-              <div className="flex items-center gap-2.5 mb-3">
-                <Link to={`/profile/${user.username}`}>
-                  <Avatar className="w-8 h-8 ring-1 ring-border">
-                    <AvatarImage src={user.avatar_url || ""} className="object-cover" />
-                    <AvatarFallback className="bg-primary/10 text-primary text-xs font-bold">{(user.display_name || user.username)[0].toUpperCase()}</AvatarFallback>
-                  </Avatar>
-                </Link>
-                <div>
-                  <Link to={`/profile/${user.username}`} className="text-[13px] font-bold hover:underline">{user.display_name || user.username}</Link>
-                  <p className="text-[11px] text-muted-foreground">{timeAgo} ago</p>
-                </div>
+            {/* Video view count */}
+            {media_type === 'video' && initialViews > 0 && (
+              <div className="absolute bottom-3 left-3 flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-background/60 backdrop-blur-xl">
+                <Eye className="w-3.5 h-3.5 text-muted-foreground" />
+                <span className="text-[11px] font-bold text-muted-foreground">{initialViews.toLocaleString()}</span>
               </div>
             )}
+          </div>
+        )}
 
-            {/* Action bar - horizontal with engagement counts */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1">
-                {/* Like */}
-                <motion.button
-                  whileTap={{ scale: 1.3 }}
-                  onClick={handleLike}
-                  className={cn(
-                    "flex items-center gap-1.5 px-3 py-1.5 rounded-full transition-all duration-200",
-                    isLiked 
-                      ? "bg-destructive/10 text-destructive" 
-                      : "hover:bg-secondary text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  <Heart className={cn("w-[18px] h-[18px]", isLiked && "fill-current")} strokeWidth={2} />
-                  <span className="text-[13px] font-bold">{likes > 0 ? likes.toLocaleString() : ''}</span>
-                </motion.button>
-
-                {/* Comment */}
-                <CommentDrawer
-                  postId={id}
-                  postOwnerUsername={user.username}
-                  trigger={
-                    <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-full hover:bg-secondary text-muted-foreground hover:text-foreground transition-all">
-                      <MessageCircle className="w-[18px] h-[18px]" strokeWidth={2} />
-                      <span className="text-[13px] font-bold">{comments_count > 0 ? comments_count : ''}</span>
-                    </button>
-                  }
-                />
-
-                {/* Share */}
-                <button
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full hover:bg-secondary text-muted-foreground hover:text-foreground transition-all"
-                  onClick={async () => {
-                    const appDomain = import.meta.env.VITE_APP_DOMAIN || 'https://sooz.vercel.app';
-                    const postUrl = `${appDomain}/share/${id}`;
-                    try {
-                      if (navigator.share) { await navigator.share({ url: postUrl }); }
-                      else { await navigator.clipboard.writeText(postUrl); toast.success("Link copied!"); }
-                    } catch (err) {
-                      await navigator.clipboard.writeText(postUrl);
-                      toast.success("Link copied!");
-                    }
-                  }}
-                >
-                  <Share2 className="w-[18px] h-[18px]" strokeWidth={2} />
-                </button>
-              </div>
-
-              <div className="flex items-center gap-1">
-                {/* Bookmark */}
-                <motion.button
-                  whileTap={{ scale: 1.2 }}
-                  className={cn(
-                    "p-2 rounded-full transition-all",
-                    isSaved ? "text-primary" : "text-muted-foreground hover:text-foreground hover:bg-secondary"
-                  )}
-                  onClick={handleSave}
-                  disabled={isSaveLoading}
-                >
-                  <Bookmark className={cn("w-[18px] h-[18px]", isSaved && "fill-current")} strokeWidth={2} />
-                </motion.button>
-
-                {/* More menu */}
+        {/* Content section with left accent */}
+        <div className="flex">
+          <div className="w-[3px] bg-primary/40 rounded-full my-2 ml-4 shrink-0" />
+          <div className="flex-1 px-4 py-3">
+            {/* User info row */}
+            <div className="flex items-center gap-2.5 mb-2">
+              <Link to={`/profile/${user.username}`}>
+                <Avatar className="w-7 h-7">
+                  <AvatarImage src={user.avatar_url || ""} className="object-cover" />
+                  <AvatarFallback className="bg-primary/10 text-primary text-[10px] font-bold">{(user.display_name || user.username)[0].toUpperCase()}</AvatarFallback>
+                </Avatar>
+              </Link>
+              <Link to={`/profile/${user.username}`} className="text-[13px] font-bold text-foreground hover:underline">
+                {user.username}
+              </Link>
+              <span className="text-[11px] text-muted-foreground">·</span>
+              <span className="text-[11px] text-muted-foreground">{timeAgo}</span>
+              
+              <div className="ml-auto">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full hover:bg-secondary">
+                    <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg hover:bg-secondary">
                       <MoreHorizontal className="w-4 h-4 text-muted-foreground" />
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="rounded-2xl border-border bg-popover backdrop-blur-xl">
+                  <DropdownMenuContent align="end" className="rounded-xl border-border bg-popover backdrop-blur-xl">
                     {isOwner && (
                       <>
-                        <DropdownMenuItem onClick={() => setShowEditDialog(true)} className="rounded-xl">
+                        <DropdownMenuItem onClick={() => setShowEditDialog(true)} className="rounded-lg">
                           <Edit className="w-4 h-4 mr-2" /> Edit Post
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={handleDelete} className="rounded-xl text-destructive focus:text-destructive focus:bg-destructive/10">
+                        <DropdownMenuItem onClick={handleDelete} className="rounded-lg text-destructive focus:text-destructive focus:bg-destructive/10">
                           <Trash2 className="w-4 h-4 mr-2" /> Delete Post
                         </DropdownMenuItem>
                       </>
                     )}
                     {!isOwner && (
-                      <DropdownMenuItem onClick={() => toast.success("Reported")} className="rounded-xl">
+                      <DropdownMenuItem onClick={() => toast.success("Reported")} className="rounded-lg">
                         Report Post
                       </DropdownMenuItem>
                     )}
                   </DropdownMenuContent>
                 </DropdownMenu>
+              </div>
+            </div>
+
+            {/* Caption */}
+            {caption && (
+              <p className="text-[15px] leading-relaxed text-foreground/90 line-clamp-3 mb-3">
+                {caption}
+              </p>
+            )}
+
+            {/* Action row — icon-only with counts stacked vertically */}
+            <div className="flex items-center gap-5">
+              <motion.button
+                whileTap={{ scale: 1.3 }}
+                onClick={handleLike}
+                className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <Heart className={cn("w-[18px] h-[18px]", isLiked && "fill-current text-destructive")} strokeWidth={1.8} />
+                {likes > 0 && <span className="text-[12px] font-semibold">{likes.toLocaleString()}</span>}
+              </motion.button>
+
+              <CommentDrawer
+                postId={id}
+                postOwnerUsername={user.username}
+                trigger={
+                  <button className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors">
+                    <MessageCircle className="w-[18px] h-[18px]" strokeWidth={1.8} />
+                    {comments_count > 0 && <span className="text-[12px] font-semibold">{comments_count}</span>}
+                  </button>
+                }
+              />
+
+              <button
+                className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors"
+                onClick={async () => {
+                  const appDomain = import.meta.env.VITE_APP_DOMAIN || 'https://sooz.vercel.app';
+                  const postUrl = `${appDomain}/share/${id}`;
+                  try {
+                    if (navigator.share) { await navigator.share({ url: postUrl }); }
+                    else { await navigator.clipboard.writeText(postUrl); toast.success("Link copied!"); }
+                  } catch (err) {
+                    await navigator.clipboard.writeText(postUrl);
+                    toast.success("Link copied!");
+                  }
+                }}
+              >
+                <Share2 className="w-[18px] h-[18px]" strokeWidth={1.8} />
+              </button>
+
+              <div className="ml-auto">
+                <motion.button
+                  whileTap={{ scale: 1.2 }}
+                  className={cn(
+                    "transition-colors",
+                    isSaved ? "text-primary" : "text-muted-foreground hover:text-foreground"
+                  )}
+                  onClick={handleSave}
+                  disabled={isSaveLoading}
+                >
+                  <Bookmark className={cn("w-[18px] h-[18px]", isSaved && "fill-current")} strokeWidth={1.8} />
+                </motion.button>
               </div>
             </div>
           </div>
