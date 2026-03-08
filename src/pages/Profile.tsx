@@ -205,61 +205,36 @@ const Profile = () => {
         </h1>
         <span className="text-[13px] text-muted-foreground mt-0.5">@{profile.username}</span>
 
-          {/* Bio — serif */}
-          {profile.bio && (
-            <p className="text-[14px] font-serif leading-relaxed text-foreground/80 text-center max-w-xs mt-2 px-4">
-              {profile.bio}
-            </p>
+        {/* Bio — italic serif */}
+        {profile.bio && (
+          <p className="text-[14px] font-serif italic leading-relaxed text-foreground/70 text-center max-w-xs mt-2">
+            {profile.bio}
+          </p>
+        )}
+
+        {profile.website && (
+          <a href={profile.website.match(/^https?:\/\//) ? profile.website : `https://${profile.website}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-[13px] font-bold text-primary mt-1.5 hover:underline">
+            <LinkIcon className="w-3.5 h-3.5" />
+            {profile.website.replace(/^https?:\/\//, '')}
+          </a>
+        )}
+
+        {/* Stats — single line */}
+        <p className="text-[14px] text-muted-foreground mt-4">
+          <span className="font-bold text-foreground">{formatNumber(profileData?.followersCount || 0)}</span> followers
+          <span className="mx-2 text-muted-foreground/30">·</span>
+          <span className="font-bold text-foreground">{formatNumber(profileData?.followingCount || 0)}</span> following
+        </p>
+
+        {/* Action button */}
+        <div className="mt-5">
+          {isOwnProfile ? (
+            <Button onClick={() => setShowEditModal(true)} variant="secondary" className="h-10 px-8 rounded-full font-bold">Edit Profile</Button>
+          ) : (
+            <Button onClick={handleFollow} className={cn("h-10 px-8 rounded-full font-bold transition-all active:scale-95", profileData?.isFollowing ? "bg-secondary text-foreground hover:bg-secondary/80" : "bg-primary text-primary-foreground hover:opacity-90")}>
+              {profileData?.isFollowing ? "Following" : "Follow"}
+            </Button>
           )}
-
-          {profile.website && (
-            <a
-              href={profile.website.match(/^https?:\/\//) ? profile.website : `https://${profile.website}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1 text-[13px] font-bold text-primary mt-1.5 hover:underline"
-            >
-              <LinkIcon className="w-3.5 h-3.5" />
-              {profile.website.replace(/^https?:\/\//, '')}
-            </a>
-          )}
-
-          {/* Stats — large stacked numbers */}
-          <div className="flex items-center gap-10 mt-5">
-            <div className="text-center">
-              <div className="text-2xl font-display font-bold">{formatNumber(profileData?.followersCount || 0)}</div>
-              <div className="text-[11px] text-muted-foreground font-medium uppercase tracking-wider">followers</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-display font-bold">{formatNumber(profileData?.followingCount || 0)}</div>
-              <div className="text-[11px] text-muted-foreground font-medium uppercase tracking-wider">following</div>
-            </div>
-          </div>
-
-          {/* Action button */}
-          <div className="mt-5">
-            {isOwnProfile ? (
-              <Button
-                onClick={() => setShowEditModal(true)}
-                variant="secondary"
-                className="h-10 px-8 rounded-full font-bold"
-              >
-                Edit Profile
-              </Button>
-            ) : (
-              <Button
-                onClick={handleFollow}
-                className={cn(
-                  "h-10 px-8 rounded-full font-bold transition-all active:scale-95",
-                  profileData?.isFollowing
-                    ? "bg-secondary text-foreground hover:bg-secondary/80"
-                    : "bg-primary text-primary-foreground hover:opacity-90"
-                )}
-              >
-                {profileData?.isFollowing ? "Following" : "Follow"}
-              </Button>
-            )}
-          </div>
         </div>
       </div>
 
