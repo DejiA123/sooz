@@ -69,9 +69,12 @@ const Auth = () => {
       {/* Animated gradient mesh background */}
       <div className="absolute inset-0 gradient-mesh-bg" />
 
-      <Button variant="ghost" size="icon" className="absolute top-6 left-6 z-50 rounded-full text-white/70 hover:text-white hover:bg-white/10" onClick={() => navigate("/")}>
+      <button
+        onClick={() => navigate("/")}
+        className="absolute top-[calc(1.5rem+env(safe-area-inset-top,0px))] left-5 z-50 w-11 h-11 rounded-full bg-white/10 backdrop-blur-xl border border-white/15 flex items-center justify-center text-foreground/80 hover:bg-white/20 active:scale-90 transition-all duration-200 shadow-lg"
+      >
         <ArrowLeft className="w-5 h-5" />
-      </Button>
+      </button>
 
       <div className="relative z-10 w-full max-w-[360px]">
         {/* Glass card */}
