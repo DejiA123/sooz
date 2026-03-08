@@ -175,42 +175,35 @@ const Profile = () => {
 
   return (
     <div className="min-h-screen bg-background pb-32">
-      {/* Header — centered avatar on muted bg */}
-      <div className="relative">
-        <div className="h-32 bg-muted/50 overflow-hidden relative">
-          {profile.cover_url ? (
-            <img src={profile.cover_url} alt="Cover" className="w-full h-full object-cover opacity-50" />
-          ) : (
-            <div className="absolute inset-0 bg-gradient-to-b from-primary/5 to-transparent" />
+      {/* Magazine cover header */}
+      <div className="relative flex flex-col items-center pt-[calc(4rem+env(safe-area-inset-top,0px))] pb-6 px-5">
+        {/* Settings icon */}
+        <div className="absolute top-[calc(1rem+env(safe-area-inset-top,0px))] right-4 z-10">
+          {isOwnProfile && (
+            <Link to="/settings" className="flex items-center justify-center h-9 w-9 rounded-full bg-secondary/60 backdrop-blur-md hover:bg-secondary transition-all">
+              <Settings className="w-4 h-4" />
+            </Link>
           )}
-          <div className="absolute top-4 right-4 flex gap-2 z-10">
-            {isOwnProfile && (
-              <Link to="/settings" className="flex items-center justify-center h-9 w-9 rounded-full bg-background/60 backdrop-blur-md hover:bg-background/80 transition-all">
-                <Settings className="w-4 h-4" />
-              </Link>
-            )}
-          </div>
         </div>
 
-        {/* Avatar — large, centered */}
-        <div className="flex flex-col items-center -mt-14 relative z-10">
-          <button onClick={() => setShowAvatarModal(true)} className="group">
-            <div className="w-28 h-28 rounded-full border-4 border-background bg-secondary overflow-hidden shadow-lg transition-transform group-hover:scale-[1.02]">
-              {profile.avatar_url ? (
-                <img src={profile.avatar_url} alt={profile.username} className="w-full h-full object-cover" />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center text-muted-foreground text-4xl font-black">
-                  {profile.username[0].toUpperCase()}
-                </div>
-              )}
-            </div>
-          </button>
+        {/* Massive centered avatar */}
+        <button onClick={() => setShowAvatarModal(true)} className="group">
+          <div className="w-36 h-36 md:w-44 md:h-44 rounded-full border-4 border-background bg-secondary overflow-hidden shadow-2xl transition-transform group-hover:scale-[1.02]">
+            {profile.avatar_url ? (
+              <img src={profile.avatar_url} alt={profile.username} className="w-full h-full object-cover" />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-muted-foreground text-5xl font-black">
+                {profile.username[0].toUpperCase()}
+              </div>
+            )}
+          </div>
+        </button>
 
-          {/* Name & username */}
-          <h1 className="text-2xl font-display font-bold mt-3 tracking-tight">
-            {profile.display_name || profile.username}
-          </h1>
-          <span className="text-[13px] text-muted-foreground">@{profile.username}</span>
+        {/* Name — huge display font */}
+        <h1 className="text-3xl md:text-4xl font-display font-bold mt-4 tracking-tight text-center">
+          {profile.display_name || profile.username}
+        </h1>
+        <span className="text-[13px] text-muted-foreground mt-0.5">@{profile.username}</span>
 
           {/* Bio — serif */}
           {profile.bio && (
