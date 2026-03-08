@@ -49,18 +49,28 @@ serve(async (req) => {
 
         const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-        console.log("📺 Fetching latest videos from YouTube...");
+        console.log("📺 Fetching ALL videos from YouTube channel...");
         const uploadsPlaylistId = YOUTUBE_CHANNEL_ID.replace(/^UC/, 'UU');
 
-        const playlistUrl = `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&playlistId=${uploadsPlaylistId}&maxResults=10&key=${youtubeApiKey}`;
-        const playlistResponse = await fetch(playlistUrl);
-        const playlistData = await playlistResponse.json();
+        // Paginate through ALL uploads
+        let allItems: any[] = [];
+        let nextPageToken = '';
+        
+        do {
+            const playlistUrl = `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&playlistId=${uploadsPlaylistId}&maxResults=50${nextPageToken ? '&pageToken=' + nextPageToken : ''}&key=${youtubeApiKey}`;
+            const playlistResponse = await fetch(playlistUrl);
+            const playlistData = await playlistResponse.json();
 
-        if (playlistData.error) {
-            throw new Error(`YouTube API Error: ${playlistData.error.message}`);
-        }
+            if (playlistData.error) {
+                throw new Error(`YouTube API Error: ${playlistData.error.message}`);
+            }
 
-        const items = playlistData.items || [];
+            allItems = allItems.concat(playlistData.items || []);
+            nextPageToken = playlistData.nextPageToken || '';
+            console.log(`📡 Fetched ${allItems.length} videos so far...`);
+        } while (nextPageToken);
+
+        const items = allItems;
         const videoIds = items.map((item: any) => item.snippet.resourceId.videoId);
 
         if (videoIds.length === 0) {
@@ -70,11 +80,17 @@ serve(async (req) => {
             });
         }
 
-        // Fetch extra details (duration, views)
-        const detailsUrl = `https://www.googleapis.com/youtube/v3/videos?part=contentDetails,statistics&id=${videoIds.join(',')}&key=${youtubeApiKey}`;
-        const detailsResponse = await fetch(detailsUrl);
-        const detailsData = await detailsResponse.json();
-        const detailsMap = new Map(detailsData.items?.map((d: any) => [d.id, d]));
+        // Fetch extra details (duration, views) in batches of 50
+        const detailsMap = new Map();
+        for (let i = 0; i < videoIds.length; i += 50) {
+            const batch = videoIds.slice(i, i + 50);
+            const detailsUrl = `https://www.googleapis.com/youtube/v3/videos?part=contentDetails,statistics&id=${batch.join(',')}&key=${youtubeApiKey}`;
+            const detailsResponse = await fetch(detailsUrl);
+            const detailsData = await detailsResponse.json();
+            for (const d of (detailsData.items || [])) {
+                detailsMap.set(d.id, d);
+            }
+        }
 
         console.log(`📡 Processing ${items.length} videos...`);
         let syncedCount = 0;

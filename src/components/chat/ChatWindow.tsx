@@ -1,4 +1,6 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useCall } from "@/contexts/CallContext";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -56,6 +58,7 @@ export const ChatWindow = ({ chatId, onBack }: ChatWindowProps) => {
     const [uploading, setUploading] = useState(false);
     const { startCall } = useCall();
     const [showGroupInfo, setShowGroupInfo] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
     const [isSending, setIsSending] = useState(false);
 
     // Fetch Chat Info & Messages
@@ -119,6 +122,7 @@ export const ChatWindow = ({ chatId, onBack }: ChatWindowProps) => {
                     timestamp: m.created_at,
                     isDeleted: false
                 })));
+                setIsLoading(false);
             }
         };
 

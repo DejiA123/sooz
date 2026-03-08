@@ -105,6 +105,8 @@ export const LivePlayer = ({ src, poster, className, autoPlay = true }: LivePlay
                 }
             };
 
+            let handleWaiting: (() => void) | null = null;
+
             mediaSource.addEventListener('sourceopen', async () => {
                 if (!isActive) return;
                 try {
@@ -143,7 +145,7 @@ export const LivePlayer = ({ src, poster, className, autoPlay = true }: LivePlay
                     setError(null);
 
                     // Event-driven Gap Jumper to instantly solve the 4-second freeze for late joiners
-                    const handleWaiting = () => {
+                    handleWaiting = () => {
                         if (!videoRef.current || !sourceBuffer || sourceBuffer.buffered.length === 0 || !isActive) return;
 
                         const current = videoRef.current.currentTime;
@@ -225,7 +227,7 @@ export const LivePlayer = ({ src, poster, className, autoPlay = true }: LivePlay
             return () => {
                 isActive = false;
                 if (pollInterval) clearInterval(pollInterval);
-                if (videoRef.current) {
+                if (videoRef.current && handleWaiting) {
                     videoRef.current.removeEventListener('waiting', handleWaiting);
                 }
                 if (mediaSource.readyState === 'open') {
