@@ -37,9 +37,10 @@ export const TopBar = () => {
         }}
         transition={{
           type: "spring",
-          stiffness: 400,
-          damping: 38,
-          mass: 1,
+          stiffness: 260,
+          damping: 32,
+          mass: 0.5,
+          restDelta: 0.001
         }}
         className={cn(
           "fixed top-0 left-0 right-0 z-50 px-4 pt-[calc(0.25rem+env(safe-area-inset-top,0px))] pb-2 md:px-8",
