@@ -1,35 +1,63 @@
 
 
-# Story Rail Redesign — Premium Horizontal Avatar Rail
+## Enhance Discover Page with Video Archive and Download Feature
 
-## Current State
-The StoryRail is a plain text-only ticker strip — functional but visually flat and boring. No avatars, no visual richness.
+### What We're Building
 
-## New Design: **Glassmorphic Avatar Rail**
-Bring back avatar circles but in a completely unique, premium way — not Instagram's plain circles.
+1. **Add Video Archive content to the Discover page** -- mix video archive videos alongside user posts for a richer discovery experience
+2. **Add a Download button** so users can save videos to their phone
 
-### Design Details
+### Current State
 
-**Layout**: Horizontal scrollable rail with frosted glass background, no visible scrollbar
-- Glassmorphic container with `backdrop-blur-xl` and subtle border
-- Smooth horizontal scroll with momentum
+- The Discover page only shows user-created posts (from the `posts` table)
+- You have 1,904 videos in `video_archive` (20 synced to R2 with direct video files)
+- The Video Archive page (`/archive`) exists separately but isn't integrated into Discover
 
-**"Your Story" button (first item)**:
-- Dashed border circle with gradient, pulsing `+` icon
-- If user has a story: show their avatar with a gradient ring + small "+" badge
+---
 
-**Story user avatars**:
-- Each avatar is `w-16 h-16` with a **double-ring gradient border** (animated rotating gradient for unseen stories)
-- Below: username truncated, 10px font, single line
-- Avatars with stories get a **glowing ring** animation (rotating conic gradient)
-- Avatars without stories (followed users) get a subtle dotted ring
+### Changes
 
-**Animations**:
-- Staggered fade-in on mount using framer-motion
-- Active/tapped state: scale down to 0.9
-- Ring gradient rotates continuously via CSS `@keyframes ring-rotate`
+#### 1. Discover Page -- Add Video Archive Section
 
-**Files to modify**:
-1. `src/components/feed/StoryRail.tsx` — Complete redesign with avatar circles, horizontal scroll, glassmorphic container
-2. `src/index.css` — Add `@keyframes ring-rotate` for the animated gradient ring
+Add a "Videos" section to the Discover page that shows video archive thumbnails in a horizontal scrollable rail at the top (above user posts), plus a mixed grid below. Tapping a video opens the `VideoPlayerModal`.
+
+- Import `fetchVideos`, `VideoItem`, and `VideoPlayerModal` into `src/pages/Discover.tsx`
+- Fetch video archive data alongside posts
+- Show a horizontal "Videos" rail near the top with thumbnails
+- Tapping opens the video player modal
+
+#### 2. Download Button in VideoPlayerModal
+
+Add a download button to `src/components/videoArchive/VideoPlayerModal.tsx`:
+
+- For **R2-synced videos** (`r2_video_url` exists): Use a direct download link (`<a href="..." download>`)
+- For **non-synced videos**: Link to YouTube (since we can't force-download YouTube embeds from the browser)
+- Show a Download icon button in the modal's video info section
+
+#### 3. Download Button on VideoCard
+
+Add a small download icon on each `VideoCard` so users can download directly from the grid without opening the modal.
+
+---
+
+### Technical Details
+
+**Files to modify:**
+
+1. **`src/pages/Discover.tsx`**
+   - Add state for `archiveVideos` and `selectedVideo`
+   - Fetch from `fetchVideos()` in `fetchData()`
+   - Render a horizontal scrollable rail of video thumbnails above the posts grid
+   - Render `VideoPlayerModal` when a video is selected
+
+2. **`src/components/videoArchive/VideoPlayerModal.tsx`**
+   - Add a `Download` lucide icon button next to the "Watch on YouTube" link
+   - For R2 videos: `<a href={video.r2_video_url} download>` triggers native download
+   - For YouTube-only videos: open YouTube link (with a tooltip explaining it's YouTube-only)
+
+3. **`src/components/videoArchive/VideoCard.tsx`**
+   - Add an optional `onDownload` callback prop
+   - Show a small download icon overlay on hover/tap
+
+**No database changes needed** -- all data already exists in `video_archive`.
 
