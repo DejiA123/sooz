@@ -120,7 +120,7 @@ export const StoryRail = () => {
       <input type="file" ref={fileInputRef} className="hidden" accept="image/*,video/*" onChange={handleFileUpload} />
 
       {/* Glassmorphic story rail */}
-      <div className="relative mx-0 mt-2 mb-4">
+      <div className="relative mx-0 mt-0 mb-4">
         <div className="story-rail-glass py-4 px-3 overflow-hidden">
           <motion.div
             ref={scrollRef}
