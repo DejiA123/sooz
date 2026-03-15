@@ -23,7 +23,7 @@ export const LiveStudio = ({ onStreamStarted, onStreamEnded }: LiveStudioProps) 
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
     const chunksRef = useRef<number>(0);
     const playlistRef = useRef<string[]>([]);
-    const timerRef = useRef<NodeJS.Timeout | null>(null);
+    const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const configIdRef = useRef<string | null>(null);
     const initChunkUrlRef = useRef<string | null>(null);
 

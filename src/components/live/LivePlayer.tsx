@@ -50,7 +50,7 @@ export const LivePlayer = ({ src, poster, className, autoPlay = true }: LivePlay
             let sourceBuffer: SourceBuffer | null = null;
             let isFetching = false;
             let lastFetchedChunk: string | null = null;
-            let pollInterval: NodeJS.Timeout | null = null;
+            let pollInterval: ReturnType<typeof setInterval> | null = null;
             const queue: ArrayBuffer[] = [];
             let isAppending = false;
             let isActive = true;
