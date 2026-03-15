@@ -117,11 +117,54 @@ html { -ms-overflow-style: none; scrollbar-width: none; overflow-x: hidden; }
     box-shadow: 0 0 20px hsl(var(--primary) / 0.4), 0 0 60px hsl(var(--primary) / 0.1);
   }
 
-  /* Animated rotating gradient ring for unseen stories */
+  /* ── Story Rail Glassmorphic Container ── */
+  .story-rail-glass {
+    background: hsl(var(--glass) / var(--glass-opacity));
+    backdrop-filter: blur(24px) saturate(1.4);
+    -webkit-backdrop-filter: blur(24px) saturate(1.4);
+    border-bottom: 1px solid hsl(var(--glass-border) / 0.5);
+  }
+
+  /* ── Animated rotating gradient ring for unseen stories ── */
   .story-ring-active {
-    background: conic-gradient(from var(--ring-angle, 0deg), #8B5CF6, #D946EF, #F97316, #EC4899, #8B5CF6);
+    background: conic-gradient(from var(--ring-angle, 0deg), 
+      hsl(262 83% 58%), hsl(322 75% 58%), hsl(24 94% 53%), hsl(340 82% 52%), hsl(262 83% 58%));
     animation: ring-rotate 3s linear infinite;
   }
+
+  /* Seen / followed user ring — subtle dotted */
+  .story-ring-seen {
+    background: transparent;
+    border: 2px dotted hsl(var(--border));
+  }
+
+  /* Add story dashed gradient ring */
+  .story-ring-add {
+    border: 2.5px dashed hsl(var(--primary) / 0.4);
+    transition: border-color 0.2s;
+  }
+  .story-ring-add:hover {
+    border-color: hsl(var(--primary) / 0.7);
+  }
+
+  /* Pulsing plus badge */
+  .story-plus-pulse {
+    animation: plus-pulse 2s ease-in-out infinite;
+  }
+  @keyframes plus-pulse {
+    0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 hsl(var(--primary) / 0.4); }
+    50% { transform: scale(1.1); box-shadow: 0 0 8px 2px hsl(var(--primary) / 0.2); }
+  }
+
+  /* Live dot for active stories */
+  .story-live-dot {
+    animation: live-blink 1.5s ease-in-out infinite;
+  }
+  @keyframes live-blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
   @keyframes ring-rotate {
     to { --ring-angle: 360deg; }
   }
