@@ -52,16 +52,15 @@ export const TopBar = () => {
         <div className="max-w-7xl mx-auto flex items-center justify-between h-12">
           <Link to="/" className="flex items-center active:scale-95 transition-all duration-300">
             <motion.img
-              src="/sooz-logo-v3.png"
+              src="/sooz-logo.svg"
               alt="SOOZ"
               animate={{
-                height: showFull ? "28px" : "22px",
-                opacity: showFull ? 1 : 0.8,
+                height: showFull ? "32px" : "24px",
+                opacity: showFull ? 1 : 0.9,
               }}
               className={cn(
                 "object-contain transition-all duration-500",
-                "mix-blend-darken dark:invert dark:mix-blend-lighten", // Hides white background in light mode, inverts and hides black in dark mode
-                !showFull && "filter grayscale brightness-125"
+                "dark:invert" // Inverts the logo colors for dark mode (TikTok style looks great inverted)
               )}
             />
           </Link>
