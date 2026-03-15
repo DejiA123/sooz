@@ -1,7 +1,7 @@
 {
     "rewrites": [
         {
-            "source": "/share/(?<id>.+)",
+            "source": "/share/:id",
             "destination": "https://xhqpojnmcibkaydidnex.supabase.co/functions/v1/share-preview?id=:id"
         },
         {
