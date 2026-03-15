@@ -28,9 +28,9 @@ export const TopBar = () => {
   const showFull = scrollDirection === "up" || scrollY < 50;
 
   return (
-    <AnimatePresence>
+    <AnimatePresence mode="wait">
       <motion.div
-        initial={{ y: -20, opacity: 0 }}
+        initial={{ y: -100, opacity: 0 }}
         animate={{
           y: shouldHide ? -100 : 0,
           opacity: shouldHide ? 0 : 1,
@@ -38,25 +38,37 @@ export const TopBar = () => {
         transition={{
           type: "spring",
           stiffness: 400,
-          damping: 40,
+          damping: 38,
+          mass: 1,
         }}
         className={cn(
-          "fixed top-0 left-0 right-0 z-50 px-4 pt-[calc(0.25rem+env(safe-area-inset-top,0px))] pb-2 md:px-8 transition-all duration-300",
-          scrollY > 20 ? "bg-background/80 backdrop-blur-xl border-b border-border/10 shadow-sm" : "bg-transparent border-b border-transparent"
+          "fixed top-0 left-0 right-0 z-50 px-4 pt-[calc(0.25rem+env(safe-area-inset-top,0px))] pb-2 md:px-8",
+          "transition-all duration-500 ease-out",
+          scrollY > 15 
+            ? "bg-background/80 backdrop-blur-2xl border-b border-border/10 shadow-[0_2px_20px_-10px_rgba(0,0,0,0.1)]" 
+            : "bg-transparent border-b border-transparent"
         )}
         style={{ pointerEvents: shouldHide ? "none" : "auto" }}
       >
         <div className="max-w-7xl mx-auto flex items-center justify-between h-12">
-          <Link to="/" className="flex items-center active:scale-95 transition-all duration-300">
-            <img
-              src="/sooz-logo-v3.png"
-              alt="SOOZ"
-              className={cn(
-                "object-contain transition-all duration-500",
-                showFull ? "h-7 opacity-100" : "h-5 opacity-80",
-                "mix-blend-multiply dark:mix-blend-lighten" // Better attempt at hiding white background
-              )}
-            />
+          <Link to="/" className="flex items-center active:scale-90 transition-all duration-200">
+            <motion.div
+              animate={{
+                scale: showFull ? 1 : 0.85,
+                opacity: showFull ? 1 : 0.7,
+              }}
+              className="relative overflow-hidden"
+            >
+              <img
+                src="/sooz-logo-v3.png"
+                alt="SOOZ"
+                className={cn(
+                  "h-7 object-contain transition-all duration-500",
+                  "mix-blend-darken dark:invert dark:mix-blend-lighten", // Pure CSS background removal
+                  "filter contrast-125 brightness-110" // Make it pop
+                )}
+              />
+            </motion.div>
           </Link>
 
           <div className="flex items-center gap-1">
