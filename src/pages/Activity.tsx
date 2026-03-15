@@ -75,7 +75,7 @@ export default function Activity() {
 
   return (
     <div className="min-h-screen bg-background pb-32">
-      <header className="px-5 pt-[calc(4rem+env(safe-area-inset-top,0px))] pb-4">
+      <header className="px-5 pt-2 pb-4">
         <h1 className="text-2xl font-display font-bold tracking-tight text-foreground">Activity</h1>
       </header>
 
