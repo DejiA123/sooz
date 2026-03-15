@@ -44,7 +44,7 @@ export default function Index() {
     <div className="min-h-screen bg-background">
       <div className="flex justify-center items-start lg:gap-8">
         {/* Feed — full width, zero padding for immersive media */}
-        <div className="w-full md:max-w-[500px] pt-[50px]">
+        <div className="w-full md:max-w-[500px] pt-0">
           <StoryRail />
 
           <LivePostCard />
