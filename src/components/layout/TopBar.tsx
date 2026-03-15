@@ -32,12 +32,19 @@ export const TopBar = () => {
       <motion.div
         initial={{ y: -20, opacity: 0 }}
         animate={{
-          y: shouldHide ? -60 : 0,
+          y: shouldHide ? -80 : 0,
           opacity: shouldHide ? 0 : 1,
         }}
-        transition={{ duration: 0.3, ease: "easeInOut" }}
-        className="fixed top-0 left-0 right-0 z-50 px-4 pt-[calc(0.25rem+env(safe-area-inset-top,0px))] pb-1 md:px-8"
-        style={{ background: "transparent", pointerEvents: shouldHide ? "none" : "auto" }}
+        transition={{
+          type: "spring",
+          stiffness: 260,
+          damping: 30,
+        }}
+        className={cn(
+          "fixed top-0 left-0 right-0 z-50 px-4 pt-[calc(0.25rem+env(safe-area-inset-top,0px))] pb-2 md:px-8 transition-all duration-500",
+          scrollY > 20 ? "bg-background/60 backdrop-blur-xl border-b border-border/10 shadow-sm" : "bg-transparent border-b border-transparent"
+        )}
+        style={{ pointerEvents: shouldHide ? "none" : "auto" }}
       >
         <div className="max-w-7xl mx-auto flex items-center justify-between h-12">
           <Link to="/" className="flex items-center active:scale-95 transition-transform duration-200">
