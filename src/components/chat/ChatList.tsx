@@ -195,7 +195,7 @@ export const ChatList = ({ selectedId, onSelect }: ChatListProps) => {
     const isOnline = (userId: string) => onlineUsers.has(userId);
 
     return (
-        <div className="flex flex-col h-full bg-background border-r border-white/5 shadow-2xl">
+        <div className="flex flex-col h-full bg-background border-r border-white/5">
             {/* Premium Header */}
             <div className="p-6 space-y-6">
                 <div className="flex items-center justify-between">

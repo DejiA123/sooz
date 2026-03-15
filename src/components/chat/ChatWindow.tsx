@@ -283,7 +283,7 @@ export const ChatWindow = ({ chatId, onBack }: ChatWindowProps) => {
         <div className="flex flex-col h-full bg-background relative overflow-hidden">
             {/* High-End Header */}
             <header className="sticky top-0 z-40 pwa-fixed-top">
-                <div className="glass px-6 py-4 flex items-center justify-between border-b-0 shadow-glass">
+                <div className="glass px-6 py-4 flex items-center justify-between border-b-0">
                     <div className="flex items-center gap-4">
                         <Button
                             variant="ghost"
@@ -479,8 +479,8 @@ export const ChatWindow = ({ chatId, onBack }: ChatWindowProps) => {
             </ScrollArea>
 
             {/* Premium Input Bar */}
-            <footer className="p-4 md:p-8 bg-gradient-to-t from-background via-background to-transparent relative z-10">
-                <div className="max-w-4xl mx-auto glass p-2 rounded-[2rem] border border-white/10 shadow-2xl animate-in slide-in-from-bottom-4 duration-700">
+            <footer className="p-4 md:p-8 bg-background relative z-10">
+                <div className="max-w-4xl mx-auto glass p-2 rounded-[2rem] border border-white/10 animate-in slide-in-from-bottom-4 duration-700">
                     <div className="flex items-end gap-2 pr-2">
                         <div className="flex mb-1.5">
                             <Button
