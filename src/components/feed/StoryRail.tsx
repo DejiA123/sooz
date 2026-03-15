@@ -112,7 +112,7 @@ export const StoryRail = () => {
 
   const itemVariants = {
     hidden: { opacity: 0, y: 12, scale: 0.85 },
-    visible: { opacity: 1, y: 0, scale: 1, transition: { type: "spring", stiffness: 400, damping: 25 } },
+    visible: { opacity: 1, y: 0, scale: 1, transition: { type: "spring" as const, stiffness: 400, damping: 25 } },
   };
 
   return (
