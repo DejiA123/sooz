@@ -116,6 +116,20 @@ html { -ms-overflow-style: none; scrollbar-width: none; overflow-x: hidden; }
   .pulse-glow {
     box-shadow: 0 0 20px hsl(var(--primary) / 0.4), 0 0 60px hsl(var(--primary) / 0.1);
   }
+
+  /* Animated rotating gradient ring for unseen stories */
+  .story-ring-active {
+    background: conic-gradient(from var(--ring-angle, 0deg), #8B5CF6, #D946EF, #F97316, #EC4899, #8B5CF6);
+    animation: ring-rotate 3s linear infinite;
+  }
+  @keyframes ring-rotate {
+    to { --ring-angle: 360deg; }
+  }
+  @property --ring-angle {
+    syntax: "<angle>";
+    initial-value: 0deg;
+    inherits: false;
+  }
 }
 
 /* Hide Lovable badge */
