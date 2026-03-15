@@ -372,7 +372,7 @@ export const ChatWindow = ({ chatId, onBack }: ChatWindowProps) => {
             </header>
 
             {/* Messages Feed */}
-            <ScrollArea className="flex-1 px-4 md:px-8 bg-gradient-to-b from-transparent to-black/20" ref={scrollRef}>
+            <ScrollArea className="flex-1 px-4 md:px-8 bg-background" ref={scrollRef}>
                 <div className="flex flex-col gap-4 py-8">
                     {isLoading ? (
                         <div className="flex flex-col gap-6 py-4">

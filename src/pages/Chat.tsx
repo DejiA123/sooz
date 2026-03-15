@@ -25,7 +25,7 @@ export default function Chat() {
 
             {/* Right Panel: Window */}
             <div className={cn(
-                "flex-1 h-full bg-muted/10",
+                "flex-1 h-full bg-background",
                 !selectedChatId ? "hidden md:flex md:items-center md:justify-center" : "block"
             )}>
                 {selectedChatId ? (
