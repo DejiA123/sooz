@@ -283,7 +283,7 @@ export const ChatWindow = ({ chatId, onBack }: ChatWindowProps) => {
         <div className="flex flex-col h-full bg-background relative overflow-hidden">
             {/* High-End Header */}
             <header className="sticky top-0 z-40 pwa-fixed-top">
-                <div className="glass px-6 py-4 flex items-center justify-between border-b-0">
+                <div className="glass px-6 py-2 flex items-center justify-between border-b-0">
                     <div className="flex items-center gap-4">
                         <Button
                             variant="ghost"

@@ -11,7 +11,7 @@ export default function Chat() {
     // On desktop: show both.
 
     return (
-        <div className="fixed inset-0 top-[calc(3.1rem+env(safe-area-inset-top,0px))] md:top-0 pwa-fixed-top pb-20 md:pb-0 md:left-64 bg-background flex">
+        <div className="fixed inset-0 top-[calc(2.8rem+env(safe-area-inset-top,0px))] md:top-0 pwa-fixed-top pb-20 md:pb-0 md:left-64 bg-background flex">
             {/* Left Panel: List */}
             <div className={cn(
                 "w-full md:w-80 lg:w-96 h-full flex-shrink-0 border-r border-white/10",

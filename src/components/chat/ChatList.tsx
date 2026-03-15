@@ -197,7 +197,7 @@ export const ChatList = ({ selectedId, onSelect }: ChatListProps) => {
     return (
         <div className="flex flex-col h-full bg-background border-r border-white/5">
             {/* Premium Header */}
-            <div className="p-6 space-y-6">
+            <div className="p-4 pt-2 space-y-6">
                 <div className="flex items-center justify-between">
                     <h2 className="text-2xl font-black tracking-tighter bg-gradient-to-r from-foreground to-foreground/50 bg-clip-text text-transparent">Messages</h2>
                     <Popover open={isNewChatOpen} onOpenChange={setIsNewChatOpen}>
