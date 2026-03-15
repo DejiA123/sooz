@@ -218,9 +218,6 @@ export const StoryRail = () => {
           </motion.div>
         </div>
       </div>
-          </motion.div>
-        </div>
-      </div>
 
       {viewerOpen && (
         <StoryViewer stories={viewerStories} initialUserIndex={initialUserIndex} onClose={() => setViewerOpen(false)} />
