@@ -34,33 +34,27 @@ export const TopBar = () => {
         animate={{
           y: shouldHide ? -100 : 0,
           opacity: shouldHide ? 0 : 1,
-          scale: shouldHide ? 0.95 : 1,
-          filter: shouldHide ? "blur(8px)" : "blur(0px)",
         }}
         transition={{
           type: "spring",
-          stiffness: 300,
-          damping: 30,
-          mass: 0.8
+          stiffness: 400,
+          damping: 40,
         }}
         className={cn(
-          "fixed top-0 left-0 right-0 z-50 px-4 pt-[calc(0.25rem+env(safe-area-inset-top,0px))] pb-2 md:px-8 transition-all duration-700 ease-in-out",
-          scrollY > 20 ? "bg-background/40 backdrop-blur-2xl border-b border-white/5 shadow-2xl" : "bg-transparent border-b border-transparent"
+          "fixed top-0 left-0 right-0 z-50 px-4 pt-[calc(0.25rem+env(safe-area-inset-top,0px))] pb-2 md:px-8 transition-all duration-300",
+          scrollY > 20 ? "bg-background/80 backdrop-blur-xl border-b border-border/10 shadow-sm" : "bg-transparent border-b border-transparent"
         )}
         style={{ pointerEvents: shouldHide ? "none" : "auto" }}
       >
         <div className="max-w-7xl mx-auto flex items-center justify-between h-12">
           <Link to="/" className="flex items-center active:scale-95 transition-all duration-300">
-            <motion.img
-              src="/sooz-logo.svg"
+            <img
+              src="/sooz-logo-v3.png"
               alt="SOOZ"
-              animate={{
-                height: showFull ? "32px" : "24px",
-                opacity: showFull ? 1 : 0.9,
-              }}
               className={cn(
                 "object-contain transition-all duration-500",
-                "dark:invert" // Inverts the logo colors for dark mode (TikTok style looks great inverted)
+                showFull ? "h-7 opacity-100" : "h-5 opacity-80",
+                "mix-blend-multiply dark:mix-blend-lighten" // Better attempt at hiding white background
               )}
             />
           </Link>
