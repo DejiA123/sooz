@@ -43,10 +43,7 @@ export const TopBar = () => {
         }}
         className={cn(
           "fixed top-0 left-0 right-0 z-50 px-4 pt-[calc(0.25rem+env(safe-area-inset-top,0px))] pb-2 md:px-8",
-          "transition-all duration-500 ease-out",
-          scrollY > 15 
-            ? "bg-background/80 backdrop-blur-2xl border-b border-border/10 shadow-[0_2px_20px_-10px_rgba(0,0,0,0.1)]" 
-            : "bg-transparent border-b border-transparent"
+          "bg-background border-b border-border/10 shadow-sm"
         )}
         style={{ pointerEvents: shouldHide ? "none" : "auto" }}
       >
