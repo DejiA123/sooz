@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Home, Search, Heart, User, Plus } from "lucide-react";
+import { Home, MessageCircle, Heart, User, Plus } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { CreateModal } from "@/components/create/CreateModal";
