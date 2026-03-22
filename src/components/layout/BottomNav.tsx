@@ -51,7 +51,7 @@ export const BottomNav = () => {
           <NavItem icon={Home} path="/" active={isActive("/")} onHover={() => prefetchData("/")} />
 
           {/* Search */}
-          <NavItem icon={Search} path="/discover" active={isActive("/discover")} />
+          <NavItem icon={MessageCircle} path="/chat" active={isActive("/chat")} onHover={() => prefetchData("/chat")} />
 
           {/* Create */}
           <motion.button
