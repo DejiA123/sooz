@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Home, Search, Heart, User, Plus } from "lucide-react";
+import { Home, MessageCircle, Heart, User, Plus } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { CreateModal } from "@/components/create/CreateModal";
@@ -29,7 +29,7 @@ export const BottomNav = () => {
 
   const navItems = [
     { icon: Home, path: "/" },
-    { icon: Search, path: "/discover" },
+    { icon: MessageCircle, path: "/chat" },
     { icon: Heart, path: "/activity" },
     { icon: User, path: "/profile/me" },
   ];
@@ -51,7 +51,7 @@ export const BottomNav = () => {
           <NavItem icon={Home} path="/" active={isActive("/")} onHover={() => prefetchData("/")} />
 
           {/* Search */}
-          <NavItem icon={Search} path="/discover" active={isActive("/discover")} />
+          <NavItem icon={MessageCircle} path="/chat" active={isActive("/chat")} onHover={() => prefetchData("/chat")} />
 
           {/* Create */}
           <motion.button
