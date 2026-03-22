@@ -29,7 +29,7 @@ export const BottomNav = () => {
 
   const navItems = [
     { icon: Home, path: "/" },
-    { icon: Search, path: "/discover" },
+    { icon: MessageCircle, path: "/chat" },
     { icon: Heart, path: "/activity" },
     { icon: User, path: "/profile/me" },
   ];
