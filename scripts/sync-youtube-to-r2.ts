@@ -29,7 +29,6 @@ const REQUIRED_VARS = [
     { name: 'VITE_R2_ENDPOINT', val: R2_ENDPOINT },
     { name: 'VITE_R2_ACCESS_KEY_ID', val: R2_ACCESS_KEY_ID },
     { name: 'VITE_R2_SECRET_ACCESS_KEY', val: R2_SECRET_ACCESS_KEY },
-    { name: 'YOUTUBE_PROXY', val: process.env.YOUTUBE_PROXY } // Optional but recommended
 ];
 
 const missing = REQUIRED_VARS.filter(v => !v.val);
