@@ -92,6 +92,12 @@ Deno.serve(async (req) => {
     // For bots, we serve the ABSOLUTE minimum: Just the <head> with tags.
     // No body, no javascript, no redirects. This ensures zero parser confusion.
 
+    // Determine image type for better crawler support
+    let imageType = 'image/jpeg';
+    if (image.toLowerCase().endsWith('.png')) imageType = 'image/png';
+    else if (image.toLowerCase().endsWith('.webp')) imageType = 'image/webp';
+    else if (image.toLowerCase().endsWith('.gif')) imageType = 'image/gif';
+
     // For videos, add additional metadata
     let videoMetaTags = '';
     if (isVideoPost && post?.media_url) {
@@ -109,26 +115,45 @@ Deno.serve(async (req) => {
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+<!-- Standard Meta Tags -->
+<title>${title}</title>
+<meta name="description" content="${description.replace(/"/g, '&quot;')}" />
+
+<!-- Schema.org for Google+ / WhatsApp -->
+<meta itemprop="name" content="${title.replace(/"/g, '&quot;')}" />
+<meta itemprop="description" content="${description.replace(/"/g, '&quot;')}" />
+<meta itemprop="image" content="${image}" />
+
+<!-- Open Graph / Facebook / WhatsApp -->
+<meta property="og:type" content="${ogType}" />
 <meta property="og:url" content="${shareUrl}" />
+<meta property="og:title" content="${title.replace(/"/g, '&quot;')}" />
+<meta property="og:description" content="${description.replace(/"/g, '&quot;')}" />
 <meta property="og:image" content="${image}" />
 <meta property="og:image:secure_url" content="${image}" />
 <meta property="og:image:width" content="1200" />
 <meta property="og:image:height" content="630" />
-<meta property="og:image:type" content="image/jpeg" />
-<meta property="og:image:alt" content="SOOZ Preview" />
-<meta property="og:title" content="${title.replace(/"/g, '&quot;')}" />
-<meta property="og:description" content="${description.replace(/"/g, '&quot;')}" />
-<meta property="og:type" content="${ogType}" />
+<meta property="og:image:type" content="${imageType}" />
+<meta property="og:image:alt" content="SOOZ Post Preview" />
 <meta property="og:site_name" content="SOOZ" />
 <meta property="og:locale" content="en_US" />
 ${videoMetaTags}
+
+<!-- Twitter -->
 <meta name="twitter:card" content="summary_large_image" />
 <meta name="twitter:title" content="${title.replace(/"/g, '&quot;')}" />
 <meta name="twitter:description" content="${description.replace(/"/g, '&quot;')}" />
 <meta name="twitter:image" content="${image}" />
-<title>${title}</title>
+
 </head>
-<body style="background: #030303;"></body>
+<body style="background: #030303; color: white; display: flex; align-items: center; justify-content: center; height: 100vh; font-family: sans-serif;">
+  <div style="text-align: center;">
+    <h1>SOOZ</h1>
+    <p>Redirecting to post...</p>
+    <img src="${image}" alt="Preview" style="max-width: 300px; border-radius: 12px; margin-top: 20px;" />
+  </div>
+</body>
 </html>`;
 
     return new Response(html, {
