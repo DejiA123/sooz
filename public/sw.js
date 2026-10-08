@@ -1,4 +1,4 @@
-const CACHE_NAME = 'sooz-cache-v2'; // Bumped version for new caching strategy
+const CACHE_NAME = 'sooz-cache-v3'; // Bumped version for new caching strategy
 const MAX_VIDEO_CACHE_SIZE = 200 * 1024 * 1024; // 200MB for videos
 const MAX_IMAGE_CACHE_SIZE = 50 * 1024 * 1024; // 50MB for images
 
@@ -182,7 +182,10 @@ self.addEventListener('push', (event) => {
         body: data.body || 'New notification',
         icon: '/sooz-favicon.png',
         badge: '/sooz-favicon.png',
-        data: data.url || '/'
+        data: data.url || '/',
+        vibrate: [200, 100, 200],
+        tag: data.tag || undefined,
+        renotify: !!data.tag
     };
 
     event.waitUntil(
@@ -190,10 +193,16 @@ self.addEventListener('push', (event) => {
     );
 });
 
-// Notification click listener
+// Notification click listener — focus an open tab if there is one
 self.addEventListener('notificationclick', (event) => {
     event.notification.close();
+    const target = new URL(event.notification.data || '/', self.location.origin).href;
     event.waitUntil(
-        clients.openWindow(event.notification.data)
+        clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
+            for (const c of list) {
+                if ('focus' in c) { c.navigate(target).catch(() => {}); return c.focus(); }
+            }
+            return clients.openWindow(target);
+        })
     );
 });

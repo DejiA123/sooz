@@ -10,18 +10,28 @@ export const usePushNotifications = () => {
     const [isSubscribed, setIsSubscribed] = useState(false);
 
     useEffect(() => {
-        // Check local status
-        if ('serviceWorker' in navigator && 'PushManager' in window) {
-            navigator.serviceWorker.ready.then((registration: any) => {
-                registration.pushManager.getSubscription().then((sub: PushSubscription | null) => {
-                    if (sub) {
-                        setSubscription(sub);
-                        setIsSubscribed(true);
-                    }
-                });
-            });
-        }
-    }, []);
+        if (!('serviceWorker' in navigator && 'PushManager' in window) || !user) return;
+        (async () => {
+            const registration: any = await navigator.serviceWorker.ready;
+            let sub: PushSubscription | null = await registration.pushManager.getSubscription();
+            const want = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
+            const have = sub?.options?.applicationServerKey ? new Uint8Array(sub.options.applicationServerKey as ArrayBuffer) : null;
+            const stale = !!(sub && have && (have.length !== want.length || have.some((b, i) => b !== want[i])));
+            // Silently re-subscribe when keys changed, or permission is granted but no subscription exists
+            if ((stale || !sub) && Notification.permission === 'granted') {
+                if (sub) { await supabase.from('push_subscriptions' as any).delete().eq('endpoint', sub.endpoint); await sub.unsubscribe(); }
+                sub = await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: want });
+            }
+            if (sub) {
+                const keys = sub.toJSON().keys;
+                if (keys?.p256dh && keys?.auth) {
+                    await supabase.from('push_subscriptions' as any).upsert({ user_id: user.id, endpoint: sub.endpoint, p256dh: keys.p256dh, auth: keys.auth, last_used: new Date().toISOString() } as any, { onConflict: 'endpoint' });
+                }
+                setSubscription(sub);
+                setIsSubscribed(true);
+            }
+        })().catch(err => console.error('Push sync failed', err));
+    }, [user?.id]);
 
     const subscribeToPush = async () => {
         if (!user) {
