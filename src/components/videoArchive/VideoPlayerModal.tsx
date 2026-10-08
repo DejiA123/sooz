@@ -1,4 +1,7 @@
-import { X, ExternalLink, Clock, Eye, Calendar, Download } from "lucide-react";
+import { useEffect, useState } from "react";
+import { X, ExternalLink, Clock, Eye, Calendar, Download, WifiOff, CheckCircle2, Loader2 } from "lucide-react";
+import { toast } from "sonner";
+import { saveForOffline, isSavedOffline, removeOffline, getOfflineSrc } from "@/lib/offlineVideos";
 import { VideoItem, getYouTubeEmbedUrl, getYouTubeWatchUrl, formatViewCount, formatPublishedDate } from "@/services/videoArchiveService";
 
 interface VideoPlayerModalProps {
@@ -8,6 +11,30 @@ interface VideoPlayerModalProps {
 }
 
 export const VideoPlayerModal = ({ video, onClose, onDownload }: VideoPlayerModalProps) => {
+    const [saved, setSaved] = useState(false);
+    const [progress, setProgress] = useState<number | null>(null);
+    const [localSrc, setLocalSrc] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (!video.r2_video_url) return;
+        let url: string | null = null;
+        isSavedOffline(video.r2_video_url).then(setSaved);
+        getOfflineSrc(video.r2_video_url).then((u) => { url = u; setLocalSrc(u); });
+        return () => { if (url) URL.revokeObjectURL(url); };
+    }, [video.r2_video_url]);
+
+    const toggleOffline = async () => {
+        if (!video.r2_video_url) return;
+        if (saved) { await removeOffline(video.r2_video_url); setSaved(false); toast.success("Removed from offline videos"); return; }
+        try {
+            setProgress(0);
+            await saveForOffline(video.r2_video_url, setProgress);
+            setSaved(true);
+            toast.success("Saved — you can watch this without internet");
+        } catch (e: any) {
+            toast.error(e?.message || "Could not save video");
+        } finally { setProgress(null); }
+    };
     const handleDownload = () => {
         if (onDownload) {
             onDownload(video);
@@ -48,7 +75,7 @@ export const VideoPlayerModal = ({ video, onClose, onDownload }: VideoPlayerModa
                 <div className="relative w-full aspect-video bg-black rounded-t-2xl overflow-hidden">
                     {video.r2_video_url ? (
                         <video
-                            src={video.r2_video_url}
+                            src={localSrc || video.r2_video_url}
                             controls
                             autoPlay
                             className="w-full h-full object-contain"
@@ -113,6 +140,15 @@ export const VideoPlayerModal = ({ video, onClose, onDownload }: VideoPlayerModa
 
                     {/* Action Links */}
                     <div className="flex items-center gap-4 flex-wrap">
+                        {video.r2_video_url ? (
+                            <button onClick={toggleOffline} disabled={progress !== null}
+                                className="inline-flex items-center gap-2 text-sm font-medium text-primary hover:text-primary/80 transition-colors">
+                                {progress !== null ? <Loader2 className="w-4 h-4 animate-spin" /> : saved ? <CheckCircle2 className="w-4 h-4" /> : <WifiOff className="w-4 h-4" />}
+                                {progress !== null ? `Saving ${progress}%` : saved ? "Saved offline (tap to remove)" : "Save for offline"}
+                            </button>
+                        ) : (
+                            <span className="text-xs text-muted-foreground">Offline viewing isn't available for this video — it plays from YouTube.</span>
+                        )}
                         {/* Download Button */}
                         <button
                             onClick={handleDownload}
