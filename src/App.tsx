@@ -33,6 +33,17 @@ const UpdatePassword = lazy(() => import("./pages/UpdatePassword"));
 const Algorithms = lazy(() => import("./pages/Algorithms"));
 const AnalyticsDashboard = lazy(() => import("./pages/AnalyticsDashboard"));
 const VideoArchive = lazy(() => import("./pages/VideoArchive"));
+
+// Warm up the main tabs in the background so switching between them is instant
+if (typeof window !== "undefined") {
+  const warm = () => {
+    [() => import("./pages/Index"), () => import("./pages/Discover"), () => import("./pages/Chat"),
+     () => import("./pages/Activity"), () => import("./pages/Profile"), () => import("./pages/Notifications"),
+     () => import("./pages/VideoArchive"), () => import("./pages/PostDetails")].forEach((l, i) => setTimeout(() => l().catch(() => {}), i * 150));
+  };
+  const ric = (window as any).requestIdleCallback || ((cb: () => void) => setTimeout(cb, 1200));
+  window.addEventListener("load", () => ric(warm));
+}
 import { AuthListener } from "./components/AuthListener";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { NotificationManager } from "./components/NotificationManager";

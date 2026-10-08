@@ -68,6 +68,8 @@ export default function Index() {
                     caption={post.caption}
                     media_url={post.media_url}
                     media_type={post.media_type}
+                    // @ts-ignore
+                    thumbnail_url={post.thumbnail_url}
                     created_at={post.created_at}
                     // @ts-ignore
                     likes_count={post.likes_count}

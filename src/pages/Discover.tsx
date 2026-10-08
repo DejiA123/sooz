@@ -57,7 +57,7 @@ export default function Discover() {
             // 1. Fetch Posts
             let postQuery = supabase
                 .from("posts")
-                .select("id, media_url, media_type, caption")
+                .select("id, media_url, media_type, caption, thumbnail_url")
                 .not("media_url", "is", null)
                 .order("created_at", { ascending: false })
                 .limit(20);
@@ -195,6 +195,8 @@ export default function Discover() {
                                 <LazyVideo
                                     src={post.media_url || ""}
                                     id={`discover-${post.id}`}
+                                    // @ts-ignore
+                                    poster={post.thumbnail_url}
                                     priority={index < 6}
                                 />
                             ) : (
