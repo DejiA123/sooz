@@ -31,16 +31,25 @@ export const useCall = () => {
     return context;
 };
 
-const ICE_SERVERS = {
+const ICE_SERVERS: RTCConfiguration = {
     iceServers: [
         { urls: 'stun:stun.l.google.com:19302' },
-        { urls: 'stun:global.stun.twilio.com:3478' },
-        { urls: 'stun:stun1.l.google.com:19302' },
-        { urls: 'stun:stun2.l.google.com:19302' },
-        { urls: 'stun:stun.ekiga.net' }
+        { urls: 'stun:stun.cloudflare.com:3478' },
     ],
     iceCandidatePoolSize: 10,
 };
+
+// Fetch Cloudflare TURN relay credentials so calls connect on mobile networks
+const loadTurn = async () => {
+    try {
+        const { data, error } = await supabase.functions.invoke('turn-credentials');
+        if (error || !data?.iceServers) return;
+        const extra = Array.isArray(data.iceServers) ? data.iceServers : [data.iceServers];
+        ICE_SERVERS.iceServers = [...extra, { urls: 'stun:stun.l.google.com:19302' }];
+    } catch { /* keep STUN fallback */ }
+};
+loadTurn();
+setInterval(loadTurn, 12 * 60 * 60 * 1000);
 
 export const CallProvider = ({ children }: { children: React.ReactNode }) => {
     const { user } = useAuth();
