@@ -1,4 +1,3 @@
-import { supabase } from "@/integrations/supabase/client";
 import { getPresignedUploadUrl } from "@/integrations/s3/client";
 
 const FN = "https://xhqpojnmcibkaydidnex.supabase.co/functions/v1/share-preview";
@@ -36,4 +35,3 @@ export async function getShareLink(postId: string): Promise<string> {
   }
 }
 
-export { supabase as _unused };
