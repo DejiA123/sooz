@@ -168,13 +168,13 @@ export const PostCard = ({
               </div>
             </div>
 
-            {/* Floating action pills — right edge */}
-            <div className="absolute right-3 bottom-14 z-10 flex flex-col items-center gap-3">
+            {/* Floating glass action rail — right edge */}
+            <div className="absolute right-3 bottom-14 z-10 flex flex-col items-center gap-4">
               <motion.button whileTap={{ scale: 1.3 }} onClick={handleLike} className="flex flex-col items-center">
-                <div className={cn("w-10 h-10 rounded-full bg-black/30 backdrop-blur-md flex items-center justify-center", isLiked && "bg-destructive/80")}>
-                  <Heart className={cn("w-5 h-5 text-white", isLiked && "fill-current")} strokeWidth={1.8} />
+                <div className={cn("w-11 h-11 rounded-full bg-white/10 backdrop-blur-xl border border-white/10 flex items-center justify-center shadow-lg", isLiked && "bg-primary text-primary-foreground border-primary/40 shadow-primary/30")}>
+                  <Heart className={cn("w-5 h-5 text-white", isLiked && "text-primary-foreground fill-current")} strokeWidth={1.8} />
                 </div>
-                {likes > 0 && <span className="mt-1 rounded-full bg-black/55 px-1.5 py-px text-[11px] font-bold leading-4 text-white backdrop-blur-sm">{likes.toLocaleString()}</span>}
+                {likes > 0 && <span className="mt-1 text-[11px] font-bold text-white/90 drop-shadow-md">{likes.toLocaleString()}</span>}
               </motion.button>
 
               <CommentDrawer
@@ -182,10 +182,10 @@ export const PostCard = ({
                 postOwnerUsername={user.username}
                 trigger={
                   <button className="flex flex-col items-center">
-                    <div className="w-10 h-10 rounded-full bg-black/30 backdrop-blur-md flex items-center justify-center">
+                    <div className="w-11 h-11 rounded-full bg-white/10 backdrop-blur-xl border border-white/10 flex items-center justify-center shadow-lg">
                       <MessageCircle className="w-5 h-5 text-white" strokeWidth={1.8} />
                     </div>
-                    {comments_count > 0 && <span className="mt-1 rounded-full bg-black/55 px-1.5 py-px text-[11px] font-bold leading-4 text-white backdrop-blur-sm">{comments_count}</span>}
+                    {comments_count > 0 && <span className="mt-1 text-[11px] font-bold text-white/90 drop-shadow-md">{comments_count}</span>}
                   </button>
                 }
               />
@@ -198,14 +198,14 @@ export const PostCard = ({
                   catch { await navigator.clipboard.writeText(postUrl); toast.success("Link copied!"); }
                 }}
               >
-                <div className="w-10 h-10 rounded-full bg-black/30 backdrop-blur-md flex items-center justify-center">
+                <div className="w-11 h-11 rounded-full bg-white/10 backdrop-blur-xl border border-white/10 flex items-center justify-center shadow-lg">
                   <Share2 className="w-5 h-5 text-white" strokeWidth={1.8} />
                 </div>
               </button>
 
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <button className="w-10 h-10 rounded-full bg-black/30 backdrop-blur-md flex items-center justify-center">
+                  <button className="w-11 h-11 rounded-full bg-white/10 backdrop-blur-xl border border-white/10 flex items-center justify-center shadow-lg">
                     <MoreHorizontal className="w-5 h-5 text-white" />
                   </button>
                 </DropdownMenuTrigger>

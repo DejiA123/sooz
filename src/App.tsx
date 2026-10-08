@@ -56,20 +56,19 @@ import { queryClient } from "@/lib/react-query";
 const App = () => {
   // Initialize theme
   if (typeof window !== "undefined") {
-    const theme = localStorage.getItem("sooz-mode") || "light";
+    const theme = localStorage.getItem("sooz-mode") || "dark";
     if (theme === "dark") {
       document.documentElement.classList.add("dark");
     } else {
       document.documentElement.classList.remove("dark");
     }
 
-    // Migrate gold theme to blue
+    // Normalize theme to the sacred gold accent
     const colorTheme = localStorage.getItem("sooz-theme");
-    if (!colorTheme || colorTheme === "gold") {
-      localStorage.setItem("sooz-theme", "blue");
-      // Apply blue theme immediately
-      document.documentElement.style.setProperty("--primary", "240 100% 27%");
+    if (!colorTheme || colorTheme === "blue") {
+      localStorage.setItem("sooz-theme", "gold");
     }
+    document.documentElement.style.setProperty("--primary", "38 92% 50%");
 
     registerServiceWorker();
 

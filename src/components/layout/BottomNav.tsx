@@ -37,20 +37,23 @@ export const BottomNav = () => {
   return (
     <>
       <nav aria-label="Main navigation" className="mobile-bottom-nav md:hidden">
-          <div className="mx-auto grid h-[var(--bottom-nav-row-height)] max-w-lg grid-cols-5 items-center px-2">
+          <div
+            className="pointer-events-auto mx-auto flex h-14 max-w-lg items-center justify-between rounded-[2rem] border border-white/10 px-3 shadow-2xl backdrop-blur-2xl"
+            style={{ background: "hsl(var(--glass) / 0.65)" }}
+          >
             {[...navItems.slice(0, 2), { icon: Plus, path: "#", label: "Create post", isCreate: true }, ...navItems.slice(2)].map((item) => {
               const isCreate = 'isCreate' in item && item.isCreate;
               const isActive = isCreate ? showCreateModal : (item.path === "/" ? ["/", "/index"].includes(location.pathname) : location.pathname.startsWith(item.path.replace("/me", "")));
               if (isCreate) {
                 return (
-                  <Button key="create" onClick={handleCreateClick} aria-label={item.label} title={item.label} size="icon" className="mx-auto h-11 w-11 rounded-full shadow-none active:scale-95 motion-reduce:transition-none [&_svg]:size-6">
-                    <Plus className={cn("transition-transform motion-reduce:transition-none", showCreateModal && "rotate-45")} strokeWidth={2} />
+                  <Button key="create" onClick={handleCreateClick} aria-label={item.label} title={item.label} size="icon" className="mx-auto h-11 w-11 rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/40 active:scale-95 motion-reduce:transition-none [&_svg]:size-6">
+                    <Plus className={cn("transition-transform motion-reduce:transition-none", showCreateModal && "rotate-45")} strokeWidth={2.5} />
                   </Button>
                 );
               }
               const Icon = item.icon;
               return (
-                <Button key={item.path} asChild variant="ghost" className={cn("group h-12 w-full rounded-lg px-0 active:scale-95 motion-reduce:transition-none [&_svg]:size-[26px]", isActive ? "text-foreground" : "text-muted-foreground")}>
+                <Button key={item.path} asChild variant="ghost" className={cn("group h-12 w-full rounded-lg px-0 active:scale-95 motion-reduce:transition-none [&_svg]:size-[26px]", isActive ? "text-primary" : "text-muted-foreground")}>
                   <Link to={item.path} aria-label={item.label} title={item.label} aria-current={isActive ? "page" : undefined} onMouseEnter={() => prefetchData(item.path)}>
                     <Icon strokeWidth={isActive ? 2.2 : 1.8} fill={isActive && item.path === "/" ? "currentColor" : "none"} />
                   </Link>
