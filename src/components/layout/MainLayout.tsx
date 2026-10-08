@@ -37,7 +37,7 @@ export const MainLayout = () => {
     }, [user, queryClient]);
 
     return (
-        <div className="min-h-screen bg-background pb-20 pt-[calc(3.2rem+env(safe-area-inset-top,0px))] md:pt-0 md:pb-0">
+        <div className="min-h-screen bg-background pb-[calc(3.5rem+max(env(safe-area-inset-bottom,0px),6px)+0.5rem)] pt-[calc(3.2rem+env(safe-area-inset-top,0px))] md:pt-0 md:pb-16">
             <div className="md:hidden">
                 <TopBar />
             </div>
