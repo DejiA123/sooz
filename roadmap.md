@@ -5,6 +5,6 @@
 - [ ] Fast, smooth tab navigation
 - [ ] UI design options (screenshots) to choose from
 - [ ] Calls & messages: 1:1 video/audio, group calls, messaging reliable
-- [ ] Push notifications delivered when app is closed
-- [ ] Offline / airplane mode: app opens and shows saved content
+- [x] Push notifications delivered when app is closed
+- [x] Offline / airplane mode: app opens and shows saved content
 - [ ] Full end-to-end test pass

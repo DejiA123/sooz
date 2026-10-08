@@ -1,4 +1,5 @@
 // v2.1.4 - Sync Check After Reconnect
+import OfflineBanner from "@/components/OfflineBanner";
 import { registerServiceWorker } from "@/lib/registerSW";
 import { useEffect, Suspense, lazy } from "react";
 import { HelmetProvider } from 'react-helmet-async';
@@ -86,6 +87,7 @@ const App = () => {
               <Toaster />
               <Sonner />
               <BrowserRouter>
+<OfflineBanner />
                 <AuthListener />
                 <NotificationManager />
                 <Routes>
