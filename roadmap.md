@@ -5,6 +5,7 @@
 - [x] Archive videos watchable offline (694 of 2147 stored on SOOZ storage; YouTube-only ones cannot)
 - [x] Fast, smooth tab navigation
 - [x] UI design options shown (user skipped); fixed hard-to-read counts
+- [x] Bottom bar looks right in the home-screen app
 - [ ] Go Live streaming from the app works reliably
 - [ ] Calls reliable on all networks + group calls — blocked: needs a calling service account (Cloudflare Calls or Metered)
 - [x] Push notifications delivered when app is closed
