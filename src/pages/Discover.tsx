@@ -57,7 +57,7 @@ export default function Discover() {
             // 1. Fetch Posts
             let postQuery = supabase
                 .from("posts")
-                .select("id, media_url, media_type, caption")
+                .select("id, media_url, media_type, caption, thumbnail_url")
                 .not("media_url", "is", null)
                 .order("created_at", { ascending: false })
                 .limit(20);
