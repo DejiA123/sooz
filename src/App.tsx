@@ -1,4 +1,5 @@
 // v2.1.4 - Sync Check After Reconnect
+import { registerServiceWorker } from "@/lib/registerSW";
 import { useEffect, Suspense, lazy } from "react";
 import { HelmetProvider } from 'react-helmet-async';
 import { Toaster } from "@/components/ui/toaster";
@@ -58,35 +59,7 @@ const App = () => {
       document.documentElement.style.setProperty("--primary", "240 100% 27%");
     }
 
-    // Register Service Worker and handle updates
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js').then((opts) => {
-          console.log('SW registered:', opts);
-
-          // Check for updates
-          opts.onupdatefound = () => {
-            const installingWorker = opts.installing;
-            if (installingWorker) {
-              installingWorker.onstatechange = () => {
-                if (installingWorker.state === 'installed') {
-                  if (navigator.serviceWorker.controller) {
-                    // New update available
-                    toast("New version available!", {
-                      action: {
-                        label: "Update",
-                        onClick: () => window.location.reload()
-                      },
-                      duration: Infinity
-                    });
-                  }
-                }
-              };
-            }
-          };
-        }).catch(err => console.log('SW fetch fail', err));
-      });
-    }
+    registerServiceWorker();
 
     // Request Notification Permission logic updated to use hook
     // We need to move this INSIDE a component that is inside AuthProvider
