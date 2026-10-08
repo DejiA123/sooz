@@ -12,4 +12,4 @@
 - [x] Offline / airplane mode: app opens and shows saved content
 - [x] Videos start fast on slow internet
 - [x] Tested: share link, archive sync, notification sender, feed screenshots
-- [ ] Share link in WhatsApp looks clean/short (user: URL puts people off)
+- [x] Share link in WhatsApp looks clean/short
