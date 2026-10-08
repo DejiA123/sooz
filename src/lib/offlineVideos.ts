@@ -11,19 +11,17 @@ export async function saveForOffline(url: string, onProgress?: (pct: number) => 
   const res = await fetch(url, { mode: "cors" });
   if (!res.ok || !res.body) throw new Error(`Download failed (${res.status})`);
   const total = Number(res.headers.get("content-length")) || 0;
-  const reader = res.body.getReader();
-  const chunks: Uint8Array[] = [];
   let got = 0;
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    chunks.push(value);
-    got += value.length;
-    if (total && onProgress) onProgress(Math.round((got / total) * 100));
-  }
-  const blob = new Blob(chunks as BlobPart[], { type: res.headers.get("content-type") || "video/mp4" });
+  // Stream straight into storage so large sermons don't fill the phone's memory
+  const counted = res.body.pipeThrough(new TransformStream<Uint8Array, Uint8Array>({
+    transform(chunk, ctrl) {
+      got += chunk.length;
+      if (total && onProgress) onProgress(Math.round((got / total) * 100));
+      ctrl.enqueue(chunk);
+    },
+  }));
   const c = await caches.open(CACHE);
-  await c.put(url, new Response(blob, { headers: { "Content-Type": blob.type, "Content-Length": String(blob.size) } }));
+  await c.put(url, new Response(counted, { headers: { "Content-Type": res.headers.get("content-type") || "video/mp4", ...(total ? { "Content-Length": String(total) } : {}) } }));
 }
 
 export async function removeOffline(url: string) {
