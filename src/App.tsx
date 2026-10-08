@@ -56,7 +56,7 @@ import { queryClient } from "@/lib/react-query";
 const App = () => {
   // Initialize theme
   if (typeof window !== "undefined") {
-    const theme = localStorage.getItem("sooz-mode") || "light";
+    const theme = localStorage.getItem("sooz-mode") || "dark";
     if (theme === "dark") {
       document.documentElement.classList.add("dark");
     } else {
