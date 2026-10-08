@@ -190,8 +190,8 @@ export const PostCard = ({
               <button
                 className="flex flex-col items-center"
                 onClick={async () => {
-                  const appDomain = import.meta.env.VITE_APP_DOMAIN || 'https://sooz.vercel.app';
-                  const postUrl = `${appDomain}/share/${id}`;
+                  const appDomain = 'https://xhqpojnmcibkaydidnex.supabase.co/functions/v1/share-preview?id=';
+                  const postUrl = `${appDomain}${id}`;
                   try { if (navigator.share) await navigator.share({ url: postUrl }); else { await navigator.clipboard.writeText(postUrl); toast.success("Link copied!"); } }
                   catch { await navigator.clipboard.writeText(postUrl); toast.success("Link copied!"); }
                 }}

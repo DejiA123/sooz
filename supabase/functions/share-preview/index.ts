@@ -22,7 +22,7 @@ Deno.serve(async (req) => {
   // Init Supabase
   const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
   const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY') || '';
-  const appDomain = Deno.env.get('APP_DOMAIN') || 'https://sooz.vercel.app';
+  const appDomain = Deno.env.get('APP_DOMAIN') || 'https://sooz.lovable.app';
   const supabase = createClient(supabaseUrl, supabaseKey);
 
   // Fetch post data
@@ -81,7 +81,7 @@ Deno.serve(async (req) => {
   }
 
   const redirectUrl = id ? `${appDomain}/post/${id}` : appDomain;
-  const shareUrl = id ? `${appDomain}/share/${id}` : appDomain;
+  const shareUrl = `${supabaseUrl}/functions/v1/share-preview?id=${id}`;
   const ogType = isVideoPost ? 'video.other' : 'website';
 
   // Checking User-Agent to see if it's a bot/crawler
