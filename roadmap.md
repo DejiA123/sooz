@@ -7,4 +7,5 @@
 - [ ] Calls & messages: 1:1 video/audio, group calls, messaging reliable
 - [x] Push notifications delivered when app is closed
 - [x] Offline / airplane mode: app opens and shows saved content
+- [ ] Videos start fast on slow internet
 - [ ] Full end-to-end test pass
