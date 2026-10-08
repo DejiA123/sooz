@@ -1,12 +1,12 @@
 import { useState } from "react";
-import { Home, MessageCircle, Bell, User, Plus, X } from "lucide-react";
+import { Home, MessageCircle, Bell, User, Plus } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { CreateModal } from "@/components/create/CreateModal";
 import { useAuth } from "@/hooks/useAuth";
 import { queryClient } from "@/lib/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { motion, AnimatePresence } from "framer-motion";
+import { Button } from "@/components/ui/button";
 
 export const BottomNav = () => {
   const location = useLocation();
@@ -28,47 +28,37 @@ export const BottomNav = () => {
   };
 
   const navItems = [
-    { icon: Home, path: "/" },
-    { icon: MessageCircle, path: "/chat" },
-    { icon: Bell, path: "/activity" },
-    { icon: User, path: "/profile/me" },
+    { icon: Home, path: "/", label: "Home" },
+    { icon: MessageCircle, path: "/chat", label: "Messages" },
+    { icon: Bell, path: "/activity", label: "Activity" },
+    { icon: User, path: "/profile/me", label: "Profile" },
   ];
 
   return (
     <>
-      {/* Unified Bottom Bar (Mobile & Desktop) */}
-      <motion.div
-        initial={{ y: 100, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ type: "spring", stiffness: 260, damping: 25 }}
-        className="fixed bottom-0 left-0 md:left-64 right-0 z-50 bg-background border-t border-border/40 shadow-[0_-4px_20px_-8px_hsl(var(--foreground)/0.12)] pb-[max(env(safe-area-inset-bottom,0px),6px)] pl-[env(safe-area-inset-left,0px)] pr-[env(safe-area-inset-right,0px)] select-none touch-manipulation"
-      >
-        <div>
-          <div className="max-w-lg mx-auto flex h-14 items-stretch justify-around">
-            {[...navItems.slice(0, 2), { icon: Plus, path: "#", isCreate: true }, ...navItems.slice(2)].map((item, idx) => {
+      <nav aria-label="Main navigation" className="mobile-bottom-nav md:hidden">
+          <div className="mx-auto grid h-[var(--bottom-nav-row-height)] max-w-lg grid-cols-5 items-center px-2">
+            {[...navItems.slice(0, 2), { icon: Plus, path: "#", label: "Create post", isCreate: true }, ...navItems.slice(2)].map((item) => {
               const isCreate = 'isCreate' in item && item.isCreate;
-              const isActive = isCreate ? showCreateModal : (item.path === "/" ? location.pathname === "/" : location.pathname.startsWith(item.path.replace("/me", "")));
+              const isActive = isCreate ? showCreateModal : (item.path === "/" ? ["/", "/index"].includes(location.pathname) : location.pathname.startsWith(item.path.replace("/me", "")));
               if (isCreate) {
                 return (
-                  <button key="create" onClick={handleCreateClick} className="relative flex-1 flex flex-col items-center justify-center group active:scale-90 transition-transform [-webkit-tap-highlight-color:transparent]">
-                    <motion.div animate={{ rotate: showCreateModal ? 45 : 0 }} transition={{ type: "spring", stiffness: 300, damping: 20 }}>
-                      <Plus className={cn("w-6 h-6 transition-colors", showCreateModal ? "text-primary" : "text-muted-foreground hover:text-foreground")} strokeWidth={2.5} />
-                    </motion.div>
-                  </button>
+                  <Button key="create" onClick={handleCreateClick} aria-label={item.label} title={item.label} size="icon" className="mx-auto h-11 w-11 rounded-full shadow-none active:scale-95 motion-reduce:transition-none [&_svg]:size-6">
+                    <Plus className={cn("transition-transform motion-reduce:transition-none", showCreateModal && "rotate-45")} strokeWidth={2} />
+                  </Button>
                 );
               }
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              const Icon = item.icon as any; // Cast as icon exists if not create
+              const Icon = item.icon;
               return (
-                <Link key={item.path} to={item.path} onMouseEnter={() => prefetchData(item.path)} className="relative flex-1 flex flex-col items-center justify-center group active:scale-90 transition-transform [-webkit-tap-highlight-color:transparent]">
-                  {isActive && <motion.div layoutId="nav-glow-bar" className="absolute top-0 left-4 right-4 h-[2px] rounded-full bg-foreground" transition={{ type: "spring", bounce: 0.15, duration: 0.5 }} />}
-                  <Icon className={cn("w-[22px] h-[22px] transition-all duration-200", isActive ? "text-foreground" : "text-muted-foreground group-hover:text-foreground")} strokeWidth={isActive ? 2.5 : 1.8} fill={isActive ? "currentColor" : "none"} />
-                </Link>
+                <Button key={item.path} asChild variant="ghost" className={cn("group h-12 w-full rounded-lg px-0 active:scale-95 motion-reduce:transition-none [&_svg]:size-[26px]", isActive ? "text-foreground" : "text-muted-foreground")}>
+                  <Link to={item.path} aria-label={item.label} title={item.label} aria-current={isActive ? "page" : undefined} onMouseEnter={() => prefetchData(item.path)}>
+                    <Icon strokeWidth={isActive ? 2.2 : 1.8} fill={isActive && item.path === "/" ? "currentColor" : "none"} />
+                  </Link>
+                </Button>
               );
             })}
           </div>
-        </div>
-      </motion.div>
+      </nav>
 
       <CreateModal
         isOpen={showCreateModal}
