@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 
 const THEMES = [
+  { id: "gold", primary: "38 92% 50%", color: "hsl(38, 92%, 50%)" },
   { id: "blue", primary: "240 100% 27%", color: "hsl(240, 100%, 27%)" },
   { id: "rose", primary: "340 75% 55%", color: "hsl(340, 75%, 55%)" },
   { id: "emerald", primary: "142 71% 45%", color: "hsl(142, 71%, 45%)" },
