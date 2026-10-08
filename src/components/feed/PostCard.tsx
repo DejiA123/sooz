@@ -174,7 +174,7 @@ export const PostCard = ({
                 <div className={cn("w-10 h-10 rounded-full bg-black/30 backdrop-blur-md flex items-center justify-center", isLiked && "bg-destructive/80")}>
                   <Heart className={cn("w-5 h-5 text-white", isLiked && "fill-current")} strokeWidth={1.8} />
                 </div>
-                {likes > 0 && <span className="text-white text-[10px] font-bold mt-0.5 drop-shadow-md">{likes.toLocaleString()}</span>}
+                {likes > 0 && <span className="mt-1 rounded-full bg-black/55 px-1.5 py-px text-[11px] font-bold leading-4 text-white backdrop-blur-sm">{likes.toLocaleString()}</span>}
               </motion.button>
 
               <CommentDrawer
@@ -185,7 +185,7 @@ export const PostCard = ({
                     <div className="w-10 h-10 rounded-full bg-black/30 backdrop-blur-md flex items-center justify-center">
                       <MessageCircle className="w-5 h-5 text-white" strokeWidth={1.8} />
                     </div>
-                    {comments_count > 0 && <span className="text-white text-[10px] font-bold mt-0.5 drop-shadow-md">{comments_count}</span>}
+                    {comments_count > 0 && <span className="mt-1 rounded-full bg-black/55 px-1.5 py-px text-[11px] font-bold leading-4 text-white backdrop-blur-sm">{comments_count}</span>}
                   </button>
                 }
               />
