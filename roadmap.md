@@ -13,3 +13,6 @@
 - [x] Videos start fast on slow internet
 - [x] Tested: share link, archive sync, notification sender, feed screenshots
 - [x] Share link in WhatsApp looks clean/short
+- [x] One-to-one calls use Cloudflare TURN relay (turn-credentials function)
+- [ ] Group calls via Cloudflare Calls SFU (keys saved)
+- [ ] Go Live via Cloudflare Stream live input (keys saved)
