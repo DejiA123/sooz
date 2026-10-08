@@ -195,6 +195,8 @@ export default function Discover() {
                                 <LazyVideo
                                     src={post.media_url || ""}
                                     id={`discover-${post.id}`}
+                                    // @ts-ignore
+                                    poster={post.thumbnail_url}
                                     priority={index < 6}
                                 />
                             ) : (

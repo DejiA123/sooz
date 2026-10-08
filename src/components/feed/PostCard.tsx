@@ -26,6 +26,7 @@ interface PostCardProps {
   caption: string | null;
   media_url: string | null;
   media_type: string | null;
+  thumbnail_url?: string | null;
   created_at: string;
   likes_count: number;
   comments_count: number;
@@ -36,7 +37,7 @@ interface PostCardProps {
 }
 
 export const PostCard = ({
-  id, user, caption: initialCaption, media_url, media_type, created_at,
+  id, user, caption: initialCaption, media_url, media_type, thumbnail_url, created_at,
   likes_count: initialLikes, comments_count, views_count: initialViews = 0,
   is_liked_by_user: initialLiked, is_saved_by_user: initialSaved, priority = false
 }: PostCardProps) => {
@@ -135,6 +136,7 @@ export const PostCard = ({
               <LazyVideo
                 src={media_url}
                 id={id}
+                poster={thumbnail_url}
                 priority={priority}
                 onClick={isMobile ? (time) => { setVideoStartTime(time); setShowVideoFeed(true); } : undefined}
               />
