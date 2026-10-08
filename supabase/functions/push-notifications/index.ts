@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
+import webpush from "npm:web-push@3.6.7";
 
 const corsHeaders = {
     "Access-Control-Allow-Origin": "*",
@@ -104,13 +105,22 @@ serve(async (req) => {
 
         console.log(`Found ${subscriptions.length} subscriptions to notify`);
 
-        // Note: Actual push sending would require web-push library
-        // For now, we log the intent and store notifications in database
-        
-        return new Response(JSON.stringify({ 
-            message: "Notification processed",
-            subscriptionCount: subscriptions.length 
-        }), {
+        webpush.setVapidDetails("mailto:admin@sooz.app", vapidPublicKey, vapidPrivateKey);
+        const payload = JSON.stringify(notificationPayload);
+        let sent = 0;
+        await Promise.all(subscriptions.map(async (s: any) => {
+            try {
+                await webpush.sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, payload, { TTL: 86400, urgency: "high" });
+                sent++;
+            } catch (err: any) {
+                console.error("Push failed", err?.statusCode, err?.body);
+                if (err?.statusCode === 404 || err?.statusCode === 410 || err?.statusCode === 403) {
+                    await supabase.from("push_subscriptions").delete().eq("endpoint", s.endpoint);
+                }
+            }
+        }));
+
+        return new Response(JSON.stringify({ message: "Notification processed", subscriptionCount: subscriptions.length, sent }), {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
             status: 200,
         });
