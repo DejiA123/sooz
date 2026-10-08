@@ -6,58 +6,58 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 240 10% 4%;
-    --card: 0 0% 100%;
-    --card-foreground: 240 10% 4%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 240 10% 4%;
-    --primary: 240 100% 27%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 240 5% 96%;
-    --secondary-foreground: 240 6% 10%;
-    --muted: 240 5% 96%;
-    --muted-foreground: 240 4% 46%;
-    --accent: 240 5% 96%;
-    --accent-foreground: 240 6% 10%;
+    --background: 220 28% 5%;
+    --foreground: 210 40% 98%;
+    --card: 222 26% 8%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222 26% 8%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 38 92% 50%;
+    --primary-foreground: 222 47% 8%;
+    --secondary: 222 24% 12%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 222 24% 12%;
+    --muted-foreground: 217 15% 65%;
+    --accent: 222 24% 12%;
+    --accent-foreground: 210 40% 98%;
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 98%;
-    --border: 240 6% 90%;
-    --input: 240 6% 90%;
-    --ring: 240 100% 27%;
+    --border: 220 20% 14%;
+    --input: 220 20% 14%;
+    --ring: 38 92% 50%;
     --radius: 1.25rem;
-    --glass: 0 0% 100%;
-    --glass-border: 240 6% 90%;
-    --glass-opacity: 0.7;
-    --shadow-premium: 0 20px 40px -12px rgba(0, 0, 0, 0.08), 0 0 20px rgba(0, 0, 0, 0.02);
-    --shadow-glass: 0 8px 32px 0 rgba(0, 0, 0, 0.08);
+    --glass: 222 25% 10%;
+    --glass-border: 220 20% 18%;
+    --glass-opacity: 0.8;
+    --shadow-premium: 0 24px 64px -12px rgba(0, 0, 0, 0.7);
+    --shadow-glass: 0 8px 32px 0 rgba(0, 0, 0, 0.4);
     --bottom-nav-row-height: 64px;
     --bottom-nav-safe-area: max(env(safe-area-inset-bottom, 0px), 8px);
     --bottom-nav-height: calc(var(--bottom-nav-row-height) + var(--bottom-nav-safe-area) + 1px);
   }
 
   .dark {
-    --background: 240 10% 2%;
-    --foreground: 0 0% 98%;
-    --card: 240 10% 4%;
-    --card-foreground: 0 0% 98%;
-    --popover: 240 10% 4%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 220 100% 60%;
-    --primary-foreground: 0 0% 10%;
-    --secondary: 240 10% 10%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 240 10% 12%;
-    --muted-foreground: 240 5% 65%;
-    --accent: 240 10% 12%;
-    --accent-foreground: 0 0% 98%;
+    --background: 220 28% 5%;
+    --foreground: 210 40% 98%;
+    --card: 222 26% 8%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222 26% 8%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 38 92% 50%;
+    --primary-foreground: 222 47% 8%;
+    --secondary: 222 24% 12%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 222 24% 12%;
+    --muted-foreground: 217 15% 65%;
+    --accent: 222 24% 12%;
+    --accent-foreground: 210 40% 98%;
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 98%;
-    --border: 240 10% 12%;
-    --input: 240 10% 12%;
-    --ring: 220 100% 60%;
-    --glass: 240 10% 4%;
-    --glass-border: 240 10% 15%;
+    --border: 220 20% 14%;
+    --input: 220 20% 14%;
+    --ring: 38 92% 50%;
+    --glass: 222 25% 10%;
+    --glass-border: 220 20% 18%;
     --glass-opacity: 0.8;
     --shadow-premium: 0 24px 64px -12px rgba(0, 0, 0, 0.7);
     --shadow-glass: 0 8px 32px 0 rgba(0, 0, 0, 0.4);
@@ -133,11 +133,11 @@ html { -ms-overflow-style: none; scrollbar-width: none; overflow-x: hidden; }
 
   /* ── Animated rotating gradient ring for unseen stories ── */
   .story-ring-active {
-    background: conic-gradient(from var(--ring-angle, 0deg), 
-      #FF00C7, #5000FF, #00D1FF, #00FF94, #FFB800, #FF00C7);
+    background: conic-gradient(from var(--ring-angle, 0deg),
+      #FDE68A, #F59E0B, #B45309, #FBBF24, #FDE68A);
     animation: ring-rotate 4s linear infinite;
     position: relative;
-    box-shadow: 0 0 15px -3px hsla(var(--primary), 0.4);
+    box-shadow: 0 0 15px -3px hsla(var(--primary), 0.5);
   }
 
   /* Seen / followed user ring — subtle but high-end */
@@ -211,10 +211,11 @@ input, textarea { -webkit-user-select: text; user-select: text; }
   box-sizing: border-box;
   height: var(--bottom-nav-height);
   padding-bottom: var(--bottom-nav-safe-area);
-  padding-left: env(safe-area-inset-left, 0px);
-  padding-right: env(safe-area-inset-right, 0px);
-  background: hsl(var(--background));
-  border-top: 1px solid hsl(var(--border));
+  padding-left: max(env(safe-area-inset-left, 0px), 14px);
+  padding-right: max(env(safe-area-inset-right, 0px), 14px);
+  background: transparent;
+  border-top: none;
+  pointer-events: none;
   isolation: isolate;
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
@@ -222,7 +223,7 @@ input, textarea { -webkit-user-select: text; user-select: text; }
 
 @media (display-mode: standalone) {
   :root { --bottom-nav-safe-area: max(env(safe-area-inset-bottom, 0px), 20px); }
-  body::before { content: ""; position: fixed; top: 0; left: 0; right: 0; height: env(safe-area-inset-top); background: white; z-index: 51; }
+  body::before { content: ""; position: fixed; top: 0; left: 0; right: 0; height: env(safe-area-inset-top); background: hsl(var(--background)); z-index: 51; }
   .fixed.top-0 { top: 0 !important; }
   .pwa-fixed-top { top: calc(3.5rem + env(safe-area-inset-top, 0px)) !important; }
 }
