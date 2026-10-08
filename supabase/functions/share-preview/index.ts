@@ -22,7 +22,7 @@ Deno.serve(async (req) => {
   // Init Supabase
   const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
   const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY') || '';
-  const appDomain = Deno.env.get('APP_DOMAIN') || 'https://sooz.vercel.app';
+  const appDomain = Deno.env.get('APP_DOMAIN') || 'https://sooz.lovable.app';
   const supabase = createClient(supabaseUrl, supabaseKey);
 
   // Fetch post data
@@ -81,12 +81,13 @@ Deno.serve(async (req) => {
   }
 
   const redirectUrl = id ? `${appDomain}/post/${id}` : appDomain;
-  const shareUrl = id ? `${appDomain}/share/${id}` : appDomain;
+  const shareUrl = `${supabaseUrl}/functions/v1/share-preview?id=${id}`;
   const ogType = isVideoPost ? 'video.other' : 'website';
 
   // Checking User-Agent to see if it's a bot/crawler
   const userAgent = req.headers.get('user-agent') || '';
-  const isBot = /facebookexternalhit|twitterbot|whatsapp|linkedinbot|pinterest|slackbot|telegrambot|discordbot|googlebot|bingbot|applebot/i.test(userAgent);
+  const staticMode = new URL(req.url).searchParams.get('static') === '1';
+  const isBot = staticMode || /facebookexternalhit|twitterbot|whatsapp|linkedinbot|pinterest|slackbot|telegrambot|discordbot|googlebot|bingbot|applebot/i.test(userAgent);
 
   if (isBot) {
     // For bots, we serve the ABSOLUTE minimum: Just the <head> with tags.
@@ -127,13 +128,11 @@ Deno.serve(async (req) => {
 
 <!-- Open Graph / Facebook / WhatsApp -->
 <meta property="og:type" content="${ogType}" />
-<meta property="og:url" content="${shareUrl}" />
+${staticMode ? '' : `<meta property="og:url" content="${shareUrl}" />`}
 <meta property="og:title" content="${title.replace(/"/g, '&quot;')}" />
 <meta property="og:description" content="${description.replace(/"/g, '&quot;')}" />
 <meta property="og:image" content="${image}" />
 <meta property="og:image:secure_url" content="${image}" />
-<meta property="og:image:width" content="1200" />
-<meta property="og:image:height" content="630" />
 <meta property="og:image:type" content="${imageType}" />
 <meta property="og:image:alt" content="SOOZ Post Preview" />
 <meta property="og:site_name" content="SOOZ" />
@@ -150,7 +149,9 @@ ${videoMetaTags}
 <body style="background: #030303; color: white; display: flex; align-items: center; justify-content: center; height: 100vh; font-family: sans-serif;">
   <div style="text-align: center;">
     <h1>SOOZ</h1>
-    <p>Redirecting to post...</p>
+    <p>Opening post...</p>
+    <a href="${redirectUrl}" style="color:#9ab">Tap here if nothing happens</a>
+    <script>location.replace(${JSON.stringify(redirectUrl)})</script>
     <img src="${image}" alt="Preview" style="max-width: 300px; border-radius: 12px; margin-top: 20px;" />
   </div>
 </body>

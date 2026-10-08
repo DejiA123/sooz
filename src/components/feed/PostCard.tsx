@@ -1,3 +1,4 @@
+import { getShareLink } from "@/lib/shareLink";
 import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Heart, MessageCircle, Share2, MoreHorizontal, Bookmark, Trash2, Edit, Eye } from "lucide-react";
@@ -190,8 +191,7 @@ export const PostCard = ({
               <button
                 className="flex flex-col items-center"
                 onClick={async () => {
-                  const appDomain = import.meta.env.VITE_APP_DOMAIN || 'https://sooz.vercel.app';
-                  const postUrl = `${appDomain}/share/${id}`;
+                  const postUrl = await getShareLink(id);
                   try { if (navigator.share) await navigator.share({ url: postUrl }); else { await navigator.clipboard.writeText(postUrl); toast.success("Link copied!"); } }
                   catch { await navigator.clipboard.writeText(postUrl); toast.success("Link copied!"); }
                 }}
