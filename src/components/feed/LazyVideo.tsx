@@ -13,9 +13,10 @@ interface LazyVideoProps {
     priority?: boolean;
     disableClick?: boolean;
     className?: string; // Standard prop
+    poster?: string | null;
 }
 
-export const LazyVideo = ({ src, id, onClick, startTime = 0, priority = false, disableClick = false, className }: LazyVideoProps) => {
+export const LazyVideo = ({ src, id, onClick, startTime = 0, priority = false, disableClick = false, className, poster }: LazyVideoProps) => {
     const videoRef = useRef<HTMLVideoElement>(null);
     const [isPlaying, setIsPlaying] = useState(false);
     const [isBuffering, setIsBuffering] = useState(false);
@@ -72,7 +73,7 @@ export const LazyVideo = ({ src, id, onClick, startTime = 0, priority = false, d
     // Simplified Preload Observer - only preload when very close (e.g. 1 post away)
     const [shouldPreload, setShouldPreload] = useState(false);
     const { ref: preloadRef } = useInView({
-        rootMargin: '200px 0px', // Preload only when 200px away (just before coming into view)
+        rootMargin: '1500px 0px', // Start loading ~2 posts ahead so playback starts instantly
         threshold: 0,
         triggerOnce: true,
         onChange: (inView) => {
@@ -186,7 +187,12 @@ export const LazyVideo = ({ src, id, onClick, startTime = 0, priority = false, d
     // Determine the preload strategy based on priority and visibility
     const getPreloadValue = () => {
         if (isActive) return "auto"; // Only load full video when active/playing
-        if (shouldPreload) return "metadata"; // Load metadata when close
+        if (shouldPreload || priority) {
+            // Buffer the start of upcoming videos ahead of time; on very slow/data-saver connections only fetch metadata
+            const c = (navigator as any).connection;
+            const slow = c && (c.saveData || /(^|-)2g$/.test(c.effectiveType || ""));
+            return slow ? "metadata" : "auto";
+        }
         return "none"; // Don't load anything when far away
     };
 
@@ -199,6 +205,7 @@ export const LazyVideo = ({ src, id, onClick, startTime = 0, priority = false, d
             <video
                 ref={videoRef}
                 src={cachedSrc}
+                poster={poster || undefined}
                 className="w-full aspect-[9/16] object-contain"
                 loop
                 muted={isGlobalMuted}
