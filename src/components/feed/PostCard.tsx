@@ -194,7 +194,7 @@ export const PostCard = ({
                 className="flex flex-col items-center"
                 onClick={async () => {
                   const postUrl = await getShareLink(id);
-                  try { if (navigator.share) await navigator.share({ url: postUrl }); else { await navigator.clipboard.writeText(postUrl); toast.success("Link copied!"); } }
+                  try { if (navigator.share) await navigator.share({ title: "SOOZ", text: "Watch this on SOOZ ✨", url: postUrl }); else { await navigator.clipboard.writeText(postUrl); toast.success("Link copied!"); } }
                   catch { await navigator.clipboard.writeText(postUrl); toast.success("Link copied!"); }
                 }}
               >
