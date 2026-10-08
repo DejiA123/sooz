@@ -18,7 +18,9 @@ export async function getShareLink(postId: string): Promise<string> {
     if (!res.ok) return fallback;
     const html = await res.text();
 
-    const { signedUrl, publicUrl } = await getPresignedUploadUrl(`share-${postId}.html`, "text/html");
+    // Short key keeps the shared URL clean: pub-…r2.dev/s/Ab12Cd34.html
+    const shortId = postId.replace(/-/g, "").slice(0, 8);
+    const { signedUrl, publicUrl } = await getPresignedUploadUrl(`s/${shortId}.html`, "text/html");
     const put = await fetch(signedUrl, {
       method: "PUT",
       headers: { "Content-Type": "text/html; charset=utf-8" },
