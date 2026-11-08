@@ -6,7 +6,7 @@ import { Helmet } from "react-helmet-async";
 import { useAuth } from "@/hooks/useAuth";
 import { useLiveStatus } from "@/hooks/useLiveStatus";
 import { setThemeColor, themeStatusBarColor } from "@/lib/theme";
-import { fetchFollowingPage, fetchForYouPage, readCachedFeed, writeCachedFeed, type FeedPage } from "@/services/api/feed";
+import { fetchFollowingPage, fetchForYouPage, FIRST_CURSOR, readCachedFeed, writeCachedFeed, type FeedCursor, type FeedPage } from "@/services/api/feed";
 import { ReelsFeed } from "@/components/reels/ReelsFeed";
 import { FeedTopBar, LiveViewer, SoundToggle, StoriesPanel, type FeedTab } from "@/components/reels/FeedChrome";
 import { SuggestedAccounts } from "@/components/home/SuggestedAccounts";
@@ -78,14 +78,14 @@ export default function Index() {
   };
 
   // ── For You: SOOZ posts + Christian TikToks. Shows the last copy instantly, then refreshes. ──
-  const forYou = useInfiniteQuery<FeedPage, Error, InfiniteData<FeedPage>, (string | null)[], number>({
+  const forYou = useInfiniteQuery<FeedPage, Error, InfiniteData<FeedPage>, (string | null)[], FeedCursor>({
     queryKey: ["feed", "foryou", user?.id ?? null],
     queryFn: ({ pageParam }) => fetchForYouPage({ pageParam, userId: user?.id }),
-    initialPageParam: 0,
-    getNextPageParam: (last) => last.nextPage,
+    initialPageParam: FIRST_CURSOR,
+    getNextPageParam: (last) => last.nextCursor ?? undefined,
     placeholderData: () => {
       const cached = readCachedFeed("foryou");
-      return cached ? { pages: [cached], pageParams: [0] } : undefined;
+      return cached ? { pages: [cached], pageParams: [FIRST_CURSOR] } : undefined;
     },
     enabled: !authLoading,
     staleTime: 1000 * 60 * 2,
@@ -96,11 +96,11 @@ export default function Index() {
     if (first && !forYou.isPlaceholderData) writeCachedFeed("foryou", first);
   }, [forYou.data, forYou.isPlaceholderData]);
 
-  const following = useInfiniteQuery<FeedPage, Error, InfiniteData<FeedPage>, (string | null)[], number>({
+  const following = useInfiniteQuery<FeedPage, Error, InfiniteData<FeedPage>, (string | null)[], FeedCursor>({
     queryKey: ["feed", "following", user?.id ?? null],
     queryFn: ({ pageParam }) => fetchFollowingPage({ pageParam, userId: user!.id }),
-    initialPageParam: 0,
-    getNextPageParam: (last) => last.nextPage,
+    initialPageParam: FIRST_CURSOR,
+    getNextPageParam: (last) => last.nextCursor ?? undefined,
     enabled: !!user && tab === "following",
     staleTime: 1000 * 60 * 2,
   });

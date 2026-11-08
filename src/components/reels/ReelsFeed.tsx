@@ -3,6 +3,7 @@ import { ChevronDown, ChevronUp } from "lucide-react";
 import type { FeedItem } from "@/services/api/feed";
 import { PostReel } from "./PostReel";
 import { TikTokReel } from "./TikTokReel";
+import { CreatorSpotlightReel } from "./CreatorSpotlightReel";
 import { Spinner } from "./gestures";
 
 interface ReelsFeedProps {
@@ -115,12 +116,14 @@ export const ReelsFeed = ({ items, hasMore, loadingMore, loadMore, initialIndex 
           const distance = Math.abs(i - active);
           const isActive = i === active && pageVisible;
           return (
-            <section key={item.key} className="reel-slide" aria-roledescription="slide" aria-label={`${i + 1} of ${items.length}`}>
+            <section key={item.key} className="reel-slide" data-kind={item.kind} aria-roledescription="slide" aria-label={`${i + 1} of ${items.length}`}>
               {distance <= RENDER_WINDOW &&
                 (item.kind === "post" ? (
                   <PostReel post={item.post} active={isActive} mounted={distance <= 1} />
-                ) : (
+                ) : item.kind === "tiktok" ? (
                   <TikTokReel video={item.video} active={isActive} />
+                ) : (
+                  <CreatorSpotlightReel creator={item.creator} />
                 ))}
             </section>
           );

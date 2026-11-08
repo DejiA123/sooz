@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { CHRISTIAN_CREATORS, STARTER_TIKTOKS } from "@/data/christianTikTokStarter";
 
 /**
  * Christian TikTok videos, played through TikTok's official embed player
@@ -47,6 +48,34 @@ export async function fetchApprovedTikToks(page: number, size: number): Promise<
   return { videos: (data || []) as TikTokVideo[], hasMore: (data || []).length === size };
 }
 
+const CREATOR_NAMES = new Map(CHRISTIAN_CREATORS.map((c) => [c.handle, c.name]));
+
+/**
+ * The hand-picked starter videos as feed items, so every viewer sees Christian TikToks in For You
+ * straight away — even before a curator has imported them into the database.
+ */
+export function starterTikToks(): TikTokVideo[] {
+  return STARTER_TIKTOKS.flatMap((t) => {
+    const m = t.url.match(/tiktok\.com\/@([^/]+)\/video\/(\d+)/);
+    if (!m) return [];
+    const [, handle, id] = m;
+    return [{
+      id: `starter-${id}`,
+      tiktok_id: id,
+      url: t.url,
+      author_name: CREATOR_NAMES.get(handle) ?? null,
+      author_handle: handle,
+      author_url: `https://www.tiktok.com/@${handle}`,
+      title: t.caption,
+      thumbnail_url: null,
+      thumbnail_width: null,
+      thumbnail_height: null,
+      faith_tags: [],
+      created_at: "2026-01-01T00:00:00Z",
+    }];
+  });
+}
+
 /** Official TikTok embed player URL with TikTok's own UI trimmed so SOOZ's overlay can take over. */
 export function tiktokPlayerUrl(tiktokId: string): string {
   const params = new URLSearchParams({
@@ -88,8 +117,10 @@ const pendingRefresh = new Set<string>();
 const refreshed = new Set<string>();
 let refreshTimer: ReturnType<typeof setTimeout> | null = null;
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export function requestTikTokRefresh(id: string) {
-  if (refreshed.has(id)) return;
+  if (!UUID.test(id) || refreshed.has(id)) return; // starter videos aren't database rows
   refreshed.add(id);
   pendingRefresh.add(id);
   if (refreshTimer) return;

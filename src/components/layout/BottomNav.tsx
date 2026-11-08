@@ -195,7 +195,8 @@ export const BottomNav = () => {
               <Icon
                 className={cn("h-[25px] w-[25px] transition-transform duration-200", isCreate && showCreate && "rotate-45")}
                 strokeWidth={active ? 2.3 : 1.9}
-                fill={active && tab.fillWhenActive ? "currentColor" : "none"}
+                // Only touch `fill` for icons that opt in — the solid Home icon brings its own fill.
+                {...(tab.fillWhenActive ? { fill: active ? "currentColor" : "none" } : {})}
               />
             );
             const content = (
