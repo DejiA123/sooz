@@ -1,76 +1,82 @@
-import { useEffect, useRef, useState } from "react";
-import { ExternalLink, Loader2 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { ExternalLink, Play } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { CHRISTIAN_CREATORS, type ChristianCreator } from "@/data/christianTikTokStarter";
+import { starterTikToks, tiktokPlayerUrl } from "@/services/api/tiktok";
+
+const creatorVideos = (handle: string) => starterTikToks().filter((v) => v.author_handle === handle);
 
 /**
- * A creator's live TikTok profile through TikTok's official creator embed
- * (blockquote.tiktok-embed[data-embed-type=creator] + embed.js). It always shows their newest
- * videos, so a whole Christian account stays up to date without anyone pasting links.
+ * Plays a creator's videos right inside SOOZ with TikTok's official player, with their other videos
+ * listed underneath. (TikTok's profile widget doesn't load inside the app on iPhone, so we use the player.)
  */
-const TikTokCreatorProfile = ({ handle }: { handle: string }) => {
-  const ref = useRef<HTMLDivElement>(null);
-  const [state, setState] = useState<"loading" | "ready" | "failed">("loading");
+const CreatorVideos = ({ handle }: { handle: string }) => {
+  const videos = useMemo(() => creatorVideos(handle), [handle]);
+  const [current, setCurrent] = useState(0);
+  useEffect(() => setCurrent(0), [handle]);
 
-  useEffect(() => {
-    const box = ref.current;
-    if (!box) return;
-    setState("loading");
-    // embed.js turns every .tiktok-embed on the page into TikTok's player when it runs, so load it fresh each time.
-    const script = document.createElement("script");
-    script.src = "https://www.tiktok.com/embed.js";
-    script.async = true;
-    box.appendChild(script);
-    const observer = new MutationObserver(() => { if (box.querySelector("iframe")) setState("ready"); });
-    observer.observe(box, { childList: true, subtree: true });
-    const timeout = setTimeout(() => setState((s) => (s === "ready" ? s : "failed")), 10000);
-    return () => { observer.disconnect(); clearTimeout(timeout); script.remove(); };
-  }, [handle]);
+  if (!videos.length) {
+    return <p className="py-10 text-center text-sm text-muted-foreground">Their videos open on TikTok.</p>;
+  }
+  const video = videos[Math.min(current, videos.length - 1)];
 
   return (
-    <div className="relative min-h-[420px]">
-      {state === "loading" && (
-        <div className="absolute inset-0 flex items-center justify-center"><Loader2 className="h-7 w-7 animate-spin text-muted-foreground" /></div>
-      )}
-      {state === "failed" && (
-        <p className="absolute inset-x-0 top-24 text-center text-sm text-muted-foreground">TikTok didn't load here — open the profile on TikTok instead.</p>
-      )}
-      <div ref={ref} key={handle} className="flex justify-center [&_iframe]:!max-w-full">
-        <blockquote
-          className="tiktok-embed"
-          cite={`https://www.tiktok.com/@${handle}`}
-          data-unique-id={handle}
-          data-embed-type="creator"
-          style={{ maxWidth: 780, minWidth: 288, margin: 0 }}
-        >
-          <section>
-            <a target="_blank" rel="noopener noreferrer" href={`https://www.tiktok.com/@${handle}?refer=creator_embed`}>@{handle}</a>
-          </section>
-        </blockquote>
+    <div>
+      <div className="relative mx-auto aspect-[9/16] max-h-[58vh] w-full max-w-[330px] overflow-hidden rounded-2xl bg-black">
+        <iframe
+          key={video.tiktok_id}
+          src={tiktokPlayerUrl(video.tiktok_id)}
+          title={video.title || `TikTok by @${handle}`}
+          allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
+          referrerPolicy="strict-origin-when-cross-origin"
+          className="absolute inset-0 h-full w-full border-0"
+        />
       </div>
+      {videos.length > 1 && (
+        <div className="mt-4 space-y-2">
+          <p className="text-[12px] font-semibold uppercase tracking-wider text-muted-foreground">More from @{handle}</p>
+          {videos.map((v, i) => (
+            <button
+              key={v.tiktok_id}
+              type="button"
+              onClick={() => setCurrent(i)}
+              className={cn(
+                "flex w-full items-center gap-3 rounded-2xl border p-3 text-left text-[13px] transition",
+                i === current ? "border-primary bg-primary/10" : "border-border/60 bg-card"
+              )}
+            >
+              <span className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-full", i === current ? "bg-primary text-primary-foreground" : "bg-secondary")}>
+                <Play className="ml-0.5 h-3.5 w-3.5 fill-current" />
+              </span>
+              <span className="line-clamp-2">{v.title}</span>
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 };
 
-/** Bottom sheet with a creator's live TikTok profile. */
+/** Bottom sheet with a creator's videos. */
 export const CreatorProfileDrawer = ({ creator, onClose }: { creator: ChristianCreator | null; onClose: () => void }) => (
   <Drawer open={!!creator} onOpenChange={(o) => { if (!o) onClose(); }}>
-    <DrawerContent className="max-h-[88vh]">
+    <DrawerContent className="max-h-[92vh]">
       {creator && (
         <>
           <DrawerHeader className="text-left">
             <DrawerTitle>{creator.name}</DrawerTitle>
-            <DrawerDescription>@{creator.handle} · {creator.kind} · newest videos from TikTok</DrawerDescription>
+            <DrawerDescription>@{creator.handle} · {creator.kind} · tap the video to play, use its 🔊 button for sound</DrawerDescription>
           </DrawerHeader>
           <div className="overflow-y-auto px-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))]">
-            <TikTokCreatorProfile handle={creator.handle} />
+            <CreatorVideos handle={creator.handle} />
             <a
               href={`https://www.tiktok.com/@${creator.handle}`}
               target="_blank"
               rel="noopener noreferrer"
               className="mt-4 flex items-center justify-center gap-2 rounded-full bg-secondary py-3 text-sm font-semibold"
             >
-              <ExternalLink className="h-4 w-4" /> Open @{creator.handle} on TikTok
+              <ExternalLink className="h-4 w-4" /> See all of @{creator.handle} on TikTok
             </a>
           </div>
         </>
@@ -86,9 +92,9 @@ export const ChristianCreators = () => {
     <section className="mt-6">
       <div className="flex items-end justify-between gap-3">
         <h2 className="font-display text-lg font-bold">Christian creators</h2>
-        <span className="text-[11px] font-semibold uppercase tracking-wider text-primary">Always up to date</span>
+        <span className="text-[11px] font-semibold uppercase tracking-wider text-primary">Watch in SOOZ</span>
       </div>
-      <p className="mt-1 text-[13px] text-muted-foreground">Accounts that post Christian content. Tap one to watch their newest TikToks.</p>
+      <p className="mt-1 text-[13px] text-muted-foreground">Accounts that post Christian content. Tap one to watch their videos right here.</p>
 
       <div className="-mx-4 mt-3 flex gap-3 overflow-x-auto px-4 pb-2 hide-scrollbar">
         {CHRISTIAN_CREATORS.map((c) => (

@@ -71,6 +71,7 @@ export default function Index() {
   });
   const [storiesOpen, setStoriesOpen] = useState(false);
   const [liveOpen, setLiveOpen] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(() => savedIndex[tab]);
 
   const changeTab = (t: FeedTab) => {
     setTab(t);
@@ -108,7 +109,8 @@ export default function Index() {
   const q = tab === "foryou" ? forYou : following;
   const items = q.data?.pages.flatMap((p) => p.items) ?? [];
   const loadMore = useCallback(() => { if (!q.isPlaceholderData) q.fetchNextPage(); }, [q]);
-  const onIndexChange = useCallback((i: number) => { savedIndex[tab] = i; }, [tab]);
+  const onIndexChange = useCallback((i: number) => { savedIndex[tab] = i; setActiveIndex(i); }, [tab]);
+  const activeKind = items[Math.min(activeIndex, Math.max(items.length - 1, 0))]?.kind;
   const toTop = () => window.dispatchEvent(new CustomEvent("sooz:feed-top"));
 
   // Stop the page behind the feed from scrolling/bouncing on iOS.
@@ -184,13 +186,13 @@ export default function Index() {
 
       <FeedTopBar
         tab={tab}
-        onTabChange={(t) => { changeTab(t); setStoriesOpen(false); }}
+        onTabChange={(t) => { changeTab(t); setStoriesOpen(false); setActiveIndex(savedIndex[t]); }}
         isLive={isLive}
         onOpenLive={() => setLiveOpen(true)}
         storiesOpen={storiesOpen}
         onToggleStories={() => setStoriesOpen((v) => !v)}
       />
-      {items.length > 0 && !storiesOpen && <SoundToggle />}
+      {items.length > 0 && !storiesOpen && activeKind === "post" && <SoundToggle />}
       {storiesOpen && user && <StoriesPanel onClose={() => setStoriesOpen(false)} />}
       {storiesOpen && !user && (
         <StoriesPanelSignIn onClose={() => setStoriesOpen(false)} onSignIn={() => navigate("/auth")} />
