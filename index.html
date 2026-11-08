@@ -54,7 +54,9 @@
   <style>
     html, body { background: #05070b; margin: 0; }
     html:not(.dark), html:not(.dark) body { background: #faf8f4; }
-    .boot { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: radial-gradient(90% 60% at 50% 35%, rgba(245, 158, 11, 0.16), transparent 70%), #05070b; }
+    /* Installed app: a 1px page scroll lets iOS lay the app out at full height (see AGENTS.md). */
+    @media (display-mode: standalone) { html { min-height: calc(100% + 1px); } }
+    .boot { position: fixed; inset: 0; z-index: 9999; transition: opacity 0.2s ease; display: flex; align-items: center; justify-content: center; background: radial-gradient(90% 60% at 50% 35%, rgba(245, 158, 11, 0.16), transparent 70%), #05070b; }
     html:not(.dark) .boot { background: radial-gradient(90% 60% at 50% 35%, rgba(245, 158, 11, 0.14), transparent 70%), #faf8f4; }
     .boot i { width: 132px; aspect-ratio: 640 / 440; background: linear-gradient(170deg, #fde68a, #fbbf24 40%, #d97706);
       -webkit-mask: url(/brand/sooz-logo-mask.png) center / contain no-repeat; mask: url(/brand/sooz-logo-mask.png) center / contain no-repeat;
@@ -66,7 +68,42 @@
 </head>
 
 <body>
-  <div id="root"><div class="boot" role="img" aria-label="Loading SOOZ"><i></i></div></div>
+  <div id="boot" class="boot" role="img" aria-label="Loading SOOZ"><i></i></div>
+  <div id="root"></div>
+  <script>
+    // The installed iPhone app can open slightly too short and then grow, which made the tab bar
+    // start high and slide down. Nudge the scroll right away (that makes iOS fix the size) and keep
+    // the splash up until the screen size has settled, so the app only appears at its real size.
+    (function () {
+      var standalone = (window.matchMedia && matchMedia("(display-mode: standalone)").matches) || navigator.standalone === true;
+      var boot = document.getElementById("boot");
+      function nudge() {
+        try { window.scrollTo(0, 1); requestAnimationFrame(function () { window.scrollTo(0, 0); }); } catch (e) {}
+      }
+      function hide() {
+        if (!boot) return;
+        var b = boot; boot = null;
+        b.style.opacity = "0";
+        setTimeout(function () { b.remove(); }, 220);
+      }
+      window.__soozHideBoot = function () {
+        if (!standalone) return hide();
+        nudge();
+        var start = Date.now(), last = window.innerHeight, stableSince = start;
+        (function check() {
+          var h = window.innerHeight, now = Date.now();
+          if (h !== last) { last = h; stableSince = now; }
+          if ((now - stableSince > 350 && now - start > 450) || now - start > 2500) return hide();
+          requestAnimationFrame(check);
+        })();
+      };
+      if (standalone) {
+        nudge();
+        document.addEventListener("DOMContentLoaded", nudge);
+        setTimeout(nudge, 150);
+      }
+    })();
+  </script>
   <script type="module" src="/src/main.tsx"></script>
 </body>
 

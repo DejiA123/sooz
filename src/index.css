@@ -381,18 +381,45 @@ input, textarea { -webkit-user-select: text; user-select: text; }
 .reel-rail-label { color: #fff; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5); }
 .feed-topbar { padding-top: env(safe-area-inset-top, 0px); }
 .creator-swipe-hint { bottom: calc(var(--bottom-nav-height) + 14px); }
+/* TikTok slides fill the screen like the TikTok app: from the very top (under the transparent
+   For You tabs) down to the tab bar, which stays clear so TikTok's own play / sound bar shows. */
 .tiktok-stage {
-  position: absolute; left: 0; right: 0; background: #000;
-  top: calc(env(safe-area-inset-top, 0px) + 54px); bottom: calc(var(--bottom-nav-height) + 38px);
-  display: flex; align-items: center; justify-content: center;
+  position: absolute; left: 0; right: 0; top: 0; bottom: var(--bottom-nav-height);
+  overflow: hidden; background: #000;
+  container-type: size;
 }
-/* Same shape as the video: as tall as the stage, as wide as the shape allows (never wider than the screen). */
-.tiktok-player { position: relative; height: 100%; max-width: 100%; overflow: hidden; background: #000; }
-.tiktok-strip {
-  position: absolute; left: 0; right: 0; z-index: 5;
-  bottom: calc(var(--bottom-nav-height) + 2px); height: 36px;
-  display: flex; align-items: center; justify-content: center;
+/* The player box always has the video's exact shape (--ar = width / height), so TikTok never pads it
+   with a blurred copy. Default (square and landscape videos): the whole video, as large as fits
+   between the For You tabs (--clear-top) and SOOZ's caption / actions (--clear-bottom), as close to
+   the middle as that allows — so nothing of ours covers TikTok's play / sound bar. */
+.tiktok-player {
+  --ar: 0.5625;
+  --clear-top: calc(env(safe-area-inset-top, 0px) + 56px);
+  --clear-bottom: 290px;
+  --room: calc(100cqh - var(--clear-top) - var(--clear-bottom));
+  --w: min(100cqw, calc(var(--room) * var(--ar)));
+  --h: min(var(--room), calc(100cqw / var(--ar)));
+  position: absolute; overflow: hidden; background: #000;
+  width: var(--w); height: var(--h);
+  left: calc((100cqw - var(--w)) / 2);
+  top: max(var(--clear-top), min(calc((100cqh - var(--h)) / 2), calc(100cqh - var(--clear-bottom) - var(--h))));
 }
+/* Portrait videos: zoom to fill the screen like TikTok. Pinned to the bottom so TikTok's controls
+   stay on screen; at most 12px is trimmed off each side (so its sound button never goes off the
+   edge) and anything extra comes off the top, under the For You tabs. */
+.tiktok-player--fill {
+  --w: min(max(100cqw, calc(100cqh * var(--ar))), calc(100cqw + 24px));
+  --h: calc(var(--w) / var(--ar));
+  top: auto; bottom: 0;
+}
+.tiktok-scrim {
+  position: absolute; left: 0; right: 0; z-index: 1; pointer-events: none;
+  bottom: var(--bottom-nav-height); height: 34%;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.55) 0%, rgba(0, 0, 0, 0.22) 45%, transparent 100%);
+}
+/* Caption and actions sit above TikTok's own play / progress / sound bar so they never cover it. */
+.reel-caption--tiktok { bottom: calc(var(--bottom-nav-height) + 58px); }
+.reel-rail--tiktok { bottom: calc(var(--bottom-nav-height) + 70px); }
 .feed-sound-toggle { top: calc(env(safe-area-inset-top, 0px) + 62px); }
 .feed-stories { top: calc(env(safe-area-inset-top, 0px) + 58px); }
 
@@ -410,8 +437,11 @@ input, textarea { -webkit-user-select: text; user-select: text; }
   /* Desktop: sits in the control column above the up/down buttons */
   .feed-sound-toggle { top: calc(50% - 112px); right: 24px; height: 48px; min-width: 48px; }
   .creator-swipe-hint { bottom: 22px; }
-  .tiktok-stage { top: 44px; bottom: 38px; }
-  .tiktok-strip { bottom: 2px; }
+  .tiktok-stage { top: 0; bottom: 0; }
+  .tiktok-player { --clear-top: 0px; --clear-bottom: 160px; }
+  .tiktok-scrim { bottom: 0; }
+  .reel-caption--tiktok { bottom: 60px; }
+  .reel-rail--tiktok { bottom: 6px; }
 }
 
 .heart-burst { animation: heart-burst 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; transform-origin: 50% 80%; }

@@ -125,7 +125,7 @@ export const ReelsFeed = ({ items, hasMore, loadingMore, loadMore, initialIndex 
                 (item.kind === "post" ? (
                   <PostReel post={item.post} active={isActive} mounted={distance <= 1} />
                 ) : (
-                  <TikTokReel video={item.video} active={isActive} />
+                  <TikTokReel video={item.video} active={isActive} near={distance <= 1} />
                 ))}
             </section>
           );
