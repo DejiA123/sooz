@@ -316,7 +316,7 @@ export default function ChristianTikTok() {
                   {starter.isPending && <p className="mt-2 text-[13px] font-semibold text-primary">{starterProgress || "Checking each video with TikTok…"} This can take a minute.</p>}
                   {starterSummary && (
                     <p className="mt-2 text-[13px] font-semibold">
-                      {starterSummary.added} added · {starterSummary.already} already in the feed{starterSummary.skipped ? ` · ${starterSummary.skipped} unavailable on TikTok` : ""}
+                      {starterSummary.added} added · {starterSummary.already} already in the feed{starterSummary.skipped ? ` · ${starterSummary.skipped} skipped (removed, private or not clearly Christian)` : ""}
                     </p>
                   )}
                   <Button size="sm" className="mt-3 rounded-full px-5 font-bold" disabled={starter.isPending} onClick={() => starter.mutate()}>
