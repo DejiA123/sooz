@@ -1,8 +1,11 @@
-import { memo, useEffect, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { ChevronDown, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { requestTikTokRefresh, tiktokPlayerUrl, type TikTokVideo } from "@/services/api/tiktok";
 import { Spinner } from "./gestures";
+
+const TIKTOK_ORIGIN = "https://www.tiktok.com";
+const SOUND_HINT_KEY = "sooz-tiktok-sound-hint";
 
 /** Small TikTok-style note mark for attribution. */
 export const TikTokMark = ({ className }: { className?: string }) => (
@@ -19,13 +22,71 @@ interface TikTokReelProps {
 /**
  * A Christian TikTok in the feed, played by TikTok's own embed player. The player gets the screen
  * between SOOZ's top bar and tab bar and receives taps directly, so TikTok's play, sound and like
- * buttons all work (iPhone only allows sound when the player itself is tapped). A strip along the
- * bottom always offers "Next", whatever the player does with swipes.
+ * buttons all work (iPhone only allows sound when the player itself is tapped). Videos start
+ * playing muted by themselves (sent "mute" + "play" through TikTok's postMessage API). A strip along
+ * the bottom always offers "Next", whatever the player does with swipes.
  */
 export const TikTokReel = memo(function TikTokReel({ video, active }: TikTokReelProps) {
   const [loaded, setLoaded] = useState(false);
   const [slow, setSlow] = useState(false);
   const [thumbFailed, setThumbFailed] = useState(false);
+  const [soundHint, setSoundHint] = useState(false);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const playing = useRef(false);
+  const userPaused = useRef(false);
+
+  // Commands for TikTok's embed player ({ type, "x-tiktok-player": true }, see its postMessage API).
+  const send = useCallback((type: string, value?: unknown) => {
+    const w = iframeRef.current?.contentWindow;
+    if (!w) return;
+    w.postMessage({ type, value, "x-tiktok-player": true }, TIKTOK_ORIGIN);
+  }, []);
+
+  // Autoplay: phones only let videos start by themselves when muted, so start muted.
+  const kick = useCallback(() => {
+    if (playing.current || userPaused.current) return;
+    send("mute");
+    send("play");
+  }, [send]);
+
+  useEffect(() => {
+    if (!active) return;
+    playing.current = false;
+    userPaused.current = false;
+    const onMessage = (e: MessageEvent) => {
+      if (e.origin !== TIKTOK_ORIGIN || e.source !== iframeRef.current?.contentWindow) return;
+      let data = e.data;
+      if (typeof data === "string") { try { data = JSON.parse(data); } catch { return; } }
+      if (!data || typeof data !== "object" || typeof data.type !== "string") return;
+      if (data.type === "onPlayerReady") kick();
+      if (data.type === "onStateChange") {
+        const state = Number(data.value); // -1 init, 0 ended, 1 playing, 2 paused, 3 buffering
+        if (state === 1) playing.current = true;
+        else if (state === 2 && playing.current) userPaused.current = true; // they paused it — leave it
+        else if (state === 0) send("play"); // loop
+      }
+    };
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+  }, [active, kick, send]);
+
+  // Keep nudging for a few seconds after it loads, until TikTok reports it is playing.
+  useEffect(() => {
+    if (!active || !loaded) return;
+    const timers = [150, 600, 1200, 2000, 3200, 5000, 8000].map((ms) => setTimeout(kick, ms));
+    return () => timers.forEach(clearTimeout);
+  }, [active, loaded, kick]);
+
+  // First TikTok of the visit: point out TikTok's own sound button.
+  useEffect(() => {
+    if (!active || !loaded) return;
+    let seen = false;
+    try { seen = sessionStorage.getItem(SOUND_HINT_KEY) === "1"; sessionStorage.setItem(SOUND_HINT_KEY, "1"); } catch { /* ignore */ }
+    if (seen) return;
+    setSoundHint(true);
+    const t = setTimeout(() => setSoundHint(false), 4500);
+    return () => clearTimeout(t);
+  }, [active, loaded]);
 
   // Only the slide on screen holds a player, so nothing keeps playing after you scroll away.
   useEffect(() => {
@@ -82,6 +143,7 @@ export const TikTokReel = memo(function TikTokReel({ video, active }: TikTokReel
 
           {active && (
             <iframe
+              ref={iframeRef}
               key={video.tiktok_id}
               src={tiktokPlayerUrl(video.tiktok_id)}
               title={video.title || `TikTok by ${who}`}
@@ -90,6 +152,14 @@ export const TikTokReel = memo(function TikTokReel({ video, active }: TikTokReel
               onLoad={() => setLoaded(true)}
               className={cn("absolute inset-0 h-full w-full border-0 bg-transparent transition-opacity duration-300", loaded ? "opacity-100" : "opacity-0")}
             />
+          )}
+
+          {soundHint && (
+            <div className="pointer-events-none absolute inset-x-0 bottom-20 z-10 flex justify-center">
+              <span className="rounded-full bg-black/70 px-4 py-2 text-[13px] font-semibold text-white backdrop-blur animate-scale-in">
+                🔇 Playing muted — tap the speaker on the video for sound
+              </span>
+            </div>
           )}
         </div>
 
