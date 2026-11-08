@@ -1,13 +1,12 @@
 import { useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { BarChart3, Bookmark, LogOut, MessageSquareWarning, Moon, Settings, Sparkles, Sun, Video } from "lucide-react";
+import { BarChart3, Bookmark, LogOut, MessageSquareWarning, Settings, Sparkles, Video } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { getColorMode, setColorMode } from "@/lib/theme";
 import { supabase } from "@/integrations/supabase/client";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 
-/** The app's side menu (archive, Christian TikTok, settings, appearance, log out). */
+/** The app's side menu (archive, Christian TikTok, settings, log out). */
 export const AppMenuSheet = ({ trigger }: { trigger: ReactNode }) => {
   const [open, setOpen] = useState(false);
   const close = () => setOpen(false);
@@ -35,21 +34,6 @@ export const AppMenuSheet = ({ trigger }: { trigger: ReactNode }) => {
           <button onClick={() => { close(); toast("Saved posts coming soon!"); }} className="group flex items-center gap-4 rounded-2xl p-4 text-left transition-all hover:bg-secondary/40">
             <Bookmark className="h-5 w-5 text-amber-500 transition-transform group-hover:scale-110" />
             <span className="text-[15px] font-semibold">Saved Items</span>
-          </button>
-          <button
-            onClick={() => {
-              const next = getColorMode() === "dark" ? "light" : "dark";
-              setColorMode(next);
-              toast.success(next === "dark" ? "Dark mode" : "Light mode");
-              close();
-            }}
-            className="group flex items-center gap-4 rounded-2xl p-4 text-left transition-all hover:bg-secondary/40"
-          >
-            <div className="relative h-5 w-5 transition-transform group-hover:scale-110">
-              <Moon className="absolute inset-0 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-              <Sun className="absolute inset-0 rotate-90 scale-0 text-primary transition-all dark:rotate-0 dark:scale-100" />
-            </div>
-            <span className="text-[15px] font-semibold">Appearance</span>
           </button>
           <button onClick={() => { close(); toast("Report submitted!"); }} className="group flex items-center gap-4 rounded-2xl p-4 text-left transition-all hover:bg-secondary/40">
             <MessageSquareWarning className="h-5 w-5 text-orange-500 transition-transform group-hover:scale-110" />

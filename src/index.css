@@ -395,7 +395,7 @@ input, textarea { -webkit-user-select: text; user-select: text; }
 .tiktok-player {
   --ar: 0.5625;
   --clear-top: calc(env(safe-area-inset-top, 0px) + 56px);
-  --clear-bottom: 290px;
+  --clear-bottom: 160px;
   --room: calc(100cqh - var(--clear-top) - var(--clear-bottom));
   --w: min(100cqw, calc(var(--room) * var(--ar)));
   --h: min(var(--room), calc(100cqw / var(--ar)));
@@ -417,9 +417,17 @@ input, textarea { -webkit-user-select: text; user-select: text; }
   bottom: var(--bottom-nav-height); height: 34%;
   background: linear-gradient(to top, rgba(0, 0, 0, 0.55) 0%, rgba(0, 0, 0, 0.22) 45%, transparent 100%);
 }
-/* Caption and actions sit above TikTok's own play / progress / sound bar so they never cover it. */
-.reel-caption--tiktok { bottom: calc(var(--bottom-nav-height) + 58px); }
-.reel-rail--tiktok { bottom: calc(var(--bottom-nav-height) + 70px); }
+/* The caption sits above TikTok's own play / progress / sound bar so it never covers it. */
+.reel-caption--tiktok { bottom: calc(var(--bottom-nav-height) + 58px); right: 84px; }
+/* SOOZ's tap layer over a full-screen TikTok: everywhere except TikTok's control bar (bottom) and
+   its like / comment / share column (lower right), which stay TikTok's. */
+.tiktok-tap { position: absolute; z-index: 5; -webkit-tap-highlight-color: transparent; }
+.tiktok-tap--main { left: 0; top: 0; right: 76px; bottom: 64px; }
+.tiktok-tap--side { right: 0; top: 0; width: 76px; bottom: 45%; }
+/* Messages: the list sits between the top bar and the tab bar; an open conversation is full screen. */
+.chat-page { top: calc(3.75rem + env(safe-area-inset-top, 0px)); bottom: var(--bottom-nav-height); }
+.chat-header { padding-top: env(safe-area-inset-top, 0px); min-height: calc(58px + env(safe-area-inset-top, 0px)); }
+.chat-composer { padding-bottom: max(env(safe-area-inset-bottom, 0px), 10px); }
 .feed-sound-toggle { top: calc(env(safe-area-inset-top, 0px) + 62px); }
 .feed-stories { top: calc(env(safe-area-inset-top, 0px) + 58px); }
 
@@ -438,10 +446,12 @@ input, textarea { -webkit-user-select: text; user-select: text; }
   .feed-sound-toggle { top: calc(50% - 112px); right: 24px; height: 48px; min-width: 48px; }
   .creator-swipe-hint { bottom: 22px; }
   .tiktok-stage { top: 0; bottom: 0; }
+  .chat-page { top: 0; bottom: 0; }
+  .chat-header { padding-top: 0; min-height: 64px; }
+  .chat-composer { padding-bottom: 16px; }
   .tiktok-player { --clear-top: 0px; --clear-bottom: 160px; }
   .tiktok-scrim { bottom: 0; }
-  .reel-caption--tiktok { bottom: 60px; }
-  .reel-rail--tiktok { bottom: 6px; }
+  .reel-caption--tiktok { bottom: 60px; right: 84px; }
 }
 
 .heart-burst { animation: heart-burst 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; transform-origin: 50% 80%; }

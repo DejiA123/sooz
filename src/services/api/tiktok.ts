@@ -68,8 +68,8 @@ export function starterTikToks(): TikTokVideo[] {
       author_url: `https://www.tiktok.com/@${handle}`,
       title: t.caption,
       thumbnail_url: null,
-      thumbnail_width: null,
-      thumbnail_height: null,
+      thumbnail_width: t.size?.[0] ?? null,
+      thumbnail_height: t.size?.[1] ?? null,
       faith_tags: [],
       created_at: "2026-01-01T00:00:00Z",
     }];

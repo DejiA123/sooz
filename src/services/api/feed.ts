@@ -1,5 +1,6 @@
 import { fetchFollowingPosts, fetchPostsRange, POSTS_PER_PAGE, type FeedPost } from "./posts";
 import { fetchApprovedTikToks, starterTikToks, type TikTokVideo } from "./tiktok";
+import { isDeadTikTok } from "./tiktokMeta";
 
 export type FeedItem =
   | { kind: "post"; key: string; post: FeedPost }
@@ -55,6 +56,8 @@ function enrich(rows: TikTokVideo[]): TikTokVideo[] {
       author_name: v.author_name || s?.author_name || null,
       author_url: v.author_url || (handle ? `https://www.tiktok.com/@${handle}` : null),
       title: v.title || s?.title || null,
+      thumbnail_width: v.thumbnail_width || s?.thumbnail_width || null,
+      thumbnail_height: v.thumbnail_height || s?.thumbnail_height || null,
       url: handle && v.url.includes("/@_/") ? `https://www.tiktok.com/@${handle}/video/${v.tiktok_id}` : v.url,
     };
   });
@@ -67,8 +70,9 @@ function getTikTokPool(): Promise<TikTokVideo[]> {
     tiktokPool = (async () => {
       const videos = enrich((await fetchApprovedTikToks(0, 300)).videos);
       const inDb = new Set(videos.map((v) => v.tiktok_id));
-      return shuffle([...videos, ...starterTikToks().filter((v) => !inDb.has(v.tiktok_id))]);
-    })().catch(() => shuffle(starterTikToks()));
+      const all = [...videos, ...starterTikToks().filter((v) => !inDb.has(v.tiktok_id))];
+      return shuffle(all.filter((v) => !isDeadTikTok(v.tiktok_id)));
+    })().catch(() => shuffle(starterTikToks().filter((v) => !isDeadTikTok(v.tiktok_id))));
   }
   return tiktokPool;
 }

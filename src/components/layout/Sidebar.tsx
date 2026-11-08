@@ -1,6 +1,6 @@
 import { lazy, Suspense, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Sparkles, Home, Heart, User, PlusSquare, Search, Menu, MoreHorizontal, Settings as SettingsIcon, ActivitySquare, Bookmark, Moon, Sun, MessageSquareWarning, LogOut, MessageCircle, Code2, PlayCircle, BarChart3 } from "lucide-react";
+import { Sparkles, Home, Heart, User, PlusSquare, Search, Menu, MoreHorizontal, Settings as SettingsIcon, ActivitySquare, Bookmark, MessageSquareWarning, LogOut, MessageCircle, Code2, PlayCircle, BarChart3 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 const CreateModal = lazy(() => import("@/components/create/CreateModal").then((m) => ({ default: m.CreateModal })));
@@ -134,19 +134,6 @@ export const Sidebar = () => {
                             <DropdownMenuItem onClick={() => toast("Saved posts coming soon!")} className="flex items-center gap-3 p-3 cursor-pointer rounded-lg focus:bg-secondary/50">
                                 <Bookmark className="w-5 h-5" />
                                 <span>Saved</span>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                                onClick={() => {
-                                    const isDark = document.documentElement.classList.toggle("dark");
-                                    localStorage.setItem("sooz-mode", isDark ? "dark" : "light");
-                                    toast.success(isDark ? "Dark mode enabled" : "Light mode enabled");
-                                }}
-                                className="flex items-center gap-3 p-3 cursor-pointer rounded-lg focus:bg-secondary/50"
-                            >
-                                <Moon className="w-5 h-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0 hidden dark:block" />
-                                <Sun className="w-5 h-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100 block dark:hidden" />
-                                <Moon className="w-5 h-5" />
-                                <span>Switch appearance</span>
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => toast("Report submitted thanks!")} className="flex items-center gap-3 p-3 cursor-pointer rounded-lg focus:bg-secondary/50">
                                 <MessageSquareWarning className="w-5 h-5" />
