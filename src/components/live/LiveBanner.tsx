@@ -30,7 +30,7 @@ export const LiveBanner = () => {
 
         // Subscribe to changes in live_stream_config
         const channel = supabase
-            .channel('live_status_changes')
+            .channel(`live-banner:${crypto.randomUUID().slice(0, 8)}`)
             .on(
                 'postgres_changes',
                 {

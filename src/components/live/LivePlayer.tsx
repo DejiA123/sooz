@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { Loader2, Radio } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Hls from "hls.js";
+import { isSoozLive } from "@/lib/liveStream";
+import { SoozLivePlayer } from "./SoozLivePlayer";
 
 interface LivePlayerProps {
     src: string;
@@ -10,7 +12,7 @@ interface LivePlayerProps {
     autoPlay?: boolean;
 }
 
-export const LivePlayer = ({ src, poster, className, autoPlay = true }: LivePlayerProps) => {
+const LegacyLivePlayer = ({ src, poster, className, autoPlay = true }: LivePlayerProps) => {
     const videoRef = useRef<HTMLVideoElement>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -346,3 +348,7 @@ export const LivePlayer = ({ src, poster, className, autoPlay = true }: LivePlay
         </div>
     );
 };
+
+/** SOOZ lives (from the Go Live screen) use the clip player; older links keep the previous player. */
+export const LivePlayer = (props: LivePlayerProps) =>
+    isSoozLive(props.src) ? <SoozLivePlayer src={props.src} className={props.className} autoPlay={props.autoPlay} /> : <LegacyLivePlayer {...props} />;
