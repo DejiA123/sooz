@@ -21,6 +21,7 @@ export interface FeedPost {
     profiles: FeedProfile | null;
     likes_count: number;
     comments_count: number;
+    shares_count: number;
     is_liked_by_user: boolean;
     is_saved_by_user: boolean;
 }
@@ -50,6 +51,11 @@ async function enrichPosts(rows: RawPost[], userId?: string): Promise<FeedPost[]
     let liked = new Set<string>();
     let saved = new Set<string>();
 
+    // Share counts come separately, so the feed still loads before the shares table exists.
+    const sharesReq = ids.length
+        ? supabase.from("post_share_counts").select("post_id, shares").in("post_id", ids).then((r) => r, () => ({ data: null }))
+        : Promise.resolve({ data: null });
+
     if (userId && ids.length) {
         const [likesRes, bookmarksRes] = await Promise.all([
             supabase.from("likes").select("post_id").eq("user_id", userId).in("post_id", ids),
@@ -58,6 +64,10 @@ async function enrichPosts(rows: RawPost[], userId?: string): Promise<FeedPost[]
         liked = new Set((likesRes.data || []).map((l) => l.post_id));
         saved = new Set((bookmarksRes.data || []).map((b) => b.post_id));
     }
+    const shares = new Map<string, number>();
+    for (const r of ((await sharesReq).data || []) as { post_id: string | null; shares: number | null }[]) {
+        if (r.post_id) shares.set(r.post_id, r.shares || 0);
+    }
 
     return rows.map(({ likes, comments, view_count, ...post }) => ({
         ...post,
@@ -65,6 +75,7 @@ async function enrichPosts(rows: RawPost[], userId?: string): Promise<FeedPost[]
         views_count: post.views_count ?? view_count ?? 0,
         likes_count: likes?.[0]?.count || 0,
         comments_count: comments?.[0]?.count || 0,
+        shares_count: shares.get(post.id) || 0,
         is_liked_by_user: liked.has(post.id),
         is_saved_by_user: saved.has(post.id),
     }));

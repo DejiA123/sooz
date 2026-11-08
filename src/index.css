@@ -422,6 +422,19 @@ input, textarea { -webkit-user-select: text; user-select: text; }
 /* SOOZ's tap layer over a full-screen TikTok: everywhere except TikTok's control bar (bottom) and
    its like / comment / share column (lower right), which stay TikTok's. */
 .tiktok-tap { position: absolute; z-index: 5; -webkit-tap-highlight-color: transparent; }
+/* SOOZ's comment button, stacked just above TikTok's own like / comment / share column. */
+.tiktok-sooz-rail { position: absolute; right: 8px; z-index: 20; bottom: calc(var(--bottom-nav-height) + 200px); }
+/* Small gold SOOZ mark on a button, so it's clear it's SOOZ's (not TikTok's). */
+.sooz-badge {
+  display: block; width: 18px; height: 18px; border-radius: 9999px; background: #05070b;
+  box-shadow: 0 0 0 1.5px rgba(255, 255, 255, 0.85);
+}
+.sooz-badge::after {
+  content: ""; position: absolute; inset: 3px;
+  background: linear-gradient(170deg, #fde68a, #fbbf24 40%, #d97706);
+  -webkit-mask: url(/brand/sooz-mark-mask.png) center / contain no-repeat; mask: url(/brand/sooz-mark-mask.png) center / contain no-repeat;
+}
+.tt-comment-bar { padding-bottom: max(env(safe-area-inset-bottom, 0px), 10px); }
 .tiktok-tap--main { left: 0; top: 0; right: 76px; bottom: 64px; }
 .tiktok-tap--side { right: 0; top: 0; width: 76px; bottom: 45%; }
 /* Call screens: clear of the notch and the home indicator. */
@@ -456,6 +469,7 @@ input, textarea { -webkit-user-select: text; user-select: text; }
   .tiktok-player { --clear-top: 0px; --clear-bottom: 160px; }
   .tiktok-scrim { bottom: 0; }
   .reel-caption--tiktok { bottom: 60px; right: 84px; }
+  .tiktok-sooz-rail { right: auto; left: calc(100% + 16px); bottom: 6px; }
 }
 
 .heart-burst { animation: heart-burst 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; transform-origin: 50% 80%; }

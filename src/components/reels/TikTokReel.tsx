@@ -1,17 +1,23 @@
-import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { ExternalLink } from "lucide-react";
+import { lazy, memo, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { ExternalLink, MessageCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { requestTikTokRefresh, tiktokPlayerUrl, type TikTokVideo } from "@/services/api/tiktok";
 import { isDeadTikTok, markDeadTikTok } from "@/services/api/tiktokMeta";
 import { registerTikTokPlayer, tiktokProtocol, tiktokTapForwarding, type TikTokPlayerHandle } from "@/lib/tiktokPlayers";
 import { useVideoStore } from "@/store/useVideoStore";
-import { Spinner } from "./gestures";
+import { countTikTokComments } from "@/services/api/tiktokComments";
+import { formatCount, Spinner } from "./gestures";
+import { RailButton, railIconClass } from "./ReelRail";
+
+// The comments sheet only downloads when someone opens it.
+const TikTokComments = lazy(() => import("./TikTokComments").then((m) => ({ default: m.TikTokComments })));
 
 const TIKTOK_ORIGIN = "https://www.tiktok.com";
 /** Fill the screen (cropping a little, like TikTok) only when that hides at most this much of the video. */
 const MAX_FILL_CROP = 0.2;
-/** TikTok's player hasn't answered this long after loading: it can't play this video here. */
-const DEAD_AFTER_MS = 8000;
+/** TikTok's player hasn't answered this long while *on screen*: it can't play this video here.
+ *  (Players waiting off screen are never judged — iPhone holds them back, so they look silent.) */
+const DEAD_AFTER_MS = 9000;
 const clampRatio = (r: number) => Math.min(2, Math.max(0.45, r));
 
 /** Small TikTok-style note mark for attribution. */
@@ -52,6 +58,8 @@ export const TikTokReel = memo(function TikTokReel({ video, active, near = false
   const [muted, setMuted] = useState(true);
   const [blockedHint, setBlockedHint] = useState(false);
   const [tapThrough, setTapThrough] = useState(tiktokTapForwarding.broken);
+  const [commentsOpen, setCommentsOpen] = useState(false);
+  const [commentCount, setCommentCount] = useState<number | null>(null);
 
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
@@ -98,8 +106,8 @@ export const TikTokReel = memo(function TikTokReel({ video, active, near = false
     send("play");
   }, [send]);
 
-  const markDead = useCallback(() => {
-    markDeadTikTok(video.tiktok_id);
+  const markDead = useCallback((days: number) => {
+    markDeadTikTok(video.tiktok_id, days);
     setDead(true);
   }, [video.tiktok_id]);
 
@@ -185,7 +193,7 @@ export const TikTokReel = memo(function TikTokReel({ video, active, near = false
           if (!m) setSoundUnlocked(true);
         }
       } else if (data.type === "onError") {
-        markDead();
+        markDead(7);
       }
     };
     window.addEventListener("message", onMessage);
@@ -227,10 +235,20 @@ export const TikTokReel = memo(function TikTokReel({ video, active, near = false
   // No answer from TikTok's player: the video is unavailable here (or TikTok changed its player,
   // in which case just show it as it is).
   useEffect(() => {
-    if (!mounted || !loaded || ready) return;
-    const t = setTimeout(() => { if (tiktokProtocol.works) markDead(); else setReveal(true); }, DEAD_AFTER_MS);
+    if (!active || !loaded || ready) return;
+    const t = setTimeout(() => {
+      if (tiktokProtocol.works && navigator.onLine !== false) markDead(1); else setReveal(true);
+    }, DEAD_AFTER_MS);
     return () => clearTimeout(t);
-  }, [mounted, loaded, ready, markDead]);
+  }, [active, loaded, ready, markDead]);
+
+  // SOOZ comment count for the button (fetched when the slide is on screen or next to it).
+  useEffect(() => {
+    if (!(near || active) || commentCount !== null) return;
+    let alive = true;
+    countTikTokComments(video.tiktok_id).then((n) => { if (alive && n !== null) setCommentCount(n); });
+    return () => { alive = false; };
+  }, [near, active, commentCount, video.tiktok_id]);
 
   const showPlayer = ready || reveal;
   useEffect(() => {
@@ -359,6 +377,26 @@ export const TikTokReel = memo(function TikTokReel({ video, active, near = false
           </div>
         </div>
       </div>
+
+      {/* SOOZ comments: sits just above TikTok's own like / comment / share buttons */}
+      <div className="tiktok-sooz-rail">
+        <RailButton
+          ariaLabel="SOOZ comments"
+          onClick={() => setCommentsOpen(true)}
+          label={commentCount ? formatCount(commentCount) : "Comment"}
+          icon={
+            <span className="relative">
+              <MessageCircle className={cn(railIconClass, "fill-white/95 text-white/95")} strokeWidth={1.5} />
+              <span className="sooz-badge absolute -bottom-1 -right-1.5" aria-hidden />
+            </span>
+          }
+        />
+      </div>
+      {commentsOpen && (
+        <Suspense fallback={null}>
+          <TikTokComments tiktokId={video.tiktok_id} tiktokUrl={tiktokUrl} open={commentsOpen} onOpenChange={setCommentsOpen} onCount={setCommentCount} />
+        </Suspense>
+      )}
     </div>
   );
 });
