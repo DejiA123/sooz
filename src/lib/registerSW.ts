@@ -1,4 +1,6 @@
-// Single place that registers the service worker (offline + push notifications).
+import { watchServiceWorker } from "./appUpdate";
+
+// Single place that registers the service worker (offline + push notifications + "new update" popup).
 // Never registers in dev, Lovable preview, or iframes.
 export function registerServiceWorker() {
   if (!("serviceWorker" in navigator)) return;
@@ -26,6 +28,6 @@ export function registerServiceWorker() {
   }
 
   window.addEventListener("load", () => {
-    navigator.serviceWorker.register("/sw.js").catch((err) => console.warn("SW registration failed", err));
+    navigator.serviceWorker.register("/sw.js").then(watchServiceWorker).catch((err) => console.warn("SW registration failed", err));
   });
 }

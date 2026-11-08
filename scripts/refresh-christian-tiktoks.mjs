@@ -64,7 +64,12 @@ for (const handle of Object.keys(lib.creators)) {
   await sleep(2500);
 }
 
+const before = JSON.stringify(lib.videos);
 lib.videos = [...byCreator.values()].flat();
+if (JSON.stringify(lib.videos) === before) {
+  console.log("No changes — library left as it is.");
+  process.exit(0);
+}
 lib.updated = new Date().toISOString().slice(0, 10);
 await writeFile(FILE, JSON.stringify(lib));
 console.log(`Done: ${added} new videos, ${lib.videos.length} in the library.`);
