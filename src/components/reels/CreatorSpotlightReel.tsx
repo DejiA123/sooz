@@ -21,7 +21,7 @@ export const CreatorSpotlightReel = memo(function CreatorSpotlightReel({ creator
     <div className="reel-frame">
       <div
         className="reel-media flex flex-col items-center justify-center px-8 pb-[calc(var(--bottom-nav-height)+48px)] pt-16 text-center text-white md:pb-16"
-        style={{ background: `radial-gradient(120% 70% at 50% 18%, ${GLOW[creator.kind]}, transparent 62%), linear-gradient(170deg, #0b1020 0%, #070910 60%, #030407 100%)` }}
+        style={{ background: `radial-gradient(120% 70% at 50% 18%, ${GLOW[creator.kind]}, transparent 62%), linear-gradient(180deg, #0d0b08 0%, #050403 60%, #000 100%)` }}
       >
         <span className="flex h-28 w-28 items-center justify-center rounded-full bg-gradient-to-br from-amber-300 via-amber-500 to-amber-700 text-5xl font-bold shadow-[0_20px_60px_-15px_rgba(245,158,11,0.6)] ring-4 ring-white/15">
           {initial}

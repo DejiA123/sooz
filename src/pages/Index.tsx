@@ -16,7 +16,7 @@ const TAB_KEY = "sooz-feed-tab";
 
 const FeedSkeleton = () => (
   <div className="reel-frame" aria-busy="true" aria-label="Loading feed">
-    <div className="reel-media bg-[radial-gradient(120%_70%_at_50%_0%,rgba(245,158,11,0.10),transparent_60%),linear-gradient(170deg,#0b0f1c,#04050a)]">
+    <div className="reel-media bg-[radial-gradient(120%_70%_at_50%_0%,rgba(245,158,11,0.10),transparent_60%),linear-gradient(180deg,#0d0b08,#000)]">
       <div className="reel-caption space-y-2.5">
         <div className="h-4 w-36 animate-pulse rounded-full bg-white/10" />
         <div className="h-3.5 w-64 max-w-full animate-pulse rounded-full bg-white/[0.07]" />
@@ -32,7 +32,7 @@ const FeedSkeleton = () => (
 );
 
 const Centered = ({ children }: { children: React.ReactNode }) => (
-  <div className="flex h-full w-full items-center justify-center bg-[radial-gradient(120%_70%_at_50%_0%,rgba(245,158,11,0.12),transparent_60%),linear-gradient(170deg,#0b0f1c,#04050a)] px-6 pb-[var(--bottom-nav-height)] pt-16 text-center text-white md:pb-0">
+  <div className="flex h-full w-full items-center justify-center bg-[radial-gradient(120%_70%_at_50%_0%,rgba(245,158,11,0.12),transparent_60%),linear-gradient(180deg,#0d0b08,#000)] px-6 pb-[var(--bottom-nav-height)] pt-16 text-center text-white md:pb-0">
     <div className="w-full max-w-sm">{children}</div>
   </div>
 );
@@ -155,7 +155,7 @@ export default function Index() {
     );
   } else if (tab === "following" && q.data?.pages[0]?.followsNobody) {
     body = (
-      <div className="h-full overflow-y-auto bg-[linear-gradient(170deg,#0b0f1c,#04050a)] px-4 pb-[calc(var(--bottom-nav-height)+16px)] pt-20 text-white md:pb-8">
+      <div className="h-full overflow-y-auto bg-[linear-gradient(180deg,#0d0b08,#000)] px-4 pb-[calc(var(--bottom-nav-height)+16px)] pt-20 text-white md:pb-8">
         <div className="mx-auto max-w-md">
           <h2 className="text-center font-display text-2xl font-bold">Follow believers you love</h2>
           <p className="mt-2 text-center text-white/70">Their posts will show up here first.</p>
@@ -175,7 +175,7 @@ export default function Index() {
   }
 
   return (
-    <div ref={rootRef} className="feed-page relative h-full w-full overflow-hidden bg-[#030407] text-white">
+    <div ref={rootRef} className="feed-page relative h-full w-full overflow-hidden bg-black text-white">
       <Helmet>
         <title>SOOZ — Sound Out Of Zion</title>
       </Helmet>

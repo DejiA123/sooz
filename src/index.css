@@ -381,11 +381,11 @@ input, textarea { -webkit-user-select: text; user-select: text; }
 .reel-rail-label { color: #fff; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5); }
 .feed-topbar { padding-top: env(safe-area-inset-top, 0px); }
 .creator-swipe-hint { bottom: calc(var(--bottom-nav-height) + 14px); }
-.tiktok-stage { position: absolute; left: 0; right: 0; top: calc(env(safe-area-inset-top, 0px) + 58px); bottom: calc(var(--bottom-nav-height) + 60px); }
+.tiktok-stage { position: absolute; left: 0; right: 0; top: calc(env(safe-area-inset-top, 0px) + 54px); bottom: calc(var(--bottom-nav-height) + 38px); background: #000; }
 .tiktok-strip {
   position: absolute; left: 0; right: 0; z-index: 5;
-  bottom: calc(var(--bottom-nav-height) + 6px); height: 52px;
-  display: flex; align-items: center; gap: 12px; padding: 0 12px 0 14px;
+  bottom: calc(var(--bottom-nav-height) + 2px); height: 36px;
+  display: flex; align-items: center; justify-content: center;
 }
 .feed-sound-toggle { top: calc(env(safe-area-inset-top, 0px) + 62px); }
 .feed-stories { top: calc(env(safe-area-inset-top, 0px) + 58px); }
@@ -404,8 +404,8 @@ input, textarea { -webkit-user-select: text; user-select: text; }
   /* Desktop: sits in the control column above the up/down buttons */
   .feed-sound-toggle { top: calc(50% - 112px); right: 24px; height: 48px; min-width: 48px; }
   .creator-swipe-hint { bottom: 22px; }
-  .tiktok-stage { top: 44px; bottom: 58px; }
-  .tiktok-strip { bottom: 4px; }
+  .tiktok-stage { top: 44px; bottom: 38px; }
+  .tiktok-strip { bottom: 2px; }
 }
 
 .heart-burst { animation: heart-burst 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; transform-origin: 50% 80%; }
