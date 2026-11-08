@@ -513,6 +513,136 @@ export type Database = {
           },
         ]
       }
+      tiktok_curators: {
+        Row: {
+          created_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tiktok_curators_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tiktok_trusted_creators: {
+        Row: {
+          added_by: string | null
+          created_at: string
+          handle: string
+          note: string | null
+        }
+        Insert: {
+          added_by?: string | null
+          created_at?: string
+          handle: string
+          note?: string | null
+        }
+        Update: {
+          added_by?: string | null
+          created_at?: string
+          handle?: string
+          note?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tiktok_trusted_creators_added_by_fkey"
+            columns: ["added_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tiktok_videos: {
+        Row: {
+          author_handle: string | null
+          author_name: string | null
+          author_url: string | null
+          created_at: string
+          faith_tags: string[]
+          id: string
+          metadata_refreshed_at: string
+          review_note: string | null
+          reviewed_by: string | null
+          status: string
+          submitted_by: string | null
+          thumbnail_height: number | null
+          thumbnail_url: string | null
+          thumbnail_width: number | null
+          tiktok_id: string
+          title: string | null
+          updated_at: string
+          url: string
+        }
+        Insert: {
+          author_handle?: string | null
+          author_name?: string | null
+          author_url?: string | null
+          created_at?: string
+          faith_tags?: string[]
+          id?: string
+          metadata_refreshed_at?: string
+          review_note?: string | null
+          reviewed_by?: string | null
+          status?: string
+          submitted_by?: string | null
+          thumbnail_height?: number | null
+          thumbnail_url?: string | null
+          thumbnail_width?: number | null
+          tiktok_id: string
+          title?: string | null
+          updated_at?: string
+          url: string
+        }
+        Update: {
+          author_handle?: string | null
+          author_name?: string | null
+          author_url?: string | null
+          created_at?: string
+          faith_tags?: string[]
+          id?: string
+          metadata_refreshed_at?: string
+          review_note?: string | null
+          reviewed_by?: string | null
+          status?: string
+          submitted_by?: string | null
+          thumbnail_height?: number | null
+          thumbnail_url?: string | null
+          thumbnail_width?: number | null
+          tiktok_id?: string
+          title?: string | null
+          updated_at?: string
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tiktok_videos_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tiktok_videos_submitted_by_fkey"
+            columns: ["submitted_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       video_archive: {
         Row: {
           category: string | null
@@ -581,6 +711,7 @@ export type Database = {
         Args: { target_conversation_id: string }
         Returns: boolean
       }
+      is_tiktok_curator: { Args: { uid: string }; Returns: boolean }
     }
     Enums: {
       conversation_type: "direct" | "group"
