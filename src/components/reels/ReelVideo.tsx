@@ -28,11 +28,25 @@ export const ReelVideo = forwardRef<ReelVideoHandle, ReelVideoProps>(({ src, pos
   const [buffering, setBuffering] = useState(false);
   const [started, setStarted] = useState(false);
   const [seeking, setSeeking] = useState(false);
+  // The phone refused to start it by itself (e.g. Low Power Mode) — a tap will start it.
+  const [blocked, setBlocked] = useState(false);
   const muted = useVideoStore((s) => s.isGlobalMuted);
   const setGlobalMuted = useVideoStore((s) => s.setGlobalMuted);
 
   useImperativeHandle(ref, () => ({
-    togglePlay: () => setUserPaused((p) => !p),
+    // Play/pause right inside the tap: phones in Low Power Mode only start videos from a tap.
+    togglePlay: () => {
+      const v = videoRef.current;
+      if (!v) return;
+      if (v.paused) {
+        setUserPaused(false);
+        setBlocked(false);
+        v.play().catch((e) => { if ((e as DOMException)?.name === "NotAllowedError") setBlocked(true); });
+      } else {
+        setUserPaused(true);
+        v.pause();
+      }
+    },
     unmuteNow: () => {
       const v = videoRef.current;
       if (v) { v.muted = false; if (v.paused && active) v.play().catch(() => {}); }
@@ -45,9 +59,17 @@ export const ReelVideo = forwardRef<ReelVideoHandle, ReelVideoProps>(({ src, pos
     if (!v) return;
     if (active && !userPaused) {
       v.muted = muted;
-      v.play().catch(() => {
+      const refused = (e: unknown) => (e as DOMException)?.name === "NotAllowedError";
+      v.play().catch((e) => {
+        if (!refused(e)) return; // interrupted by scrolling, not refused
         // Sound blocked until the first tap — fall back to muted autoplay.
-        if (!v.muted) { v.muted = true; setGlobalMuted(true); v.play().catch(() => {}); }
+        if (!v.muted) {
+          v.muted = true;
+          setGlobalMuted(true);
+          v.play().catch((e2) => { if (refused(e2)) setBlocked(true); });
+        } else {
+          setBlocked(true); // even muted autoplay refused (Low Power Mode)
+        }
       });
     } else {
       v.pause();
@@ -58,6 +80,7 @@ export const ReelVideo = forwardRef<ReelVideoHandle, ReelVideoProps>(({ src, pos
   useEffect(() => {
     if (active) return;
     setUserPaused(false);
+    setBlocked(false);
     const v = videoRef.current;
     if (v && v.currentTime > 0) { try { v.currentTime = 0; } catch { /* not seekable yet */ } }
   }, [active]);
@@ -78,7 +101,7 @@ export const ReelVideo = forwardRef<ReelVideoHandle, ReelVideoProps>(({ src, pos
   // Only show the spinner if buffering lasts long enough to notice.
   const bufferTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const onWaiting = () => { if (bufferTimer.current) clearTimeout(bufferTimer.current); bufferTimer.current = setTimeout(() => setBuffering(true), 350); };
-  const onPlaying = () => { if (bufferTimer.current) clearTimeout(bufferTimer.current); setBuffering(false); setStarted(true); };
+  const onPlaying = () => { if (bufferTimer.current) clearTimeout(bufferTimer.current); setBuffering(false); setStarted(true); setBlocked(false); };
   useEffect(() => () => { if (bufferTimer.current) clearTimeout(bufferTimer.current); }, []);
 
   const seekTo = (clientX: number, el: HTMLElement) => {
@@ -128,11 +151,12 @@ export const ReelVideo = forwardRef<ReelVideoHandle, ReelVideoProps>(({ src, pos
         onCanPlay={() => setBuffering(false)}
       />
 
-      {active && userPaused && (
-        <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
+      {active && (userPaused || blocked) && (
+        <div className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center gap-3">
           <div className="flex h-20 w-20 items-center justify-center rounded-full bg-black/35 backdrop-blur-sm animate-scale-in">
             <Play className="ml-1 h-10 w-10 fill-white/90 text-white/90" />
           </div>
+          {blocked && <span className="rounded-full bg-black/55 px-3 py-1 text-[13px] font-semibold text-white">Tap to play</span>}
         </div>
       )}
       {active && buffering && !userPaused && (
