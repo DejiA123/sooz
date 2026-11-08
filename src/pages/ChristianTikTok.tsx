@@ -1,7 +1,7 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CheckCircle2, Clock, ExternalLink, Loader2, ShieldCheck, Sparkles, Trash2, UserPlus, XCircle } from "lucide-react";
+import { CheckCircle2, Clock, ExternalLink, Loader2, PackageOpen, ShieldCheck, Sparkles, Trash2, UserPlus, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { Helmet } from "react-helmet-async";
 import { cn } from "@/lib/utils";
@@ -11,6 +11,9 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { importTikToks, type TikTokImportResult } from "@/services/api/tiktok";
+import { STARTER_TIKTOKS, STARTER_TRUSTED_CREATORS } from "@/data/christianTikTokStarter";
+
+const STARTER_FLAG = "sooz-tiktok-starter-v1";
 
 type Row = {
   id: string;
@@ -149,6 +152,48 @@ export default function ChristianTikTok() {
     onError: (e: Error) => toast.error(e.message.includes("duplicate") ? "Already trusted" : "Couldn't save creator"),
   });
 
+  // Starter pack: real Christian TikToks so the feed is full straight away.
+  const starter = useMutation({
+    mutationFn: async () => {
+      // Official ministry accounts become trusted creators (their future links auto-approve).
+      await supabase
+        .from("tiktok_trusted_creators")
+        .upsert(STARTER_TRUSTED_CREATORS.map((h) => ({ handle: h, note: "SOOZ starter pack", added_by: user!.id })), { onConflict: "handle", ignoreDuplicates: true });
+
+      const official = new Set(STARTER_TIKTOKS.filter((t) => t.official).map((t) => t.url));
+      const { results: first } = await importTikToks(STARTER_TIKTOKS.map((t) => t.url));
+      // Official ministry posts sometimes have short captions; add those even without faith keywords.
+      const retry = first.filter((r) => r.status === "needs_override" && official.has(r.url)).map((r) => r.url);
+      if (!retry.length) return first;
+      const { results: second } = await importTikToks(retry, true);
+      return first.map((r) => second.find((n) => n.url === r.url) || r);
+    },
+    onSuccess: (r) => {
+      try { localStorage.setItem(STARTER_FLAG, "done"); } catch { /* private mode */ }
+      const added = r.filter((x) => x.status === "approved").length;
+      toast.success(added ? `${added} Christian TikToks added to the feed 🙌` : "Starter pack is already in the feed");
+      refreshAll();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  // First visit as a curator with an empty feed: load the starter pack automatically.
+  const autoStarted = useRef(false);
+  useEffect(() => {
+    if (!isCurator || !lists.data || autoStarted.current) return;
+    let done = false;
+    try { done = localStorage.getItem(STARTER_FLAG) === "done"; } catch { /* ignore */ }
+    if (done || lists.data.approved.length > 0) return;
+    autoStarted.current = true;
+    starter.mutate();
+  }, [isCurator, lists.data, starter]);
+
+  const starterSummary = starter.data && {
+    added: starter.data.filter((x) => x.status === "approved").length,
+    already: starter.data.filter((x) => x.status === "duplicate").length,
+    skipped: starter.data.filter((x) => !["approved", "duplicate"].includes(x.status)).length,
+  };
+
   const cleanHandle = handle.trim().replace(/^@/, "").replace(/^https?:\/\/(www\.)?tiktok\.com\/@/i, "").split(/[/?#\s]/)[0].toLowerCase();
 
   return (
@@ -240,6 +285,31 @@ export default function ChristianTikTok() {
           </section>
 
           {lists.isLoading && <div className="mt-8 flex justify-center"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>}
+
+          {isCurator && (
+            <section className="mt-6 overflow-hidden rounded-3xl border border-primary/30 bg-gradient-to-br from-primary/15 via-card to-card p-5">
+              <div className="flex items-start gap-3">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary/20 text-primary">
+                  {starter.isPending ? <Loader2 className="h-5 w-5 animate-spin" /> : <PackageOpen className="h-5 w-5" />}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h2 className="font-display text-lg font-bold">Christian TikTok starter pack</h2>
+                  <p className="mt-1 text-[13px] text-muted-foreground">
+                    {STARTER_TIKTOKS.length} hand-picked videos from Bethel Music, Maverick City, Forrest Frank, Pastor Jerry Eze (NSPPD), YouVersion, BibleProject and gospel favourites like “Tobechukwu”.
+                  </p>
+                  {starter.isPending && <p className="mt-2 text-[13px] font-semibold text-primary">Checking each video with TikTok and adding it to the feed…</p>}
+                  {starterSummary && (
+                    <p className="mt-2 text-[13px] font-semibold">
+                      {starterSummary.added} added · {starterSummary.already} already in the feed{starterSummary.skipped ? ` · ${starterSummary.skipped} unavailable on TikTok` : ""}
+                    </p>
+                  )}
+                  <Button size="sm" className="mt-3 rounded-full px-5 font-bold" disabled={starter.isPending} onClick={() => starter.mutate()}>
+                    {starter.isPending ? "Adding…" : starterSummary ? "Run again" : "Add the starter pack"}
+                  </Button>
+                </div>
+              </div>
+            </section>
+          )}
 
           {isCurator && lists.data && (
             <>

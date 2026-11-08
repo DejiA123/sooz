@@ -234,28 +234,26 @@ serve(async (req) => {
     const { data: trustedRows } = await admin.from("tiktok_trusted_creators").select("handle");
     const trusted = new Set((trustedRows || []).map((r) => r.handle));
 
-    const results = [];
-    for (const original of urls) {
+    type ImportResult = { url: string; status: string; message: string; tiktok_id?: string; title?: string | null; author?: string | null };
+    const importOne = async (original: string): Promise<ImportResult> => {
       try {
         const parsed = normalizeUrl(original);
-        if (!parsed) { results.push({ url: original, status: "error", message: "That is not a TikTok link." }); continue; }
+        if (!parsed) { return { url: original, status: "error", message: "That is not a TikTok link." }; }
 
         const resolved = await resolveShortLink(parsed);
         const idFromUrl = videoIdFrom(resolved.pathname);
         if (resolved.pathname.includes("/photo/")) {
-          results.push({ url: original, status: "error", message: "Photo posts can't be embedded — please use a video link." });
-          continue;
+          return { url: original, status: "error", message: "Photo posts can't be embedded — please use a video link." };
         }
 
         let o = await fetchOEmbed(resolved.toString());
         if (!o.ok && idFromUrl) o = await fetchOEmbed(`https://www.tiktok.com/@_/video/${idFromUrl}`);
         if (!o.ok) {
-          results.push({ url: original, status: "error", message: o.status === 400 || o.status === 404 ? "TikTok says this video doesn't exist or is private." : "Couldn't reach TikTok — please try again." });
-          continue;
+          return { url: original, status: "error", message: o.status === 400 || o.status === 404 ? "TikTok says this video doesn't exist or is private." : "Couldn't reach TikTok — please try again." };
         }
 
         const meta = metadataFrom(o.data, idFromUrl);
-        if (!meta.tiktok_id) { results.push({ url: original, status: "error", message: "Couldn't read the video ID from TikTok." }); continue; }
+        if (!meta.tiktok_id) { return { url: original, status: "error", message: "Couldn't read the video ID from TikTok." }; }
 
         const { signals, nsfw, review } = analyzeFaith(`${meta.title || ""} ${meta.author_name || ""} ${meta.author_handle || ""}`);
         const base = { url: original, tiktok_id: meta.tiktok_id, title: meta.title, author: meta.author_handle || meta.author_name };
@@ -264,11 +262,9 @@ serve(async (req) => {
         if (existing) {
           if (isCurator && existing.status !== "approved" && nsfw.length === 0 && (signals.length || force)) {
             await admin.from("tiktok_videos").update({ status: "approved", reviewed_by: user.id, updated_at: new Date().toISOString() }).eq("id", existing.id);
-            results.push({ ...base, status: "approved", message: "Already suggested — now approved." });
-          } else {
-            results.push({ ...base, status: "duplicate", message: existing.status === "approved" ? "Already in the feed." : `Already added (${existing.status}).` });
+            return { ...base, status: "approved", message: "Already suggested — now approved." };
           }
-          continue;
+          return { ...base, status: "duplicate", message: existing.status === "approved" ? "Already in the feed." : `Already added (${existing.status}).` };
         }
 
         let status: "approved" | "pending" | "rejected";
@@ -279,12 +275,9 @@ serve(async (req) => {
           status = "rejected"; note = `Blocked terms: ${nsfw.join(", ")}`;
           message = "Not allowed — this video contains explicit content signals.";
         } else if (!signals.length && !force) {
-          if (isCurator) {
-            results.push({ ...base, status: "needs_override", message: "No Christian words or hashtags found in the caption. Add it anyway?" });
-          } else {
-            results.push({ ...base, status: "rejected", message: "This doesn't look like Christian content (no faith words or hashtags in the caption)." });
-          }
-          continue;
+          return isCurator
+            ? { ...base, status: "needs_override", message: "No Christian words or hashtags found in the caption. Add it anyway?" }
+            : { ...base, status: "rejected", message: "This doesn't look like Christian content (no faith words or hashtags in the caption)." };
         } else if (review.length && !force) {
           status = "pending"; note = `Check: ${review.join(", ")}`;
           message = "Sent for review — the caption mentions topics a curator should check.";
@@ -305,13 +298,27 @@ serve(async (req) => {
           submitted_by: user.id,
           reviewed_by: status === "approved" && isCurator ? user.id : null,
         });
+        if (error?.code === "23505") return { ...base, status: "duplicate", message: "Already in the feed." };
         if (error) throw error;
-        results.push({ ...base, status, message });
+        return { ...base, status, message };
       } catch (err) {
         console.error("tiktok import failed", original, err);
-        results.push({ url: original, status: "error", message: "Something went wrong with this link." });
+        return { url: original, status: "error", message: "Something went wrong with this link." };
       }
-    }
+    };
+
+    // Check up to 5 links at a time so a big paste (or the starter pack) finishes quickly.
+    const results: ImportResult[] = new Array(urls.length);
+    let next = 0;
+    await Promise.all(
+      Array.from({ length: Math.min(5, urls.length) }, async () => {
+        while (next < urls.length) {
+          const i = next++;
+          results[i] = await importOne(urls[i]);
+        }
+      }),
+    );
+
 
     return json({ results, isCurator });
   } catch (err) {

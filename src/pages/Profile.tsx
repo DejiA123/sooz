@@ -163,7 +163,33 @@ const Profile = () => {
     return num.toString();
   };
 
-  if (!profile) return null;
+  if (!profile) {
+    // Signed out on "You": invite them in instead of showing an empty page.
+    if (username === "me" && !authLoading && !user) {
+      return (
+        <div className="flex min-h-[70vh] flex-col items-center justify-center px-8 text-center">
+          <div className="mb-5 flex h-20 w-20 items-center justify-center rounded-full bg-primary/15 text-4xl">🙏</div>
+          <h1 className="font-display text-2xl font-bold">Your SOOZ profile</h1>
+          <p className="mt-2 max-w-xs text-muted-foreground">Sign in to share your faith, save posts and follow believers you love.</p>
+          <Button className="mt-6 h-12 w-full max-w-xs rounded-full text-[15px] font-bold" onClick={() => navigate("/auth")}>Sign in or create account</Button>
+        </div>
+      );
+    }
+    if (authLoading || isProfileLoading) {
+      return (
+        <div className="flex min-h-[60vh] items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      );
+    }
+    return (
+      <div className="flex min-h-[60vh] flex-col items-center justify-center px-8 text-center">
+        <h1 className="font-display text-xl font-bold">This account doesn't exist</h1>
+        <p className="mt-2 text-muted-foreground">The link may be broken, or the account may have been removed.</p>
+        <Button variant="secondary" className="mt-6 rounded-full" onClick={() => navigate("/")}>Back to the feed</Button>
+      </div>
+    );
+  }
 
   const tabs = [
     { id: "posts" as const, label: "Posts" },
