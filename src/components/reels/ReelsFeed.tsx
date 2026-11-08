@@ -3,7 +3,6 @@ import { ChevronDown, ChevronUp } from "lucide-react";
 import type { FeedItem } from "@/services/api/feed";
 import { PostReel } from "./PostReel";
 import { TikTokReel } from "./TikTokReel";
-import { CreatorSpotlightReel } from "./CreatorSpotlightReel";
 import { Spinner } from "./gestures";
 
 interface ReelsFeedProps {
@@ -125,10 +124,8 @@ export const ReelsFeed = ({ items, hasMore, loadingMore, loadMore, initialIndex 
               {distance <= RENDER_WINDOW &&
                 (item.kind === "post" ? (
                   <PostReel post={item.post} active={isActive} mounted={distance <= 1} />
-                ) : item.kind === "tiktok" ? (
-                  <TikTokReel video={item.video} active={isActive} />
                 ) : (
-                  <CreatorSpotlightReel creator={item.creator} />
+                  <TikTokReel video={item.video} active={isActive} />
                 ))}
             </section>
           );

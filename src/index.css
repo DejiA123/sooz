@@ -381,7 +381,13 @@ input, textarea { -webkit-user-select: text; user-select: text; }
 .reel-rail-label { color: #fff; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5); }
 .feed-topbar { padding-top: env(safe-area-inset-top, 0px); }
 .creator-swipe-hint { bottom: calc(var(--bottom-nav-height) + 14px); }
-.tiktok-stage { position: absolute; left: 0; right: 0; top: calc(env(safe-area-inset-top, 0px) + 54px); bottom: calc(var(--bottom-nav-height) + 38px); background: #000; }
+.tiktok-stage {
+  position: absolute; left: 0; right: 0; background: #000;
+  top: calc(env(safe-area-inset-top, 0px) + 54px); bottom: calc(var(--bottom-nav-height) + 38px);
+  display: flex; align-items: center; justify-content: center;
+}
+/* Same shape as the video: as tall as the stage, as wide as the shape allows (never wider than the screen). */
+.tiktok-player { position: relative; height: 100%; max-width: 100%; overflow: hidden; background: #000; }
 .tiktok-strip {
   position: absolute; left: 0; right: 0; z-index: 5;
   bottom: calc(var(--bottom-nav-height) + 2px); height: 36px;

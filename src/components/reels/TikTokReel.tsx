@@ -5,7 +5,6 @@ import { requestTikTokRefresh, tiktokPlayerUrl, type TikTokVideo } from "@/servi
 import { Spinner } from "./gestures";
 
 const TIKTOK_ORIGIN = "https://www.tiktok.com";
-const SOUND_HINT_KEY = "sooz-tiktok-sound-hint";
 
 /** Small TikTok-style note mark for attribution. */
 export const TikTokMark = ({ className }: { className?: string }) => (
@@ -21,6 +20,7 @@ interface TikTokReelProps {
 
 /**
  * A Christian TikTok in the feed, played by TikTok's own embed player on pure black, like TikTok.
+ * The player box has exactly the video's shape, so TikTok never pads the sides with a blurred copy.
  * The player gets as much of the screen as possible between SOOZ's top bar and tab bar and receives
  * taps directly, so TikTok's play, sound and like buttons all work (iPhone only allows sound when the
  * player itself is tapped). Videos start muted by themselves (`autoplay=1&muted=1` + "play" message);
@@ -32,7 +32,6 @@ export const TikTokReel = memo(function TikTokReel({ video, active }: TikTokReel
   const [thumbFailed, setThumbFailed] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [blockedHint, setBlockedHint] = useState(false);
-  const [soundHint, setSoundHint] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const playing = useRef(false);
   const userPaused = useRef(false);
@@ -96,17 +95,8 @@ export const TikTokReel = memo(function TikTokReel({ video, active }: TikTokReel
     return () => clearTimeout(t);
   }, [active, loaded]);
 
-  // First TikTok that plays in a visit: point out TikTok's own sound button.
-  useEffect(() => {
-    if (!active || !isPlaying) return;
-    let seen = false;
-    try { seen = sessionStorage.getItem(SOUND_HINT_KEY) === "1"; sessionStorage.setItem(SOUND_HINT_KEY, "1"); } catch { /* ignore */ }
-    if (seen) return;
-    setSoundHint(true);
-    const t = setTimeout(() => setSoundHint(false), 4500);
-    return () => clearTimeout(t);
-  }, [active, isPlaying]);
-
+  // TikToks are 9:16 unless TikTok told us otherwise (thumbnail size).
+  const ratio = video.thumbnail_width && video.thumbnail_height ? `${video.thumbnail_width} / ${video.thumbnail_height}` : "9 / 16";
   const handle = video.author_handle ? `@${video.author_handle}` : null;
   const who = video.author_name || handle || "Christian TikTok";
   const tiktokUrl = video.url;
@@ -115,6 +105,7 @@ export const TikTokReel = memo(function TikTokReel({ video, active }: TikTokReel
     <div className="reel-frame">
       <div className="reel-media bg-black">
         <div className="tiktok-stage">
+          <div className="tiktok-player" style={{ aspectRatio: ratio }}>
           {/* Until TikTok's player has loaded (and on the slides next to this one) */}
           {!(active && loaded) && (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black px-8 text-center text-white">
@@ -156,18 +147,13 @@ export const TikTokReel = memo(function TikTokReel({ video, active }: TikTokReel
           )}
 
           {/* Hints never block taps: they pass straight through to TikTok's buttons */}
+          </div>
+
           {active && blockedHint && !isPlaying && (
             <div className="pointer-events-none absolute inset-x-0 top-[62%] z-10 flex justify-center px-6">
               <span className="rounded-2xl bg-black/75 px-4 py-2.5 text-center text-[13px] font-semibold leading-snug text-white backdrop-blur">
                 Tap ▶ to play
                 <span className="block text-[11px] font-medium text-white/65">Low Power Mode stops videos from starting by themselves</span>
-              </span>
-            </div>
-          )}
-          {soundHint && (
-            <div className="pointer-events-none absolute inset-x-0 bottom-20 z-10 flex justify-center px-6">
-              <span className="rounded-full bg-black/75 px-4 py-2 text-[13px] font-semibold text-white backdrop-blur animate-scale-in">
-                🔇 Playing muted — tap the speaker for sound
               </span>
             </div>
           )}

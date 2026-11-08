@@ -60,9 +60,6 @@ const ReelImage = ({ src, active }: { src: string; active: boolean }) => {
   const [loaded, setLoaded] = useState(false);
   return (
     <div className="absolute inset-0 bg-black">
-      {fit === "contain" && loaded && (
-        <img src={src} alt="" aria-hidden className="absolute inset-0 h-full w-full scale-110 object-cover opacity-50 blur-2xl" decoding="async" />
-      )}
       <img
         src={src}
         alt=""

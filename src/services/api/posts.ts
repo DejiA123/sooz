@@ -70,6 +70,20 @@ async function enrichPosts(rows: RawPost[], userId?: string): Promise<FeedPost[]
     }));
 }
 
+/** Posts `from`..`from + count - 1`, newest first, with counts and the viewer's like/save state. */
+export const fetchPostsRange = async ({ from, count, userId }: { from: number; count: number; userId?: string }): Promise<{ posts: FeedPost[]; hasMore: boolean }> => {
+    const { data, error } = await supabase
+        .from("posts")
+        .select(POST_SELECT)
+        .order("created_at", { ascending: false })
+        .range(from, from + count - 1);
+
+    if (error) throw error;
+    if (!data || data.length === 0) return { posts: [], hasMore: false };
+    const posts = await enrichPosts(data as unknown as RawPost[], userId);
+    return { posts, hasMore: data.length === count };
+};
+
 export const fetchPosts = async ({ pageParam = 0, userId }: { pageParam?: number; userId?: string }): Promise<PostPage> => {
     const from = pageParam * POSTS_PER_PAGE;
     const { data, error } = await supabase

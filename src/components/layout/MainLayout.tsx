@@ -31,8 +31,29 @@ export const MainLayout = () => {
             .then(({ error }) => { if (error) console.error("Error updating last seen:", error); });
     }, [user, queryClient]);
 
+    // Installed iPhone app: if the first page can't scroll, iOS lays the app out one status-bar
+    // height too short (tab bar floats up) until some page scrolls. Home's feed scrolls inside its
+    // own box, so give the page a 1px scroll (spacer below) and nudge it as the app opens/resumes.
+    useEffect(() => {
+        if (!isFeed) return;
+        const nudge = () => {
+            window.scrollTo(0, 1);
+            requestAnimationFrame(() => window.scrollTo(0, 0));
+        };
+        const timers = [50, 400, 1200].map((ms) => setTimeout(nudge, ms));
+        const onShow = () => { if (document.visibilityState === "visible") setTimeout(nudge, 50); };
+        window.addEventListener("pageshow", onShow);
+        document.addEventListener("visibilitychange", onShow);
+        return () => {
+            timers.forEach(clearTimeout);
+            window.removeEventListener("pageshow", onShow);
+            document.removeEventListener("visibilitychange", onShow);
+        };
+    }, [isFeed]);
+
     // One tree for both layouts so the bottom nav (and its glass lens animation) never remounts.
     return (
+        <>
         <div
             className={cn(
                 isFeed
@@ -56,5 +77,7 @@ export const MainLayout = () => {
                 <BottomNav />
             </div>
         </div>
+        {isFeed && <div aria-hidden className="h-px" />}
+        </>
     );
 };
