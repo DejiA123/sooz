@@ -11,9 +11,10 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { importTikToks, type TikTokImportResult } from "@/services/api/tiktok";
-import { STARTER_TIKTOKS, STARTER_TRUSTED_CREATORS } from "@/data/christianTikTokStarter";
+import { STARTER_TIKTOKS, STARTER_TRUSTED_CREATORS, STARTER_VERSION } from "@/data/christianTikTokStarter";
+import { ChristianCreators } from "@/components/tiktok/ChristianCreators";
 
-const STARTER_FLAG = "sooz-tiktok-starter-v1";
+const STARTER_FLAG = "sooz-tiktok-starter";
 
 type Row = {
   id: string;
@@ -153,6 +154,7 @@ export default function ChristianTikTok() {
   });
 
   // Starter pack: real Christian TikToks so the feed is full straight away.
+  const [starterProgress, setStarterProgress] = useState<string | null>(null);
   const starter = useMutation({
     mutationFn: async () => {
       // Official ministry accounts become trusted creators (their future links auto-approve).
@@ -161,29 +163,41 @@ export default function ChristianTikTok() {
         .upsert(STARTER_TRUSTED_CREATORS.map((h) => ({ handle: h, note: "SOOZ starter pack", added_by: user!.id })), { onConflict: "handle", ignoreDuplicates: true });
 
       const official = new Set(STARTER_TIKTOKS.filter((t) => t.official).map((t) => t.url));
-      const { results: first } = await importTikToks(STARTER_TIKTOKS.map((t) => t.url));
+      const urls = STARTER_TIKTOKS.map((t) => t.url);
+      const batches: string[][] = [];
+      for (let i = 0; i < urls.length; i += 25) batches.push(urls.slice(i, i + 25)); // import limit per request
+      const all: TikTokImportResult[] = [];
+      for (const [i, batch] of batches.entries()) {
+        setStarterProgress(`Checking videos with TikTok… (part ${i + 1} of ${batches.length})`);
+        const { results } = await importTikToks(batch);
+        all.push(...results);
+      }
       // Official ministry posts sometimes have short captions; add those even without faith keywords.
-      const retry = first.filter((r) => r.status === "needs_override" && official.has(r.url)).map((r) => r.url);
-      if (!retry.length) return first;
-      const { results: second } = await importTikToks(retry, true);
-      return first.map((r) => second.find((n) => n.url === r.url) || r);
+      const retry = all.filter((r) => r.status === "needs_override" && official.has(r.url)).map((r) => r.url);
+      if (retry.length) {
+        setStarterProgress("Adding official ministry videos…");
+        const { results: second } = await importTikToks(retry.slice(0, 25), true);
+        return all.map((r) => second.find((n) => n.url === r.url) || r);
+      }
+      return all;
     },
     onSuccess: (r) => {
-      try { localStorage.setItem(STARTER_FLAG, "done"); } catch { /* private mode */ }
+      try { localStorage.setItem(STARTER_FLAG, STARTER_VERSION); } catch { /* private mode */ }
       const added = r.filter((x) => x.status === "approved").length;
       toast.success(added ? `${added} Christian TikToks added to the feed 🙌` : "Starter pack is already in the feed");
       refreshAll();
     },
     onError: (e: Error) => toast.error(e.message),
+    onSettled: () => setStarterProgress(null),
   });
 
-  // First visit as a curator with an empty feed: load the starter pack automatically.
+  // Curators load the starter pack automatically — again whenever new links are added to it.
   const autoStarted = useRef(false);
   useEffect(() => {
     if (!isCurator || !lists.data || autoStarted.current) return;
-    let done = false;
-    try { done = localStorage.getItem(STARTER_FLAG) === "done"; } catch { /* ignore */ }
-    if (done || lists.data.approved.length > 0) return;
+    let version: string | null = null;
+    try { version = localStorage.getItem(STARTER_FLAG); } catch { /* ignore */ }
+    if (version === STARTER_VERSION) return;
     autoStarted.current = true;
     starter.mutate();
   }, [isCurator, lists.data, starter]);
@@ -209,6 +223,8 @@ export default function ChristianTikTok() {
           Paste links to Christian TikTok videos. SOOZ checks each one with TikTok, makes sure it's Christian content, and plays it in the For You feed with TikTok's official player, so creators keep the credit.
         </p>
       </div>
+
+      <ChristianCreators />
 
       {!user ? (
         <div className="mt-6 rounded-3xl border border-border bg-card p-6 text-center">
@@ -295,9 +311,9 @@ export default function ChristianTikTok() {
                 <div className="min-w-0 flex-1">
                   <h2 className="font-display text-lg font-bold">Christian TikTok starter pack</h2>
                   <p className="mt-1 text-[13px] text-muted-foreground">
-                    {STARTER_TIKTOKS.length} hand-picked videos from Bethel Music, Maverick City, Forrest Frank, Pastor Jerry Eze (NSPPD), YouVersion, BibleProject and gospel favourites like “Tobechukwu”.
+                    {STARTER_TIKTOKS.length} hand-picked videos from Bethel Music, Hillsong, Elevation, Maverick City, Moses Bliss, Mercy Chinwo, CeCe Winans, Pastor Jerry Eze, Pastor Mike Todd, YouVersion, BibleProject and gospel favourites like “Tobechukwu”. Their accounts are also trusted, so their other videos are approved straight away.
                   </p>
-                  {starter.isPending && <p className="mt-2 text-[13px] font-semibold text-primary">Checking each video with TikTok and adding it to the feed…</p>}
+                  {starter.isPending && <p className="mt-2 text-[13px] font-semibold text-primary">{starterProgress || "Checking each video with TikTok…"} This can take a minute.</p>}
                   {starterSummary && (
                     <p className="mt-2 text-[13px] font-semibold">
                       {starterSummary.added} added · {starterSummary.already} already in the feed{starterSummary.skipped ? ` · ${starterSummary.skipped} unavailable on TikTok` : ""}
