@@ -54,6 +54,8 @@ import { ProtectedRoute } from "./components/ProtectedRoute";
 import { NotificationManager } from "./components/NotificationManager";
 import { CallProvider } from "@/contexts/CallContext";
 import { CallOverlay } from "@/components/video/CallOverlay";
+import { UpdatePrompt } from "@/components/layout/UpdatePrompt";
+import { startUpdateChecks } from "@/lib/appUpdate";
 
 import { queryClient } from "@/lib/react-query";
 
@@ -71,6 +73,7 @@ const App = () => {
     document.documentElement.style.setProperty("--primary", "38 92% 50%");
 
     registerServiceWorker();
+    startUpdateChecks();
 
     // Request Notification Permission logic updated to use hook
     // We need to move this INSIDE a component that is inside AuthProvider
@@ -93,6 +96,7 @@ const App = () => {
         <AuthProvider>
           <CallProvider>
             <CallOverlay />
+            <UpdatePrompt />
             <TooltipProvider>
               <Toaster />
               <Sonner />

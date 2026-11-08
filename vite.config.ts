@@ -3,16 +3,29 @@ import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { VitePWA } from "vite-plugin-pwa";
 
+// Each build gets an id; it is baked into the app and written to /version.json, so a running app
+// can tell when a newer version has been published (see src/lib/appUpdate.ts).
+const BUILD_ID = new Date().toISOString();
+
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
     port: 8080,
   },
+  define: {
+    __SOOZ_BUILD__: JSON.stringify(BUILD_ID),
+  },
   plugins: [
     react(),
+    {
+      name: "sooz-version-file",
+      generateBundle() {
+        this.emitFile({ type: "asset", fileName: "version.json", source: JSON.stringify({ build: BUILD_ID }) });
+      },
+    },
     VitePWA({
-      registerType: "autoUpdate",
+      registerType: "prompt", // a new version waits until the user taps "Update now"
       injectRegister: null,
       devOptions: { enabled: false },
       manifest: false,
@@ -26,7 +39,7 @@ export default defineConfig(({ mode }) => ({
         navigateFallbackDenylist: [/^\/~oauth/, /^\/api/],
         cleanupOutdatedCaches: true,
         clientsClaim: true,
-        skipWaiting: true,
+        skipWaiting: false,
         runtimeCaching: [
           {
             urlPattern: ({ request }) => request.mode === "navigate",

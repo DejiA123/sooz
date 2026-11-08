@@ -437,6 +437,9 @@ input, textarea { -webkit-user-select: text; user-select: text; }
 .tt-comment-bar { padding-bottom: max(env(safe-area-inset-bottom, 0px), 10px); }
 .tiktok-tap--main { left: 0; top: 0; right: 76px; bottom: 64px; }
 .tiktok-tap--side { right: 0; top: 0; width: 76px; bottom: 45%; }
+/* "New update" card: just above the tab bar (bottom of the screen on desktop). */
+.update-prompt { bottom: calc(var(--bottom-nav-height) + 10px); }
+@media (min-width: 768px) { .update-prompt { bottom: 24px; } }
 /* Live viewer: clear of the notch and the home indicator. */
 .live-top { padding-top: calc(env(safe-area-inset-top, 0px) + 10px); }
 .live-share { bottom: calc(max(env(safe-area-inset-bottom, 0px), 12px) + 64px); }
