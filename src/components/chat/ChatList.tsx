@@ -161,7 +161,7 @@ export const ChatList = ({ selectedId, onSelect }: ChatListProps) => {
 
         // Subscribe to new messages or conversations
         const channel = supabase
-            .channel('public:conversations')
+            .channel(`chat-list:${crypto.randomUUID().slice(0, 8)}`)
             .on(
                 'postgres_changes',
                 { event: '*', schema: 'public', table: 'messages' },

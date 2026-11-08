@@ -424,6 +424,10 @@ input, textarea { -webkit-user-select: text; user-select: text; }
 .tiktok-tap { position: absolute; z-index: 5; -webkit-tap-highlight-color: transparent; }
 .tiktok-tap--main { left: 0; top: 0; right: 76px; bottom: 64px; }
 .tiktok-tap--side { right: 0; top: 0; width: 76px; bottom: 45%; }
+/* Call screens: clear of the notch and the home indicator. */
+.call-screen { padding-top: calc(env(safe-area-inset-top, 0px) + 14px); }
+.call-controls { padding-bottom: max(calc(env(safe-area-inset-bottom, 0px) + 12px), 24px); }
+.call-pip { top: calc(env(safe-area-inset-top, 0px) + 70px); }
 /* Messages: the list sits between the top bar and the tab bar; an open conversation is full screen. */
 .chat-page { top: calc(3.75rem + env(safe-area-inset-top, 0px)); bottom: var(--bottom-nav-height); }
 .chat-header { padding-top: env(safe-area-inset-top, 0px); min-height: calc(58px + env(safe-area-inset-top, 0px)); }

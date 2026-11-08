@@ -67,7 +67,7 @@ export const ChatWindow = ({ chatId, onBack }: ChatWindowProps) => {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
-  const { startCall } = useCall();
+  const { startCall, startGroupCall } = useCall();
   const [showInfo, setShowInfo] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const live = useRef(false);
@@ -129,7 +129,7 @@ export const ChatWindow = ({ chatId, onBack }: ChatWindowProps) => {
     loadMessages();
 
     const channel = supabase
-      .channel(`chat:${chatId}`)
+      .channel(`chat:${chatId}:${crypto.randomUUID().slice(0, 8)}`) // unique name: never reuse a closing channel
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages", filter: `conversation_id=eq.${chatId}` }, (payload) => {
         const m = toMessage(payload.new as Row);
         setMessages((prev) => (prev.some((x) => x.id === m.id) ? prev : [...prev, m]));
@@ -279,20 +279,25 @@ export const ChatWindow = ({ chatId, onBack }: ChatWindowProps) => {
           </span>
         </button>
         <div className="flex shrink-0 items-center">
-          {!isGroup && (
-            <>
-              <button type="button" aria-label="Voice call" disabled={!chatInfo.id}
-                onClick={() => chatInfo.id && startCall(chatInfo.id, chatInfo.name, chatInfo.avatar, false)}
-                className="flex h-10 w-10 items-center justify-center rounded-full active:bg-white/10 disabled:opacity-40">
-                <Phone className="h-[21px] w-[21px]" />
-              </button>
-              <button type="button" aria-label="Video call" disabled={!chatInfo.id}
-                onClick={() => chatInfo.id && startCall(chatInfo.id, chatInfo.name, chatInfo.avatar, true)}
-                className="flex h-10 w-10 items-center justify-center rounded-full active:bg-white/10 disabled:opacity-40">
-                <Video className="h-[23px] w-[23px]" />
-              </button>
-            </>
-          )}
+          {(() => {
+            const canCall = isGroup ? memberCount > 1 : !!chatInfo.id;
+            const call = (video: boolean) => {
+              if (isGroup) startGroupCall(chatId, chatInfo.name, Object.keys(participants), video);
+              else if (chatInfo.id) startCall(chatInfo.id, chatInfo.name, chatInfo.avatar, video);
+            };
+            return (
+              <>
+                <button type="button" aria-label={isGroup ? "Group voice call" : "Voice call"} disabled={!canCall} onClick={() => call(false)}
+                  className="flex h-10 w-10 items-center justify-center rounded-full active:bg-white/10 disabled:opacity-40">
+                  <Phone className="h-[21px] w-[21px]" />
+                </button>
+                <button type="button" aria-label={isGroup ? "Group video call" : "Video call"} disabled={!canCall} onClick={() => call(true)}
+                  className="flex h-10 w-10 items-center justify-center rounded-full active:bg-white/10 disabled:opacity-40">
+                  <Video className="h-[23px] w-[23px]" />
+                </button>
+              </>
+            );
+          })()}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button type="button" aria-label="More" className="flex h-10 w-10 items-center justify-center rounded-full active:bg-white/10">
