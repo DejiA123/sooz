@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useRef, useEffect, useMemo, lazy, Suspense } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCall } from "@/contexts/CallContext";
@@ -11,7 +11,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
-import EmojiPicker, { Theme } from 'emoji-picker-react';
+// The emoji picker is large — load it only when the picker is opened.
+const EmojiPicker = lazy(() => import('emoji-picker-react'));
 import {
     Popover,
     PopoverContent,
@@ -529,7 +530,9 @@ export const ChatWindow = ({ chatId, onBack }: ChatWindowProps) => {
                                     </Button>
                                 </PopoverTrigger>
                                 <PopoverContent className="w-auto p-0 border-white/10 glass rounded-3xl overflow-hidden shadow-2xl" align="end" sideOffset={12}>
-                                    <EmojiPicker onEmojiClick={onEmojiClick} theme={Theme.DARK} width={300} height={400} />
+                                    <Suspense fallback={<div className="w-[300px] h-[400px] animate-pulse bg-white/5" />}>
+                                        <EmojiPicker onEmojiClick={onEmojiClick} theme={"dark" as any} width={300} height={400} />
+                                    </Suspense>
                                 </PopoverContent>
                             </Popover>
 

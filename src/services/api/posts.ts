@@ -1,62 +1,112 @@
-
 import { supabase } from "@/integrations/supabase/client";
 
 export const POSTS_PER_PAGE = 10;
 
-export const fetchPosts = async ({ pageParam = 0, userId }: { pageParam?: number; userId?: string }) => {
-    const from = pageParam * POSTS_PER_PAGE;
-    const to = from + POSTS_PER_PAGE - 1;
+export interface FeedProfile {
+    id: string;
+    username: string;
+    avatar_url: string | null;
+    display_name: string | null;
+}
 
-    const { data: postsData, error: postsError } = await supabase
-        .from("posts")
-        .select(`
-      *,
-      profiles:user_id (id, username, avatar_url, display_name),
-      likes (count),
-      comments (count)
-    `)
-        .order("created_at", { ascending: false })
-        .range(from, to);
+export interface FeedPost {
+    id: string;
+    user_id: string;
+    caption: string | null;
+    media_url: string | null;
+    media_type: string | null;
+    thumbnail_url: string | null;
+    created_at: string;
+    views_count: number;
+    profiles: FeedProfile | null;
+    likes_count: number;
+    comments_count: number;
+    is_liked_by_user: boolean;
+    is_saved_by_user: boolean;
+}
 
-    if (postsError) throw postsError;
+export interface PostPage {
+    posts: FeedPost[];
+    nextPage: number | null;
+}
 
-    if (!postsData || postsData.length === 0) {
-        return { posts: [], nextPage: null };
+const POST_SELECT = `
+  *,
+  profiles:user_id (id, username, avatar_url, display_name),
+  likes (count),
+  comments (count)
+`;
+
+type RawPost = Omit<FeedPost, "likes_count" | "comments_count" | "is_liked_by_user" | "is_saved_by_user" | "views_count"> & {
+    views_count?: number | null;
+    view_count?: number | null;
+    likes?: { count: number }[];
+    comments?: { count: number }[];
+};
+
+/** Adds counts and the viewer's like/bookmark state. The two lookups run in parallel. */
+async function enrichPosts(rows: RawPost[], userId?: string): Promise<FeedPost[]> {
+    const ids = rows.map((p) => p.id);
+    let liked = new Set<string>();
+    let saved = new Set<string>();
+
+    if (userId && ids.length) {
+        const [likesRes, bookmarksRes] = await Promise.all([
+            supabase.from("likes").select("post_id").eq("user_id", userId).in("post_id", ids),
+            supabase.from("bookmarks").select("post_id").eq("user_id", userId).in("post_id", ids),
+        ]);
+        liked = new Set((likesRes.data || []).map((l) => l.post_id));
+        saved = new Set((bookmarksRes.data || []).map((b) => b.post_id));
     }
 
-    // Collect IDs for likes/bookmarks if user is logged in
-    const newPostIds = postsData.map(p => p.id);
-    let likedPostIds = new Set<string>();
-    let savedPostIds = new Set<string>();
-
-    if (userId) {
-        const { data: userLikes } = await supabase
-            .from("likes")
-            .select("post_id")
-            .eq("user_id", userId)
-            .in("post_id", newPostIds);
-
-        if (userLikes) userLikes.forEach(like => likedPostIds.add(like.post_id));
-
-        const { data: userBookmarks } = await supabase
-            .from("bookmarks")
-            .select("post_id")
-            .eq("user_id", userId)
-            .in("post_id", newPostIds);
-
-        if (userBookmarks) userBookmarks.forEach(bookmark => savedPostIds.add(bookmark.post_id));
-    }
-
-    const posts = postsData.map(post => ({
+    return rows.map(({ likes, comments, view_count, ...post }) => ({
         ...post,
-        likes_count: post.likes?.[0]?.count || 0,
-        comments_count: post.comments?.[0]?.count || 0,
-        is_liked_by_user: likedPostIds.has(post.id),
-        is_saved_by_user: savedPostIds.has(post.id),
+        thumbnail_url: post.thumbnail_url ?? null,
+        views_count: post.views_count ?? view_count ?? 0,
+        likes_count: likes?.[0]?.count || 0,
+        comments_count: comments?.[0]?.count || 0,
+        is_liked_by_user: liked.has(post.id),
+        is_saved_by_user: saved.has(post.id),
     }));
+}
 
-    return {
-        posts,
-        nextPage: posts.length === POSTS_PER_PAGE ? pageParam + 1 : null,
-    };
+export const fetchPosts = async ({ pageParam = 0, userId }: { pageParam?: number; userId?: string }): Promise<PostPage> => {
+    const from = pageParam * POSTS_PER_PAGE;
+    const { data, error } = await supabase
+        .from("posts")
+        .select(POST_SELECT)
+        .order("created_at", { ascending: false })
+        .range(from, from + POSTS_PER_PAGE - 1);
+
+    if (error) throw error;
+    if (!data || data.length === 0) return { posts: [], nextPage: null };
+
+    const posts = await enrichPosts(data as unknown as RawPost[], userId);
+    return { posts, nextPage: data.length === POSTS_PER_PAGE ? pageParam + 1 : null };
+};
+
+/** Accounts the user follows (cached per session by React Query callers). */
+export const fetchFollowingIds = async (userId: string): Promise<string[]> => {
+    const { data, error } = await supabase.from("follows").select("following_id").eq("follower_id", userId);
+    if (error) throw error;
+    return (data || []).map((f) => f.following_id);
+};
+
+export const fetchFollowingPosts = async ({ pageParam = 0, userId }: { pageParam?: number; userId: string }): Promise<PostPage & { followsNobody?: boolean }> => {
+    const ids = await fetchFollowingIds(userId);
+    if (ids.length === 0) return { posts: [], nextPage: null, followsNobody: true };
+
+    const from = pageParam * POSTS_PER_PAGE;
+    const { data, error } = await supabase
+        .from("posts")
+        .select(POST_SELECT)
+        .in("user_id", ids)
+        .order("created_at", { ascending: false })
+        .range(from, from + POSTS_PER_PAGE - 1);
+
+    if (error) throw error;
+    if (!data || data.length === 0) return { posts: [], nextPage: null };
+
+    const posts = await enrichPosts(data as unknown as RawPost[], userId);
+    return { posts, nextPage: data.length === POSTS_PER_PAGE ? pageParam + 1 : null };
 };

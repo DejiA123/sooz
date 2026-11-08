@@ -11,6 +11,7 @@ import { BrowserRouter, Routes, Route, useParams, useNavigate } from "react-rout
 import { Loader2 } from "lucide-react";
 import { AuthProvider } from "@/hooks/useAuth";
 import { MainLayout } from "@/components/layout/MainLayout";
+import { isSlowConnection } from "@/lib/network";
 // Lazy load pages for performance
 const Index = lazy(() => import("./pages/Index"));
 const Auth = lazy(() => import("./pages/Auth"));
@@ -33,16 +34,19 @@ const UpdatePassword = lazy(() => import("./pages/UpdatePassword"));
 const Algorithms = lazy(() => import("./pages/Algorithms"));
 const AnalyticsDashboard = lazy(() => import("./pages/AnalyticsDashboard"));
 const VideoArchive = lazy(() => import("./pages/VideoArchive"));
+const ChristianTikTok = lazy(() => import("./pages/ChristianTikTok"));
 
-// Warm up the main tabs in the background so switching between them is instant
+// Warm up the main tabs in the background so switching between them is instant.
+// Skipped on data-saver / 2G so the first video gets all the bandwidth.
 if (typeof window !== "undefined") {
   const warm = () => {
-    [() => import("./pages/Index"), () => import("./pages/Discover"), () => import("./pages/Chat"),
-     () => import("./pages/Activity"), () => import("./pages/Profile"), () => import("./pages/Notifications"),
-     () => import("./pages/VideoArchive"), () => import("./pages/PostDetails")].forEach((l, i) => setTimeout(() => l().catch(() => {}), i * 150));
+    if (isSlowConnection()) return;
+    [() => import("./pages/Index"), () => import("./pages/Discover"), () => import("./pages/Chat"), () => import("./pages/Profile"),
+     () => import("./pages/Activity"), () => import("./pages/Notifications"), () => import("./pages/PostDetails"),
+     () => import("./pages/VideoArchive")].forEach((l, i) => setTimeout(() => l().catch(() => {}), i * 250));
   };
   const ric = (window as any).requestIdleCallback || ((cb: () => void) => setTimeout(cb, 1200));
-  window.addEventListener("load", () => ric(warm));
+  window.addEventListener("load", () => setTimeout(() => ric(warm), 2500));
 }
 import { AuthListener } from "./components/AuthListener";
 import { ProtectedRoute } from "./components/ProtectedRoute";
@@ -118,6 +122,7 @@ const App = () => {
                     <Route path="/algorithms" element={<Suspense fallback={null}><Algorithms /></Suspense>} />
                     <Route path="/analytics" element={<Suspense fallback={null}><AnalyticsDashboard /></Suspense>} />
                     <Route path="/archive" element={<Suspense fallback={null}><VideoArchive /></Suspense>} />
+                    <Route path="/tiktok" element={<Suspense fallback={null}><ChristianTikTok /></Suspense>} />
                     <Route element={<ProtectedRoute />}>
                       <Route path="/chat" element={<Suspense fallback={null}><Chat /></Suspense>} />
                     </Route>
