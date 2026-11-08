@@ -76,15 +76,15 @@ export function starterTikToks(): TikTokVideo[] {
   });
 }
 
-/** Official TikTok embed player URL with TikTok's own UI trimmed so SOOZ's overlay can take over. */
+/** Official TikTok embed player URL. TikTok's own play, progress and sound controls stay on. */
 export function tiktokPlayerUrl(tiktokId: string): string {
   const params = new URLSearchParams({
     autoplay: "1",
     loop: "1",
     controls: "1",
-    progress_bar: "0",
+    progress_bar: "1",
     play_button: "1",
-    volume_control: "0",
+    volume_control: "1",
     fullscreen_button: "0",
     timestamp: "0",
     music_info: "0",

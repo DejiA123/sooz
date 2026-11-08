@@ -50,11 +50,35 @@ function dailyShuffle<T>(list: T[]): T[] {
  * starter videos (so the feed is never empty of them), without duplicates. Videos approved in the
  * last two days go first so new additions are seen right away.
  */
+/**
+ * Some imported rows came back from TikTok without a creator or caption; fill those gaps from the
+ * built-in starter list (same video ID) or from the link itself, so slides never say "TikTok creator".
+ */
+function enrich(rows: TikTokVideo[]): TikTokVideo[] {
+  const starter = new Map(starterTikToks().map((v) => [v.tiktok_id, v]));
+  return rows.map((v) => {
+    const s = starter.get(v.tiktok_id);
+    const fromUrl = v.url.match(/tiktok\.com\/@([^/]+)\/video\//)?.[1];
+    const handle = v.author_handle || (fromUrl && fromUrl !== "_" ? fromUrl : null) || s?.author_handle || null;
+    return {
+      ...v,
+      author_handle: handle,
+      author_name: v.author_name || s?.author_name || null,
+      author_url: v.author_url || (handle ? `https://www.tiktok.com/@${handle}` : null),
+      title: v.title || s?.title || null,
+      url: handle && v.url.includes("/@_/") ? `https://www.tiktok.com/@${handle}/video/${v.tiktok_id}` : v.url,
+    };
+  });
+}
+
+/** Creators we can actually play videos for inside SOOZ (used for in-feed spotlights). */
+const SPOTLIGHT_CREATORS = CHRISTIAN_CREATORS.filter((c) => starterTikToks().some((v) => v.author_handle === c.handle));
+
 let tiktokPool: Promise<TikTokVideo[]> | null = null;
 function getTikTokPool(): Promise<TikTokVideo[]> {
   if (!tiktokPool) {
     tiktokPool = (async () => {
-      const { videos } = await fetchApprovedTikToks(0, 300);
+      const videos = enrich((await fetchApprovedTikToks(0, 300)).videos);
       const inDb = new Set(videos.map((v) => v.tiktok_id));
       const starter = starterTikToks().filter((v) => !inDb.has(v.tiktok_id));
       const freshSince = Date.now() - 2 * 86400000;
@@ -88,10 +112,10 @@ export async function fetchForYouPage({ pageParam = FIRST_CURSOR, userId }: { pa
   });
   queue.forEach((v) => items.push(tiktokItem(v)));
 
-  // Creator spotlight: opens that account's live TikTok profile (always their newest videos).
-  if (items.length >= 3 && CHRISTIAN_CREATORS.length) {
+  // Creator spotlight: a full-screen card that plays that creator's videos inside SOOZ.
+  if (items.length >= 3 && SPOTLIGHT_CREATORS.length) {
     const dayOffset = new Date().getDate();
-    const creator = CHRISTIAN_CREATORS[(pageParam.page + dayOffset) % CHRISTIAN_CREATORS.length];
+    const creator = SPOTLIGHT_CREATORS[(pageParam.page + dayOffset) % SPOTLIGHT_CREATORS.length];
     items.splice(Math.min(SPOTLIGHT_POSITION, items.length), 0, { kind: "creator", key: `c:${creator.handle}:${pageParam.page}`, creator });
   }
 

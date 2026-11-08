@@ -2,7 +2,7 @@ import { lazy, memo, Suspense, useState } from "react";
 import { ChevronUp, ExternalLink, Play } from "lucide-react";
 import type { ChristianCreator } from "@/data/christianTikTokStarter";
 
-// The drawer pulls in TikTok's embed only when someone opens it.
+// The drawer (and TikTok's player) only loads when someone opens it.
 const CreatorProfileDrawer = lazy(() => import("@/components/tiktok/ChristianCreators").then((m) => ({ default: m.CreatorProfileDrawer })));
 
 const GLOW: Record<ChristianCreator["kind"], string> = {
@@ -12,7 +12,7 @@ const GLOW: Record<ChristianCreator["kind"], string> = {
   Scripture: "rgba(20,184,166,0.34)",
 };
 
-/** Full-screen "Christian creator" card in the feed: tap to watch that account's newest TikToks. */
+/** Full-screen "Christian creator" card in the feed: tap to watch that creator's TikToks inside SOOZ. */
 export const CreatorSpotlightReel = memo(function CreatorSpotlightReel({ creator }: { creator: ChristianCreator }) {
   const [open, setOpen] = useState(false);
   const initial = creator.name.replace(/^Pastor /, "")[0];
@@ -31,7 +31,7 @@ export const CreatorSpotlightReel = memo(function CreatorSpotlightReel({ creator
         <span className="mt-3 rounded-full bg-white/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.2em] text-amber-200 backdrop-blur">
           Christian creator · {creator.kind}
         </span>
-        <p className="mt-4 max-w-xs text-[15px] text-white/80">Their newest TikToks, always up to date — straight from TikTok.</p>
+        <p className="mt-4 max-w-xs text-[15px] text-white/80">Watch {creator.name}'s TikToks right here in SOOZ.</p>
 
         <div className="mt-7 flex w-full max-w-xs flex-col gap-2.5">
           <button
@@ -39,7 +39,7 @@ export const CreatorSpotlightReel = memo(function CreatorSpotlightReel({ creator
             onClick={(e) => { e.stopPropagation(); setOpen(true); }}
             className="flex h-12 items-center justify-center gap-2 rounded-full bg-primary font-bold text-primary-foreground shadow-lg shadow-primary/30 active:scale-[0.98]"
           >
-            <Play className="h-4 w-4 fill-current" /> Watch newest videos
+            <Play className="h-4 w-4 fill-current" /> Watch their videos
           </button>
           <a
             href={`https://www.tiktok.com/@${creator.handle}`}

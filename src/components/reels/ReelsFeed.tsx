@@ -90,11 +90,16 @@ export const ReelsFeed = ({ items, hasMore, loadingMore, loadMore, initialIndex 
     return () => window.removeEventListener("keydown", onKey);
   }, [go]);
 
-  // Re-tapping Home jumps back to the top.
+  // Re-tapping Home jumps back to the top; "Next" on a TikTok slide moves on.
   useEffect(() => {
     const toTop = () => go(0);
+    const next = () => go(activeRef.current + 1);
     window.addEventListener("sooz:feed-top", toTop);
-    return () => window.removeEventListener("sooz:feed-top", toTop);
+    window.addEventListener("sooz:feed-next", next);
+    return () => {
+      window.removeEventListener("sooz:feed-top", toTop);
+      window.removeEventListener("sooz:feed-next", next);
+    };
   }, [go]);
 
   // Pause everything while the app is in the background.
