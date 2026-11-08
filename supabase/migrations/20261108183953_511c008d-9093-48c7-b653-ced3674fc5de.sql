@@ -1,0 +1,1 @@
+grant execute on function public.is_tiktok_curator(uuid) to anon, authenticated;
