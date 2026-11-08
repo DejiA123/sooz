@@ -52,6 +52,33 @@ const TikTokCreatorProfile = ({ handle }: { handle: string }) => {
   );
 };
 
+/** Bottom sheet with a creator's live TikTok profile. */
+export const CreatorProfileDrawer = ({ creator, onClose }: { creator: ChristianCreator | null; onClose: () => void }) => (
+  <Drawer open={!!creator} onOpenChange={(o) => { if (!o) onClose(); }}>
+    <DrawerContent className="max-h-[88vh]">
+      {creator && (
+        <>
+          <DrawerHeader className="text-left">
+            <DrawerTitle>{creator.name}</DrawerTitle>
+            <DrawerDescription>@{creator.handle} · {creator.kind} · newest videos from TikTok</DrawerDescription>
+          </DrawerHeader>
+          <div className="overflow-y-auto px-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))]">
+            <TikTokCreatorProfile handle={creator.handle} />
+            <a
+              href={`https://www.tiktok.com/@${creator.handle}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-4 flex items-center justify-center gap-2 rounded-full bg-secondary py-3 text-sm font-semibold"
+            >
+              <ExternalLink className="h-4 w-4" /> Open @{creator.handle} on TikTok
+            </a>
+          </div>
+        </>
+      )}
+    </DrawerContent>
+  </Drawer>
+);
+
 export const ChristianCreators = () => {
   const [open, setOpen] = useState<ChristianCreator | null>(null);
 
@@ -81,29 +108,7 @@ export const ChristianCreators = () => {
         ))}
       </div>
 
-      <Drawer open={!!open} onOpenChange={(o) => { if (!o) setOpen(null); }}>
-        <DrawerContent className="max-h-[88vh]">
-          {open && (
-            <>
-              <DrawerHeader className="text-left">
-                <DrawerTitle>{open.name}</DrawerTitle>
-                <DrawerDescription>@{open.handle} · {open.kind} · newest videos from TikTok</DrawerDescription>
-              </DrawerHeader>
-              <div className="overflow-y-auto px-4 pb-4">
-                <TikTokCreatorProfile handle={open.handle} />
-                <a
-                  href={`https://www.tiktok.com/@${open.handle}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="mt-4 flex items-center justify-center gap-2 rounded-full bg-secondary py-3 text-sm font-semibold"
-                >
-                  <ExternalLink className="h-4 w-4" /> Open @{open.handle} on TikTok
-                </a>
-              </div>
-            </>
-          )}
-        </DrawerContent>
-      </Drawer>
+      <CreatorProfileDrawer creator={open} onClose={() => setOpen(null)} />
     </section>
   );
 };

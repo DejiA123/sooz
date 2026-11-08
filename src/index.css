@@ -380,6 +380,7 @@ input, textarea { -webkit-user-select: text; user-select: text; }
 }
 .reel-rail-label { color: #fff; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5); }
 .feed-topbar { padding-top: env(safe-area-inset-top, 0px); }
+.creator-swipe-hint { bottom: calc(var(--bottom-nav-height) + 14px); }
 .feed-sound-toggle { top: calc(env(safe-area-inset-top, 0px) + 62px); }
 .feed-stories { top: calc(env(safe-area-inset-top, 0px) + 58px); }
 
@@ -396,6 +397,7 @@ input, textarea { -webkit-user-select: text; user-select: text; }
   .reel-rail-label { color: rgba(255, 255, 255, 0.8); text-shadow: none; font-size: 12px; }
   /* Desktop: sits in the control column above the up/down buttons */
   .feed-sound-toggle { top: calc(50% - 112px); right: 24px; height: 48px; min-width: 48px; }
+  .creator-swipe-hint { bottom: 22px; }
 }
 
 .heart-burst { animation: heart-burst 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; transform-origin: 50% 80%; }

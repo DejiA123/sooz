@@ -141,7 +141,7 @@ export const TikTokReel = memo(function TikTokReel({ video, active }: TikTokReel
                 />
               </>
             ) : (
-              <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-white/70">
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 pb-40 text-white/70">
                 <TikTokMark className="h-10 w-10" />
                 <span className="text-sm font-semibold">{handle}</span>
               </div>

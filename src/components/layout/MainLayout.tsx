@@ -6,7 +6,7 @@ import { useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
-import { fetchForYouPage } from "@/services/api/feed";
+import { fetchForYouPage, FIRST_CURSOR, type FeedCursor } from "@/services/api/feed";
 import { cn } from "@/lib/utils";
 
 export const MainLayout = () => {
@@ -22,8 +22,8 @@ export const MainLayout = () => {
         // Have the home feed ready for when the user comes back to Home.
         queryClient.prefetchInfiniteQuery({
             queryKey: ["feed", "foryou", user.id],
-            queryFn: ({ pageParam }) => fetchForYouPage({ pageParam: pageParam as number, userId: user.id }),
-            initialPageParam: 0,
+            queryFn: ({ pageParam }) => fetchForYouPage({ pageParam: pageParam as FeedCursor, userId: user.id }),
+            initialPageParam: FIRST_CURSOR,
             staleTime: 1000 * 60 * 2,
         });
 
