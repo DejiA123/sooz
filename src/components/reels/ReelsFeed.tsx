@@ -26,6 +26,7 @@ export const ReelsFeed = ({ items, hasMore, loadingMore, loadMore, initialIndex 
   const scrollerRef = useRef<HTMLDivElement>(null);
   const [active, setActive] = useState(initialIndex);
   const activeRef = useRef(initialIndex);
+  const direction = useRef(1); // which way the viewer is moving (for skipping unplayable videos)
   const [pageVisible, setPageVisible] = useState(() => typeof document === "undefined" || !document.hidden);
 
   useLayoutEffect(() => {
@@ -36,6 +37,7 @@ export const ReelsFeed = ({ items, hasMore, loadingMore, loadMore, initialIndex 
 
   const setActiveIndex = useCallback((i: number) => {
     if (i === activeRef.current) return;
+    direction.current = i > activeRef.current ? 1 : -1;
     activeRef.current = i;
     setActive(i);
     onIndexChange?.(i);
@@ -93,11 +95,15 @@ export const ReelsFeed = ({ items, hasMore, loadingMore, loadMore, initialIndex 
   useEffect(() => {
     const toTop = () => go(0);
     const next = () => go(activeRef.current + 1);
+    // A TikTok that can't play here: carry on in the direction they were going.
+    const skip = () => go(activeRef.current + (activeRef.current === 0 ? 1 : direction.current));
     window.addEventListener("sooz:feed-top", toTop);
     window.addEventListener("sooz:feed-next", next);
+    window.addEventListener("sooz:feed-skip", skip);
     return () => {
       window.removeEventListener("sooz:feed-top", toTop);
       window.removeEventListener("sooz:feed-next", next);
+      window.removeEventListener("sooz:feed-skip", skip);
     };
   }, [go]);
 

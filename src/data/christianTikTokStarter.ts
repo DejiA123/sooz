@@ -11,6 +11,8 @@ export interface StarterTikTok {
   /** Short caption shown on the slide (TikTok's own caption also appears inside its player). */
   caption: string;
   official?: boolean;
+  /** Video width × height, only for the few that aren't the usual 9:16 (TikTok's lookup no longer says). */
+  size?: [number, number];
 }
 
 /** Bump when links are added so curators' apps load the new ones automatically. */
@@ -65,13 +67,13 @@ export const STARTER_TIKTOKS: StarterTikTok[] = [
   { url: "https://www.tiktok.com/@mosesblisslive/video/7433456422676892933", official: true, caption: "Moses Bliss songs compilation #gospel #worship" },
   { url: "https://www.tiktok.com/@mosesblisslive/video/7478408657869212936", official: true, caption: "I'm a product of Your mercy 😭 If you're a product of mercy and the help of God, share this sound #gospel" },
   { url: "https://www.tiktok.com/@mosesblisslive/video/7436107662552468791", official: true, caption: "A man can receive nothing, except it be given him from heaven. John 3:27 KJV" },
-  { url: "https://www.tiktok.com/@mercychinwo/video/7294562792445578502", official: true, caption: "Grateful worship 🙏 #mercychinwo #worship" },
+  { url: "https://www.tiktok.com/@mercychinwo/video/7294562792445578502", official: true, caption: "Grateful worship 🙏 #mercychinwo #worship", size: [480, 600] },
   { url: "https://www.tiktok.com/@mercychinwo/video/7450487916566023430", official: true, caption: "The path of the just only shines brighter 💡 #gospel" },
   // Preaching — Pastor Jerry Eze (NSPPD)
   { url: "https://www.tiktok.com/@pastorjerryeze/video/7498319732941262135", official: true, caption: "Pack your load!!! #handofGod #sermon" },
   { url: "https://www.tiktok.com/@pastorjerryeze/video/7467560518815976710", official: true, caption: "Go for destiny relationships!!! #sermon" },
   { url: "https://www.tiktok.com/@pastorjerryeze/video/7487016320215665975", official: true, caption: "Embrace your emotional sensitivity #sermon" },
-  { url: "https://www.tiktok.com/@pastorjerryeze/video/7481910516957465861", official: true, caption: "Celebration and testimonies 🙌 #NSPPD #testimony" },
+  { url: "https://www.tiktok.com/@pastorjerryeze/video/7481910516957465861", official: true, caption: "Celebration and testimonies 🙌 #NSPPD #testimony", size: [854, 480] },
   { url: "https://www.tiktok.com/@pastorjerryeze/video/7487649644973952261", official: true, caption: "In this new season, the absence of men will not mean the absence of God #sermon" },
   // Pastor Mike Todd (Transformation Church)
   { url: "https://www.tiktok.com/@iammiketodd/video/7358972677383818542", official: true, caption: "The sound of heaven touching earth in Africa #worship #transformationworship" },
@@ -84,12 +86,12 @@ export const STARTER_TIKTOKS: StarterTikTok[] = [
   // Gospel worship clips (African gospel and more)
   { url: "https://www.tiktok.com/@famouzgospel/video/7253369391885077765", caption: "Tobechukwu — Nathaniel Bassey × Mercy Chinwo #gospel #worship" },
   { url: "https://www.tiktok.com/@famouzgospel/video/7203071185662315782", caption: "Tobechukwu (live) — Nathaniel Bassey × Mercy Chinwo #worship" },
-  { url: "https://www.tiktok.com/@gospelhotspot/video/7224357149919595782", caption: "Tobechukwu (Praise God) #gospel" },
+  { url: "https://www.tiktok.com/@gospelhotspot/video/7224357149919595782", caption: "Tobechukwu (Praise God) #gospel", size: [480, 480] },
   { url: "https://www.tiktok.com/@believespecial/video/7430779352448716038", caption: "Father of Spirits — Theophilus Sunday #worship" },
   { url: "https://www.tiktok.com/@nathanielblow1/video/7225648064319507717", caption: "Holy Spirit carry me go #nathanielbassey #holyspirit" },
-  { url: "https://www.tiktok.com/@agapelegacy/video/7503223503613676855", caption: "Nathaniel Bassey #worshipmusic #gospel" },
+  { url: "https://www.tiktok.com/@agapelegacy/video/7503223503613676855", caption: "Nathaniel Bassey #worshipmusic #gospel", size: [576, 768] },
   { url: "https://www.tiktok.com/@gmfg_tv_official/video/7365413526896233736", caption: "Amazing God — Mercy Chinwo #gospelmusic #worship" },
-  { url: "https://www.tiktok.com/@lidu.c/video/7251988774714985733", caption: "Until Grace — CeCe Winans + Tauren Wells #Jesus #Grace" },
+  { url: "https://www.tiktok.com/@lidu.c/video/7251988774714985733", caption: "Until Grace — CeCe Winans + Tauren Wells #Jesus #Grace", size: [576, 828] },
   { url: "https://www.tiktok.com/@dripires15/video/7073284394898885934", caption: "Come Again — Elevation Worship × Maverick City #worship" },
   { url: "https://www.tiktok.com/@pawalajanyan/video/7245236206068387078", caption: "Wait On You (Part II) #worship" },
   { url: "https://www.tiktok.com/@khayamthethwa0/video/7306163880013696262", caption: "Verse of the Day on the YouVersion Bible App #christiantiktok #bible" },

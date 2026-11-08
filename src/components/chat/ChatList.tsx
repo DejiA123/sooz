@@ -1,7 +1,6 @@
-import { format, isToday, isYesterday, isThisWeek, formatDistanceToNow } from "date-fns";
+import { messagePreview, shortChatTime } from "@/lib/chat";
 import { cn } from "@/lib/utils";
 import { Plus, Users, Search, MessageCircle } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -14,7 +13,6 @@ import {
     PopoverContent,
     PopoverTrigger,
 } from "@/components/ui/popover";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 
 import { usePresence } from "@/hooks/usePresence";
@@ -142,7 +140,9 @@ export const ChatList = ({ selectedId, onSelect }: ChatListProps) => {
                         lastSeen: chatLastSeen
                     },
                     isGroup,
-                    lastMessage: lastMsg?.content || "No messages yet",
+                    lastMessage: lastMsg
+                        ? `${lastMsg.sender_id === user.id ? "You: " : ""}${messagePreview(lastMsg.content)}`
+                        : isGroup ? "Group created" : "Say hello 👋",
                     timestamp: lastMsg?.created_at || conv.created_at,
                     unread: 0
                 };
@@ -161,7 +161,7 @@ export const ChatList = ({ selectedId, onSelect }: ChatListProps) => {
 
         // Subscribe to new messages or conversations
         const channel = supabase
-            .channel('public:conversations')
+            .channel(`chat-list:${crypto.randomUUID().slice(0, 8)}`)
             .on(
                 'postgres_changes',
                 { event: '*', schema: 'public', table: 'messages' },
@@ -193,151 +193,111 @@ export const ChatList = ({ selectedId, onSelect }: ChatListProps) => {
     });
 
     const isOnline = (userId: string) => onlineUsers.has(userId);
+    const tabs = [["all", "All"], ["direct", "Direct"], ["group", "Groups"]] as const;
 
     return (
-        <div className="flex flex-col h-full bg-background border-r border-white/5">
-            {/* Premium Header */}
-            <div className="p-4 pt-2 space-y-6">
+        <div className="flex h-full flex-col bg-[#05070b] text-white">
+            <div className="shrink-0 space-y-4 px-4 pb-3 pt-3">
                 <div className="flex items-center justify-between">
-                    <h2 className="text-2xl font-black tracking-tighter bg-gradient-to-r from-foreground to-foreground/50 bg-clip-text text-transparent">Messages</h2>
+                    <h1 className="text-[28px] font-bold leading-none tracking-tight text-white">Messages</h1>
                     <Popover open={isNewChatOpen} onOpenChange={setIsNewChatOpen}>
                         <PopoverTrigger asChild>
-                            <Button size="icon" variant="secondary" className="rounded-full bg-white/5 hover:bg-white/10 border-0 h-10 w-10 active:scale-95 transition-all">
-                                <Plus className="w-5 h-5" />
-                            </Button>
+                            <button type="button" aria-label="New message" className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-400 text-[#1a1204] active:scale-95">
+                                <Plus className="h-5 w-5" strokeWidth={2.5} />
+                            </button>
                         </PopoverTrigger>
-                        <PopoverContent className="w-80 p-0 overflow-hidden border-white/10 glass shadow-2xl rounded-3xl" align="end">
-                            <div className="p-4 border-b border-white/5 bg-white/5">
-                                <h3 className="font-black text-sm uppercase tracking-widest text-muted-foreground/50">New Message</h3>
-                            </div>
-                            <div className="max-h-64 overflow-y-auto p-2">
-                                <Button
-                                    className="w-full justify-start gap-3 rounded-2xl h-12 bg-white/5 border-0 hover:bg-white/10 font-bold"
-                                    onClick={() => {
-                                        setShowCreateModal(true);
-                                        setIsNewChatOpen(false);
-                                    }}
-                                >
-                                    <Users className="w-5 h-5 text-primary" />
-                                    New Group Chat
-                                </Button>
-                                <p className="p-4 text-center text-[10px] text-muted-foreground uppercase tracking-widest font-black opacity-50">Recent Contacts</p>
-                                <div className="space-y-1">
-                                    {/* Placeholder for recent contacts - could be fetched */}
-                                    <p className="p-4 text-center text-xs text-muted-foreground/50 font-medium italic">No recent contacts</p>
-                                </div>
-                            </div>
+                        <PopoverContent className="w-72 overflow-hidden rounded-2xl border-white/10 bg-[#14171d] p-2 text-white" align="end">
+                            <button
+                                type="button"
+                                className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-[15px] font-medium active:bg-white/10"
+                                onClick={() => { setShowCreateModal(true); setIsNewChatOpen(false); }}
+                            >
+                                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10"><Users className="h-[18px] w-[18px] text-amber-400" /></span>
+                                New group chat
+                            </button>
+                            <p className="px-3 pb-2 pt-1 text-[13px] text-white/45">To message someone, open their profile and tap Message.</p>
                         </PopoverContent>
                     </Popover>
                 </div>
 
-                {/* Modern Search */}
-                <div className="relative group">
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/50 group-focus-within:text-primary transition-colors" />
+                <div className="relative">
+                    <Search className="pointer-events-none absolute left-3.5 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-white/40" />
                     <Input
-                        placeholder="Search messages..."
+                        placeholder="Search"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="pl-11 h-12 bg-white/5 border-0 rounded-2xl focus-visible:ring-1 focus-visible:ring-primary/30 placeholder:text-muted-foreground/30 font-medium transition-all"
+                        className="h-11 rounded-full border-0 bg-white/[0.08] pl-11 text-[16px] text-white placeholder:text-white/40 focus-visible:ring-1 focus-visible:ring-amber-400/40"
                     />
                 </div>
 
-                {/* Filter Tabs */}
-                <div className="flex p-1 bg-white/5 rounded-2xl gap-1">
-                    {['all', 'direct', 'group'].map((t) => (
+                <div className="flex gap-2">
+                    {tabs.map(([key, label]) => (
                         <button
-                            key={t}
-                            onClick={() => setActiveTab(t as any)}
+                            key={key}
+                            type="button"
+                            onClick={() => setActiveTab(key)}
                             className={cn(
-                                "flex-1 py-1.5 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all",
-                                activeTab === t ? "bg-white/10 text-foreground shadow-sm" : "text-muted-foreground/40 hover:text-muted-foreground/60"
+                                "h-8 rounded-full px-4 text-[14px] font-semibold transition-colors",
+                                activeTab === key ? "bg-white text-black" : "bg-white/[0.08] text-white/75 active:bg-white/15"
                             )}
                         >
-                            {t}
+                            {label}
                         </button>
                     ))}
                 </div>
             </div>
 
-            {/* Chat List */}
-            <ScrollArea className="flex-1 px-4">
-                <div className="space-y-1 py-2">
-                    {isLoading ? (
-                        [1, 2, 3, 4, 5].map((i) => (
-                            <div key={i} className="flex items-center gap-4 p-4">
-                                <Skeleton className="w-14 h-14 rounded-2xl bg-white/5" />
-                                <div className="flex-1 space-y-2">
-                                    <Skeleton className="h-4 w-1/2 bg-white/5" />
-                                    <Skeleton className="h-3 w-3/4 bg-white/5" />
-                                </div>
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-2 pb-4">
+                {isLoading ? (
+                    [1, 2, 3, 4, 5].map((i) => (
+                        <div key={i} className="flex items-center gap-3 px-2 py-2.5">
+                            <Skeleton className="h-14 w-14 rounded-full bg-white/[0.06]" />
+                            <div className="flex-1 space-y-2">
+                                <Skeleton className="h-4 w-1/2 bg-white/[0.06]" />
+                                <Skeleton className="h-3 w-3/4 bg-white/[0.06]" />
                             </div>
-                        ))
-                    ) : filteredChats.length === 0 ? (
-                        <div className="py-20 text-center animate-in fade-in duration-700">
-                            <div className="w-16 h-16 rounded-full bg-secondary/30 flex items-center justify-center mx-auto mb-4">
-                                <MessageCircle className="w-8 h-8 text-muted-foreground/20" />
-                            </div>
-                            <p className="text-muted-foreground/50 font-bold text-sm">No conversations found</p>
                         </div>
-                    ) : (
-                        filteredChats.map((chat) => {
-                            const active = isOnline(chat.user.id || "");
-                            return (
-                                <button
-                                    key={chat.id}
-                                    onClick={() => onSelect(chat.id)}
-                                    className={cn(
-                                        "w-full flex items-center gap-4 p-4 rounded-3xl transition-all duration-300 group relative active:scale-[0.98]",
-                                        selectedId === chat.id
-                                            ? "bg-primary/10 border border-primary/20 shadow-lg shadow-primary/5"
-                                            : "hover:bg-white/[0.03] border border-transparent"
-                                    )}
-                                >
-                                    <div className="relative flex-shrink-0">
-                                        <Avatar className={cn(
-                                            "w-14 h-14 rounded-2xl border border-white/10 transition-transform duration-500 group-hover:scale-105",
-                                            selectedId === chat.id ? "ring-2 ring-primary/40 ring-offset-2 ring-offset-background" : ""
-                                        )}>
-                                            <AvatarImage src={chat.user.avatar || ""} className="object-cover" />
-                                            <AvatarFallback className="bg-secondary/50 font-medium text-primary uppercase">
-                                                {chat.isGroup ? <Users className="w-6 h-6" /> : chat.user.name[0]}
-                                            </AvatarFallback>
-                                        </Avatar>
-                                        {!chat.isGroup && (
-                                            <span className={cn(
-                                                "absolute -top-1 -right-1 w-4 h-4 rounded-full border-4 border-background shadow-lg transition-transform duration-500 group-hover:scale-110",
-                                                active ? "bg-green-500 animate-pulse" : "bg-gray-500/50"
-                                            )} />
-                                        )}
-                                    </div>
-
-                                    <div className="flex-1 min-w-0 text-left">
-                                        <div className="flex items-center justify-between mb-0.5">
-                                            <p className="font-medium text-[15px] truncate tracking-tight">{chat.user.name}</p>
-                                            <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/30">
-                                                {chat.timestamp ? formatDistanceToNow(new Date(chat.timestamp), { addSuffix: false }) : ''}
-                                            </span>
-                                        </div>
-                                        <p className={cn(
-                                            "text-[13px] truncate font-medium transition-colors",
-                                            chat.unread > 0 ? "text-foreground font-black" : "text-muted-foreground/60 group-hover:text-muted-foreground/80"
-                                        )}>
-                                            {chat.isGroup && <span className="text-primary/70 mr-1">Group:</span>}
-                                            {chat.lastMessage}
-                                        </p>
-                                    </div>
-
-                                    {chat.unread > 0 && (
-                                        <div className="absolute right-4 bottom-4 min-w-[20px] h-5 rounded-full bg-primary flex items-center justify-center px-1.5 shadow-lg shadow-primary/20 animate-in zoom-in duration-300">
-                                            <span className="text-[10px] font-black text-white">{chat.unread}</span>
-                                        </div>
-                                    )}
-                                </button>
-                            );
-                        })
-                    )}
-                </div>
-            </ScrollArea>
+                    ))
+                ) : filteredChats.length === 0 ? (
+                    <div className="py-20 text-center">
+                        <MessageCircle className="mx-auto mb-3 h-10 w-10 text-white/20" />
+                        <p className="text-[15px] font-medium text-white/60">{searchQuery ? "No matches" : "No messages yet"}</p>
+                    </div>
+                ) : (
+                    filteredChats.map((chat) => {
+                        const online = !chat.isGroup && isOnline(chat.user.id || "");
+                        const selected = selectedId === chat.id;
+                        return (
+                            <button
+                                key={chat.id}
+                                type="button"
+                                onClick={() => onSelect(chat.id)}
+                                className={cn(
+                                    "flex w-full items-center gap-3 rounded-2xl px-2 py-2.5 text-left transition-colors active:bg-white/[0.06]",
+                                    selected && "bg-white/[0.07]"
+                                )}
+                            >
+                                <span className="relative shrink-0">
+                                    <Avatar className="h-14 w-14">
+                                        <AvatarImage src={chat.user.avatar || ""} className="object-cover" />
+                                        <AvatarFallback className="bg-gradient-to-br from-amber-400 to-amber-700 text-[20px] font-bold text-white">
+                                            {chat.isGroup ? <Users className="h-6 w-6" /> : chat.user.name[0]?.toUpperCase()}
+                                        </AvatarFallback>
+                                    </Avatar>
+                                    {online && <span className="absolute bottom-0.5 right-0.5 h-3.5 w-3.5 rounded-full border-[2.5px] border-[#05070b] bg-emerald-500" />}
+                                </span>
+                                <span className="min-w-0 flex-1">
+                                    <span className="flex items-baseline justify-between gap-2">
+                                        <span className="truncate text-[16px] font-semibold text-white">{chat.user.name}</span>
+                                        <span className="shrink-0 text-[12.5px] text-white/40">{shortChatTime(chat.timestamp)}</span>
+                                    </span>
+                                    <span className="mt-0.5 block truncate text-[14px] text-white/55">{chat.lastMessage}</span>
+                                </span>
+                            </button>
+                        );
+                    })
+                )}
+            </div>
 
             {showCreateModal && (
                 <CreateGroupModal

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Check, ArrowLeft, LogOut, Bell, Palette, Monitor, Shield } from "lucide-react";
+import { Check, ArrowLeft, LogOut, Bell, Palette } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { useNavigate } from "react-router-dom";
@@ -7,24 +7,22 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
-import { getColorMode, setColorMode } from "@/lib/theme";
 
 const THEMES = [
   { id: "gold", primary: "38 92% 50%", color: "hsl(38, 92%, 50%)" },
   { id: "blue", primary: "240 100% 27%", color: "hsl(240, 100%, 27%)" },
   { id: "rose", primary: "340 75% 55%", color: "hsl(340, 75%, 55%)" },
   { id: "emerald", primary: "142 71% 45%", color: "hsl(142, 71%, 45%)" },
-  { id: "amber", primary: "38 92% 50%", color: "hsl(38, 92%, 50%)" },
   { id: "violet", primary: "263 70% 58%", color: "hsl(263, 70%, 58%)" },
 ];
 
 export default function Settings() {
   const navigate = useNavigate();
-  const [currentTheme, setCurrentTheme] = useState("blue");
+  const [currentTheme, setCurrentTheme] = useState("gold");
   const { isSubscribed, subscribeToPush, unsubscribeFromPush } = usePushNotifications();
 
   useEffect(() => {
-    const theme = localStorage.getItem("sooz-theme") || "blue";
+    const theme = localStorage.getItem("sooz-theme") || "gold";
     setCurrentTheme(theme);
     applyTheme(theme);
   }, []);
@@ -54,15 +52,6 @@ export default function Settings() {
             </button>
           ))}
         </div>
-      ),
-    },
-    {
-      icon: Monitor,
-      iconColor: "text-blue-500",
-      title: "Dark Mode",
-      trailing: (
-        <Switch defaultChecked={getColorMode() === "dark"}
-          onCheckedChange={(checked) => setColorMode(checked ? "dark" : "light")} />
       ),
     },
     {

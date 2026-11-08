@@ -1,482 +1,634 @@
+import React, { createContext, useContext, useEffect, useRef, useState } from "react";
+import type { RealtimeChannel } from "@supabase/supabase-js";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { toast } from "sonner";
 
-import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
-import { toast } from 'sonner';
+/**
+ * Voice / video calls, one-to-one and in groups.
+ *
+ * Every call is a small "room" (a Supabase Realtime channel `call:{id}`). Each person in it connects
+ * straight to each other person (WebRTC mesh, fine for up to ~6 people). People are invited through
+ * their own channel `user:{id}`. For every pair, the person with the smaller user id makes the offer,
+ * so two people never offer to each other at once. Connections that drop are restarted, invites are
+ * re-sent until answered, and unanswered calls stop ringing after 45 seconds.
+ */
 
-type CallState = 'IDLE' | 'CALLING' | 'RINGING' | 'CONNECTED' | 'ENDED';
+export type CallState = "IDLE" | "OUTGOING" | "INCOMING" | "ACTIVE";
+
+export interface CallPeer {
+  id: string;
+  name: string;
+  avatar: string | null;
+  stream: MediaStream | null;
+  cameraOff: boolean;
+  micOff: boolean;
+  connection: RTCPeerConnectionState;
+}
+
+export interface CallInfo {
+  id: string;
+  isGroup: boolean;
+  isVideo: boolean;
+  /** The other person's name (1:1) or the group's name. */
+  title: string;
+  avatar: string | null;
+  /** Everyone invited, apart from me. */
+  members: string[];
+  /** When the first person connected (for the call timer). */
+  connectedAt?: number;
+}
+
+export interface IncomingCall {
+  callId: string;
+  from: { id: string; name: string; avatar: string | null };
+  isGroup: boolean;
+  isVideo: boolean;
+  title: string;
+  members: string[];
+}
 
 interface CallContextType {
-    callState: CallState;
-    localStream: MediaStream | null;
-    remoteStream: MediaStream | null;
-    callerInfo: { id: string; name: string; avatar: string | null } | null;
-    startCall: (recipientId: string, recipientName: string, recipientAvatar: string | null, isVideo?: boolean) => Promise<void>;
-    acceptCall: () => Promise<void>;
-    rejectCall: () => void;
-    endCall: () => void;
-    toggleMute: () => void;
-    toggleCamera: () => void;
-    isMuted: boolean;
-    isCameraOff: boolean;
-    isVideoCall: boolean;
-    isRemoteCameraOff: boolean;
+  callState: CallState;
+  call: CallInfo | null;
+  incoming: IncomingCall | null;
+  peers: CallPeer[];
+  localStream: MediaStream | null;
+  isMuted: boolean;
+  isCameraOff: boolean;
+  startCall: (recipientId: string, recipientName: string, recipientAvatar: string | null, isVideo?: boolean) => Promise<void>;
+  startGroupCall: (conversationId: string, title: string, memberIds: string[], isVideo?: boolean) => Promise<void>;
+  acceptCall: () => Promise<void>;
+  rejectCall: () => void;
+  endCall: () => void;
+  toggleMute: () => void;
+  toggleCamera: () => void;
+  flipCamera: () => void;
 }
 
 const CallContext = createContext<CallContextType | undefined>(undefined);
 
 export const useCall = () => {
-    const context = useContext(CallContext);
-    if (!context) throw new Error('useCall must be used within a CallProvider');
-    return context;
+  const context = useContext(CallContext);
+  if (!context) throw new Error("useCall must be used within a CallProvider");
+  return context;
 };
 
-const ICE_SERVERS: RTCConfiguration = {
-    iceServers: [
-        { urls: 'stun:stun.l.google.com:19302' },
-        { urls: 'stun:stun.cloudflare.com:3478' },
-    ],
-    iceCandidatePoolSize: 10,
-};
+const RING_MS = 45_000;
+const MAX_GROUP = 8;
 
-// Fetch Cloudflare TURN relay credentials so calls connect on mobile networks
-const loadTurn = async () => {
+// STUN finds each phone's public address; TURN (Cloudflare, via the turn-credentials function)
+// relays the call when phones can't reach each other directly (most mobile networks).
+let iceServers: RTCIceServer[] = [
+  { urls: ["stun:stun.cloudflare.com:3478", "stun:stun.l.google.com:19302"] },
+];
+let turnLoaded: Promise<void> = Promise.resolve();
+const loadTurn = () => {
+  turnLoaded = (async () => {
     try {
-        const { data, error } = await supabase.functions.invoke('turn-credentials');
-        if (error || !data?.iceServers) return;
-        const extra = Array.isArray(data.iceServers) ? data.iceServers : [data.iceServers];
-        ICE_SERVERS.iceServers = [...extra, { urls: 'stun:stun.l.google.com:19302' }];
-    } catch { /* keep STUN fallback */ }
+      const { data, error } = await supabase.functions.invoke("turn-credentials");
+      if (error || !data?.iceServers) return;
+      const extra = Array.isArray(data.iceServers) ? data.iceServers : [data.iceServers];
+      iceServers = [...extra, { urls: "stun:stun.l.google.com:19302" }];
+    } catch { /* keep STUN only */ }
+  })();
 };
 loadTurn();
 setInterval(loadTurn, 12 * 60 * 60 * 1000);
 
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/** Wait (briefly) for the connection to gather its addresses, so they travel inside the offer/answer too. */
+function gathered(pc: RTCPeerConnection, ms = 1200) {
+  if (pc.iceGatheringState === "complete") return Promise.resolve();
+  return new Promise<void>((resolve) => {
+    const done = () => { pc.removeEventListener("icegatheringstatechange", check); resolve(); };
+    const check = () => { if (pc.iceGatheringState === "complete") done(); };
+    pc.addEventListener("icegatheringstatechange", check);
+    setTimeout(done, ms);
+  });
+}
+
+type Who = { id: string; name: string; avatar: string | null };
+
+interface PeerEntry {
+  id: string;
+  pc: RTCPeerConnection;
+  stream: MediaStream;
+  queue: RTCIceCandidateInit[];
+  cameraOff: boolean;
+  micOff: boolean;
+  restartTimer?: ReturnType<typeof setTimeout>;
+}
+
+type RoomSignal = {
+  kind: "join" | "hello" | "offer" | "answer" | "ice" | "leave" | "media";
+  from: string;
+  to?: string;
+  name?: string;
+  avatar?: string | null;
+  sdp?: RTCSessionDescriptionInit;
+  candidate?: RTCIceCandidateInit;
+  cameraOff?: boolean;
+  micOff?: boolean;
+};
+
+type UserSignal = {
+  kind: "invite" | "cancel" | "decline" | "busy";
+  callId: string;
+  from: string;
+  name?: string;
+  avatar?: string | null;
+  isGroup?: boolean;
+  isVideo?: boolean;
+  title?: string;
+  members?: string[];
+  missed?: boolean;
+};
+
 export const CallProvider = ({ children }: { children: React.ReactNode }) => {
-    const { user } = useAuth();
-    const [callState, setCallState] = useState<CallState>('IDLE');
-    const [localStream, setLocalStream] = useState<MediaStream | null>(null);
-    const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
-    const [callerInfo, setCallerInfo] = useState<{ id: string; name: string; avatar: string | null } | null>(null);
-    const [isVideoCall, setIsVideoCall] = useState(true); // Track if current/incoming call is video
-    const [isRemoteCameraOff, setIsRemoteCameraOff] = useState(false);
+  const { user } = useAuth();
+  const [callState, setCallState] = useState<CallState>("IDLE");
+  const [call, setCall] = useState<CallInfo | null>(null);
+  const [incoming, setIncoming] = useState<IncomingCall | null>(null);
+  const [peers, setPeers] = useState<CallPeer[]>([]);
+  const [localStream, setLocalStream] = useState<MediaStream | null>(null);
+  const [isMuted, setIsMuted] = useState(false);
+  const [isCameraOff, setIsCameraOff] = useState(false);
 
-    // For outgoing calls
-    const [recipientId, setRecipientId] = useState<string | null>(null);
+  const me = useRef<Who | null>(null);
+  const stateRef = useRef<CallState>("IDLE");
+  const callRef = useRef<CallInfo | null>(null);
+  const incomingRef = useRef<IncomingCall | null>(null);
+  const localRef = useRef<MediaStream | null>(null);
+  const roomRef = useRef<RealtimeChannel | null>(null);
+  const peersRef = useRef(new Map<string, PeerEntry>());
+  const pendingIce = useRef(new Map<string, RTCIceCandidateInit[]>());
+  const names = useRef(new Map<string, Who>());
+  const joined = useRef(new Set<string>()); // people who answered this call
+  const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const facing = useRef<"user" | "environment">("user");
+  const wakeLock = useRef<{ release: () => Promise<void> } | null>(null);
 
-    const peerConnection = useRef<RTCPeerConnection | null>(null);
-    const iceCandidatesQueue = useRef<RTCIceCandidate[]>([]); // Queue for early candidates
-    const [isMuted, setIsMuted] = useState(false);
-    const [isCameraOff, setIsCameraOff] = useState(false);
+  const setState = (s: CallState) => { stateRef.current = s; setCallState(s); };
+  const updateCall = (c: CallInfo | null) => { callRef.current = c; setCall(c); };
+  const updateIncoming = (i: IncomingCall | null) => { incomingRef.current = i; setIncoming(i); };
+  const later = (fn: () => void, ms: number) => { timers.current.push(setTimeout(fn, ms)); };
+  const clearTimers = () => { timers.current.forEach(clearTimeout); timers.current = []; };
 
-    // Initialization of PeerConnection
-    const createPeerConnection = () => {
-        if (peerConnection.current) return peerConnection.current;
+  const publish = () => {
+    setPeers([...peersRef.current.values()].map((e) => {
+      const who = names.current.get(e.id);
+      return {
+        id: e.id,
+        name: who?.name || "Someone",
+        avatar: who?.avatar ?? null,
+        stream: e.stream.getTracks().length ? e.stream : null,
+        cameraOff: e.cameraOff,
+        micOff: e.micOff,
+        connection: e.pc.connectionState,
+      };
+    }));
+  };
 
-        const pc = new RTCPeerConnection(ICE_SERVERS);
+  // My name and photo, for invites and the other people's screens.
+  useEffect(() => {
+    if (!user) { me.current = null; return; }
+    me.current = { id: user.id, name: user.user_metadata?.display_name || user.user_metadata?.username || "SOOZ user", avatar: user.user_metadata?.avatar_url ?? null };
+    supabase.from("profiles").select("username, display_name, avatar_url").eq("id", user.id).maybeSingle().then(({ data }) => {
+      if (data && me.current) me.current = { id: user.id, name: data.display_name || data.username || me.current.name, avatar: data.avatar_url ?? me.current.avatar };
+    });
+  }, [user]);
 
-        pc.onicecandidate = (event) => {
-            if (event.candidate) {
-                const targetId = recipientId || callerInfo?.id;
-                if (targetId) {
-                    supabase.channel(`user:${targetId}`).send({
-                        type: 'broadcast',
-                        event: 'ice-candidate',
-                        payload: { candidate: event.candidate, from: user?.id }
-                    });
-                }
-            }
-        };
+  // ---- Sending ----------------------------------------------------------------------------
+  const sendToUser = async (userId: string, signal: Omit<UserSignal, "from">) => {
+    if (!me.current) return;
+    const payload: UserSignal = { ...signal, from: me.current.id };
+    const ch = supabase.channel(`user:${userId}`);
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try { if ((await ch.send({ type: "broadcast", event: "call-v2", payload })) === "ok") return; } catch { /* retry */ }
+      await sleep(500 * (attempt + 1));
+    }
+  };
 
-        let remoteStreamTemp: MediaStream | null = null;
+  const roomSend = async (signal: Omit<RoomSignal, "from">) => {
+    const ch = roomRef.current;
+    if (!ch || !me.current) return;
+    const payload: RoomSignal = { ...signal, from: me.current.id };
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try { if ((await ch.send({ type: "broadcast", event: "signal", payload })) === "ok") return; } catch { /* retry */ }
+      await sleep(400 * (attempt + 1));
+      if (roomRef.current !== ch) return;
+    }
+  };
 
-        pc.ontrack = (event) => {
-            console.log('📹 Received remote track:', event.track.kind, event.streams);
+  // ---- Media ------------------------------------------------------------------------------
+  const getMedia = async (video: boolean, group: boolean) => {
+    const audio = { echoCancellation: true, noiseSuppression: true, autoGainControl: true };
+    const size = group ? { width: { ideal: 480 }, height: { ideal: 640 } } : { width: { ideal: 720 }, height: { ideal: 1280 } };
+    const tries: MediaStreamConstraints[] = video
+      ? [{ audio, video: { facingMode: "user", ...size } }, { audio: true, video: true }, { audio: true }]
+      : [{ audio }, { audio: true }];
+    for (const c of tries) {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia(c);
+        if (video && !stream.getVideoTracks().length) toast("Camera unavailable — joining with audio only");
+        localRef.current = stream;
+        setLocalStream(stream);
+        setIsMuted(false);
+        setIsCameraOff(!stream.getVideoTracks().length);
+        facing.current = "user";
+        return stream;
+      } catch (e) {
+        if ((e as Error)?.name === "NotAllowedError") break;
+      }
+    }
+    toast.error("SOOZ needs your microphone for calls. Allow it in your phone's settings for this app.");
+    return null;
+  };
 
-            // Always create a new stream if one doesn't exist, or add to existing
-            setRemoteStream((prevStream) => {
-                if (prevStream) {
-                    // Check if track already exists
-                    if (!prevStream.getTracks().find(t => t.id === event.track.id)) {
-                        prevStream.addTrack(event.track);
-                        return prevStream; // Re-render triggers might need new reference? usually strictly react needs new ref.
-                        // But MediaStream is mutable. Let's try forcing new reference if needed, but usually works if efficient.
-                        // Better: cloning stream? No, keep same stream object ID if possible for video element srcObject.
-                        // Actually, common pattern is:
-                        return prevStream;
-                    }
-                    return prevStream;
-                } else {
-                    return event.streams[0] || new MediaStream([event.track]);
-                }
-            });
+  const keepAwake = async () => {
+    try {
+      const nav = navigator as Navigator & { wakeLock?: { request: (t: "screen") => Promise<{ release: () => Promise<void> }> } };
+      wakeLock.current = (await nav.wakeLock?.request("screen")) ?? null;
+    } catch { /* not supported */ }
+  };
 
-            // Fallback: If event.streams[0] is provided, use it directly?
-            if (event.streams && event.streams[0]) {
-                // event.streams[0] is the remote stream
-            }
-        };
+  // ---- Peer connections -------------------------------------------------------------------
+  const closePeer = (id: string) => {
+    const e = peersRef.current.get(id);
+    if (!e) return;
+    clearTimeout(e.restartTimer);
+    e.pc.onicecandidate = null; e.pc.ontrack = null; e.pc.onconnectionstatechange = null;
+    try { e.pc.close(); } catch { /* already closed */ }
+    peersRef.current.delete(id);
+    publish();
+  };
 
-        // Handle connection state changes
-        pc.onconnectionstatechange = () => {
-            console.log('📡 Connection state changed:', pc.connectionState);
-            if (pc.connectionState === 'connected') {
-                setCallState('CONNECTED');
-            } else if (pc.connectionState === 'failed') {
-                // Try to recover instead of ending immediately
-                console.error('📡 Connection failed - attempting simple recovery (waiting)');
-                // Don't call handleEnd() immediately, let it try to renegotiate or let user end it
-            } else if (pc.connectionState === 'closed') {
-                handleEnd();
-            }
-        };
+  const offerTo = async (id: string, iceRestart = false) => {
+    const e = peersRef.current.get(id);
+    if (!e) return;
+    try {
+      const offer = await e.pc.createOffer({ iceRestart });
+      await e.pc.setLocalDescription(offer);
+      await gathered(e.pc);
+      if (peersRef.current.get(id) !== e) return;
+      await roomSend({ kind: "offer", to: id, sdp: e.pc.localDescription!.toJSON() });
+    } catch (err) {
+      console.error("offer failed", err);
+    }
+  };
 
-        peerConnection.current = pc;
-        return pc;
+  const createPeer = (id: string) => {
+    closePeer(id);
+    const pc = new RTCPeerConnection({ iceServers, iceCandidatePoolSize: 2 });
+    const entry: PeerEntry = { id, pc, stream: new MediaStream(), queue: pendingIce.current.get(id) ?? [], cameraOff: false, micOff: false };
+    pendingIce.current.delete(id);
+    peersRef.current.set(id, entry);
+    localRef.current?.getTracks().forEach((t) => pc.addTrack(t, localRef.current!));
+
+    pc.onicecandidate = (ev) => { if (ev.candidate) roomSend({ kind: "ice", to: id, candidate: ev.candidate.toJSON() }); };
+    pc.ontrack = (ev) => {
+      if (!entry.stream.getTracks().some((t) => t.id === ev.track.id)) entry.stream.addTrack(ev.track);
+      ev.track.onunmute = publish;
+      publish();
     };
-
-    // Cleanup function
-    const handleEnd = () => {
-        setCallState('IDLE');
-        setCallerInfo(null);
-        setRecipientId(null);
-        setRemoteStream(null);
-
-        if (localStream) {
-            localStream.getTracks().forEach(track => track.stop());
-            setLocalStream(null);
-        }
-
-        if (peerConnection.current) {
-            peerConnection.current.close();
-            peerConnection.current = null;
-        }
-
-        // Clear ICE queue
-        iceCandidatesQueue.current = [];
+    pc.onconnectionstatechange = () => {
+      const s = pc.connectionState;
+      if (s === "connected") {
+        clearTimeout(entry.restartTimer);
+        const c = callRef.current;
+        if (c && !c.connectedAt) updateCall({ ...c, connectedAt: Date.now() });
+        if (stateRef.current !== "ACTIVE") setState("ACTIVE");
+      } else if (s === "failed") {
+        // Try again on a fresh route (the person with the smaller id restarts, to avoid clashes).
+        if (me.current && me.current.id < id) offerTo(id, true);
+      } else if (s === "disconnected") {
+        clearTimeout(entry.restartTimer);
+        entry.restartTimer = setTimeout(() => {
+          if (pc.connectionState === "disconnected" && me.current && me.current.id < id) offerTo(id, true);
+        }, 4000);
+      }
+      publish();
     };
+    publish();
+    return entry;
+  };
 
-    // Helper to process queued candidates
-    const processIceQueue = async () => {
-        if (!peerConnection.current || !peerConnection.current.remoteDescription) return;
+  const flushIce = async (e: PeerEntry) => {
+    while (e.queue.length) {
+      const c = e.queue.shift()!;
+      try { await e.pc.addIceCandidate(c); } catch { /* stale candidate */ }
+    }
+  };
 
-        while (iceCandidatesQueue.current.length > 0) {
-            const candidate = iceCandidatesQueue.current.shift();
-            if (candidate) {
-                try {
-                    await peerConnection.current.addIceCandidate(candidate);
-                    console.log("❄️ Added queued ICE candidate");
-                } catch (e) {
-                    console.error("Error adding queued ICE candidate", e);
-                }
-            }
+  /** Someone is in the room: the smaller id makes the offer; the other says hello so it can. */
+  const meet = (from: string, replyHello: boolean) => {
+    if (!me.current || from === me.current.id) return;
+    const existing = peersRef.current.get(from);
+    const healthy = existing && ["new", "connecting", "connected"].includes(existing.pc.connectionState);
+    if (me.current.id < from) {
+      if (!healthy) { createPeer(from); offerTo(from); }
+    } else if (replyHello) {
+      roomSend({ kind: "hello", to: from, name: me.current.name, avatar: me.current.avatar });
+    }
+  };
+
+  const onRoom = async (s: RoomSignal) => {
+    if (!me.current || !s?.from || s.from === me.current.id) return;
+    if (s.to && s.to !== me.current.id) return;
+    if (s.name) names.current.set(s.from, { id: s.from, name: s.name, avatar: s.avatar ?? null });
+
+    if (s.kind === "join" || s.kind === "hello") {
+      joined.current.add(s.from);
+      if (peersRef.current.size + 1 >= MAX_GROUP && !peersRef.current.has(s.from)) return;
+      meet(s.from, s.kind === "join");
+      publish();
+    } else if (s.kind === "offer" && s.sdp) {
+      joined.current.add(s.from);
+      let e = peersRef.current.get(s.from);
+      if (!e || e.pc.connectionState === "closed") e = createPeer(s.from);
+      try {
+        if (e.pc.signalingState !== "stable") {
+          if (me.current.id < s.from) return; // my own offer wins
+          await e.pc.setLocalDescription({ type: "rollback" });
         }
-    };
+        await e.pc.setRemoteDescription(s.sdp);
+        await flushIce(e);
+        const answer = await e.pc.createAnswer();
+        await e.pc.setLocalDescription(answer);
+        await gathered(e.pc);
+        await roomSend({ kind: "answer", to: s.from, sdp: e.pc.localDescription!.toJSON() });
+        roomSend({ kind: "media", cameraOff: isCameraOffNow(), micOff: isMutedNow() });
+      } catch (err) {
+        console.error("answer failed", err);
+      }
+    } else if (s.kind === "answer" && s.sdp) {
+      const e = peersRef.current.get(s.from);
+      if (!e || e.pc.signalingState !== "have-local-offer") return;
+      try {
+        await e.pc.setRemoteDescription(s.sdp);
+        await flushIce(e);
+        roomSend({ kind: "media", cameraOff: isCameraOffNow(), micOff: isMutedNow() });
+      } catch (err) { console.error("answer apply failed", err); }
+    } else if (s.kind === "ice" && s.candidate) {
+      const e = peersRef.current.get(s.from);
+      if (e?.pc.remoteDescription) { try { await e.pc.addIceCandidate(s.candidate); } catch { /* stale */ } }
+      else if (e) e.queue.push(s.candidate);
+      else pendingIce.current.set(s.from, [...(pendingIce.current.get(s.from) ?? []), s.candidate]);
+    } else if (s.kind === "media") {
+      const e = peersRef.current.get(s.from);
+      if (e) { e.cameraOff = !!s.cameraOff; e.micOff = !!s.micOff; publish(); }
+    } else if (s.kind === "leave") {
+      closePeer(s.from);
+      const c = callRef.current;
+      if (c && !c.isGroup) { toast("Call ended"); finish(); }
+      else if (c && peersRef.current.size === 0) {
+        later(() => { if (peersRef.current.size === 0 && stateRef.current !== "IDLE") { toast("Everyone has left the call"); finish(); } }, 30_000);
+      }
+    }
+  };
 
-    const endCall = () => {
-        const targetId = recipientId || callerInfo?.id;
-        if (targetId) {
-            supabase.channel(`user:${targetId}`).send({
-                type: 'broadcast',
-                event: 'end-call',
-                payload: { from: user?.id }
-            });
+  const isCameraOffNow = () => !localRef.current?.getVideoTracks().some((t) => t.enabled);
+  const isMutedNow = () => !localRef.current?.getAudioTracks().some((t) => t.enabled);
+
+  const joinRoom = (callId: string) =>
+    new Promise<void>((resolve) => {
+      const ch = supabase.channel(`call:${callId}`, { config: { broadcast: { self: false, ack: true } } });
+      ch.on("broadcast", { event: "signal" }, ({ payload }) => apiRef.current.onRoom(payload as RoomSignal));
+      roomRef.current = ch;
+      let done = false;
+      ch.subscribe((status) => {
+        if (status === "SUBSCRIBED" && roomRef.current === ch && me.current) {
+          // (Also after a reconnect: say hello again so broken connections get rebuilt.)
+          roomSend({ kind: "join", name: me.current.name, avatar: me.current.avatar });
+          if (!done) { done = true; resolve(); }
         }
-        handleEnd();
+      });
+      setTimeout(() => { if (!done) { done = true; resolve(); } }, 8000);
+    });
+
+  /** Leave the call and put everything back to rest. */
+  const finish = () => {
+    clearTimers();
+    if (roomRef.current) {
+      const ch = roomRef.current;
+      if (me.current) ch.send({ type: "broadcast", event: "signal", payload: { kind: "leave", from: me.current.id } }).catch(() => {});
+      roomRef.current = null;
+      setTimeout(() => supabase.removeChannel(ch), 800);
+    }
+    [...peersRef.current.keys()].forEach(closePeer);
+    pendingIce.current.clear();
+    joined.current.clear();
+    localRef.current?.getTracks().forEach((t) => t.stop());
+    localRef.current = null;
+    setLocalStream(null);
+    setPeers([]);
+    updateCall(null);
+    updateIncoming(null);
+    setIsMuted(false);
+    setIsCameraOff(false);
+    wakeLock.current?.release().catch(() => {});
+    wakeLock.current = null;
+    setState("IDLE");
+  };
+
+  const logMissed = (fromId: string) => {
+    if (!me.current) return;
+    supabase.from("notifications").insert({ user_id: me.current.id, actor_id: fromId, type: "missed_call", content: "You missed a call.", is_read: false })
+      .then(({ error }) => { if (error) console.error("missed call log failed", error); });
+  };
+
+  // ---- Starting, answering, ending --------------------------------------------------------
+  const begin = async (info: Omit<CallInfo, "id">) => {
+    if (stateRef.current !== "IDLE" || !me.current) return;
+    const callId = crypto.randomUUID();
+    const c: CallInfo = { ...info, id: callId };
+    updateCall(c);
+    setState("OUTGOING");
+    const stream = await getMedia(info.isVideo, info.isGroup);
+    if (!stream || callRef.current?.id !== callId) { finish(); return; }
+    keepAwake();
+    await Promise.race([turnLoaded, sleep(2500)]);
+    await joinRoom(callId);
+    if (callRef.current?.id !== callId) return;
+
+    const invite = () => {
+      const pending = c.members.filter((m) => !joined.current.has(m));
+      pending.forEach((m) => sendToUser(m, {
+        kind: "invite", callId, isGroup: c.isGroup, isVideo: c.isVideo,
+        name: me.current!.name, avatar: me.current!.avatar,
+        title: c.isGroup ? c.title : me.current!.name,
+        members: [me.current!.id, ...c.members],
+      }));
+      return pending;
     };
+    const first = invite();
+    // Wake their phone too (a notification), in case SOOZ isn't open.
+    first.forEach((m) => supabase.functions.invoke("push-notifications", {
+      body: {
+        type: "chat_message", toUserId: m,
+        title: c.isGroup ? `${me.current!.name} · ${c.title}` : me.current!.name,
+        body: `Incoming ${c.isVideo ? "video" : "voice"} call`, url: "/chat",
+      },
+    }).catch(() => {}));
+    // Re-send the invite a few times while nobody has answered (a lost message must not lose the call).
+    [4000, 9000, 16000].forEach((ms) => later(() => { if (stateRef.current === "OUTGOING" && callRef.current?.id === callId) invite(); }, ms));
+    later(() => {
+      if (callRef.current?.id !== callId || stateRef.current !== "OUTGOING") return;
+      const answered = joined.current.size > 0;
+      c.members.forEach((m) => sendToUser(m, { kind: "cancel", callId, missed: !answered }));
+      toast(answered ? "Couldn't connect the call — please try again" : c.isGroup ? "No one answered" : `${c.title} didn't answer`);
+      finish();
+    }, RING_MS);
+  };
 
-    const rejectCall = async () => {
-        if (callerInfo && user) {
-            supabase.channel(`user:${callerInfo.id}`).send({
-                type: 'broadcast',
-                event: 'end-call',
-                payload: { from: user.id, reason: 'busy' }
-            });
+  const startCall = (recipientId: string, recipientName: string, recipientAvatar: string | null, isVideo = true) => {
+    names.current.set(recipientId, { id: recipientId, name: recipientName, avatar: recipientAvatar });
+    return begin({ isGroup: false, isVideo, title: recipientName, avatar: recipientAvatar, members: [recipientId] });
+  };
 
-            // Log missed call notification for result of rejection
-            // Actually, if I REJECT, the caller sees "Busy".
-            // A missed call notification is relevant if:
-            // 1. The caller cancels before I answer (I missed it).
-            // 2. The call times out (I missed it).
-            // here I am manually rejecting. It's debatable if this is a "missed call" or just ignored.
-            // But let's log it so I know they called.
-            try {
-                // Insert notification for ME (the user rejecting) saying "You missed a call..."?
-                // Or insert for CALLER saying "User is busy"?
-                // The requirement is "if you missed a phone call you should see it in the Activity page".
-                // So we log it for the current user (recipient).
-                await supabase.from('notifications').insert({
-                    user_id: user.id,
-                    actor_id: callerInfo.id,
-                    type: 'missed_call',
-                    content: 'You missed a call.',
-                    is_read: false
-                });
-            } catch (e) {
-                console.error("Error logging call notification", e);
-            }
-        }
-        handleEnd();
+  const startGroupCall = (_conversationId: string, title: string, memberIds: string[], isVideo = true) => {
+    const members = memberIds.filter((m) => m !== user?.id).slice(0, MAX_GROUP - 1);
+    if (!members.length) { toast("There's no one else in this group yet"); return Promise.resolve(); }
+    return begin({ isGroup: true, isVideo, title, avatar: null, members });
+  };
+
+  const acceptCall = async () => {
+    const inc = incomingRef.current;
+    if (!inc || !me.current) return;
+    clearTimers();
+    names.current.set(inc.from.id, inc.from);
+    updateIncoming(null);
+    updateCall({
+      id: inc.callId, isGroup: inc.isGroup, isVideo: inc.isVideo,
+      title: inc.isGroup ? inc.title : inc.from.name, avatar: inc.isGroup ? null : inc.from.avatar,
+      members: inc.members.filter((m) => m !== me.current!.id),
+    });
+    setState("ACTIVE");
+    const stream = await getMedia(inc.isVideo, inc.isGroup);
+    if (!stream) { sendToUser(inc.from.id, { kind: "decline", callId: inc.callId }); finish(); return; }
+    keepAwake();
+    await Promise.race([turnLoaded, sleep(2500)]);
+    await joinRoom(inc.callId);
+    // Nobody connected within 20s: tell them, rather than sit on "Connecting…" forever.
+    later(() => {
+      if (callRef.current?.id === inc.callId && !callRef.current.connectedAt) { toast("Couldn't connect the call — please try again"); finish(); }
+    }, 20_000);
+  };
+
+  const rejectCall = () => {
+    const inc = incomingRef.current;
+    if (inc) {
+      if (!inc.isGroup) sendToUser(inc.from.id, { kind: "decline", callId: inc.callId });
+      logMissed(inc.from.id);
+    }
+    clearTimers();
+    updateIncoming(null);
+    if (!callRef.current) setState("IDLE");
+  };
+
+  const endCall = () => {
+    const c = callRef.current;
+    if (c && stateRef.current === "OUTGOING") c.members.forEach((m) => sendToUser(m, { kind: "cancel", callId: c.id, missed: true }));
+    finish();
+  };
+
+  const onUser = (s: UserSignal) => {
+    if (!me.current || !s?.callId) return;
+    if (s.kind === "invite") {
+      if (incomingRef.current?.callId === s.callId || callRef.current?.id === s.callId) return; // repeat invite
+      if (stateRef.current !== "IDLE") { if (!s.isGroup) sendToUser(s.from, { kind: "busy", callId: s.callId }); return; }
+      updateIncoming({
+        callId: s.callId,
+        from: { id: s.from, name: s.name || "Someone", avatar: s.avatar ?? null },
+        isGroup: !!s.isGroup, isVideo: s.isVideo !== false,
+        title: s.title || s.name || "Call",
+        members: s.members ?? [s.from, me.current.id],
+      });
+      setState("INCOMING");
+      clearTimers();
+      later(() => {
+        if (incomingRef.current?.callId === s.callId) { logMissed(s.from); updateIncoming(null); setState("IDLE"); }
+      }, RING_MS);
+    } else if (s.kind === "cancel") {
+      if (incomingRef.current?.callId === s.callId) {
+        clearTimers();
+        if (s.missed) { logMissed(s.from); toast(`Missed call from ${incomingRef.current.from.name}`); }
+        updateIncoming(null);
+        setState("IDLE");
+      }
+    } else if (s.kind === "decline" || s.kind === "busy") {
+      const c = callRef.current;
+      if (c?.id === s.callId && !c.isGroup && stateRef.current === "OUTGOING") {
+        toast(s.kind === "busy" ? `${c.title} is on another call` : `${c.title} declined the call`);
+        finish();
+      }
+    }
+  };
+
+  // ---- In-call controls -------------------------------------------------------------------
+  const toggleMute = () => {
+    const tracks = localRef.current?.getAudioTracks() ?? [];
+    if (!tracks.length) return;
+    const next = !tracks[0].enabled;
+    tracks.forEach((t) => { t.enabled = next; });
+    setIsMuted(!next);
+    roomSend({ kind: "media", micOff: !next, cameraOff: isCameraOffNow() });
+  };
+
+  const toggleCamera = () => {
+    const tracks = localRef.current?.getVideoTracks() ?? [];
+    if (!tracks.length) { toast("Camera isn't available in a voice call"); return; }
+    const next = !tracks[0].enabled;
+    tracks.forEach((t) => { t.enabled = next; });
+    setIsCameraOff(!next);
+    roomSend({ kind: "media", cameraOff: !next, micOff: isMutedNow() });
+  };
+
+  const flipCamera = async () => {
+    const stream = localRef.current;
+    const old = stream?.getVideoTracks()[0];
+    if (!stream || !old) return;
+    const want = facing.current === "user" ? "environment" : "user";
+    try {
+      const fresh = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { exact: want } } });
+      const track = fresh.getVideoTracks()[0];
+      track.enabled = old.enabled;
+      await Promise.all([...peersRef.current.values()].map((e) => e.pc.getSenders().find((s) => s.track?.kind === "video")?.replaceTrack(track)));
+      stream.removeTrack(old);
+      old.stop();
+      stream.addTrack(track);
+      facing.current = want;
+      setLocalStream(new MediaStream(stream.getTracks()));
+    } catch {
+      toast("Couldn't switch camera");
+    }
+  };
+
+  // Handlers read the latest functions through this ref (they only use refs, never stale state).
+  const apiRef = useRef({ onRoom, onUser, finish });
+  apiRef.current = { onRoom, onUser, finish };
+
+  // Listen for calls on my own channel — one steady subscription for as long as I'm signed in.
+  useEffect(() => {
+    if (!user) return;
+    const ch = supabase.channel(`user:${user.id}`);
+    ch.on("broadcast", { event: "call-v2" }, ({ payload }) => apiRef.current.onUser(payload as UserSignal)).subscribe();
+    const onLeavePage = () => { if (stateRef.current === "ACTIVE" || stateRef.current === "OUTGOING") apiRef.current.finish(); };
+    window.addEventListener("pagehide", onLeavePage);
+    return () => {
+      window.removeEventListener("pagehide", onLeavePage);
+      supabase.removeChannel(ch);
     };
+  }, [user]);
 
-    // We need to modify endCall to log missed call if the caller hangs up before answer
-    // But endCall is generic. Let's look at endCall logic.
-
-    const getMedia = async () => {
-        try {
-            console.log("🎥 Requesting media access...");
-            // Try with ideal constraints first
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({
-                    video: { facingMode: 'user' },
-                    audio: { echoCancellation: true, noiseSuppression: true }
-                });
-                console.log("🎥 Media access granted (ideal)");
-                setLocalStream(stream);
-                return stream;
-            } catch (e) {
-                console.log("🎥 Initial media request failed, trying fallback...", e);
-                // Fallback to basic constraints
-                const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-                console.log("🎥 Media access granted (fallback)");
-                setLocalStream(stream);
-                return stream;
-            }
-        } catch (err) {
-            console.error("Error accessing media devices", err);
-            toast.error("Could not access camera/microphone. Please check permissions.");
-            return null;
-        }
-    };
-
-    const startCall = async (id: string, name: string, avatar: string | null, isVideo: boolean = true) => {
-        setRecipientId(id);
-        const stream = await getMedia();
-        if (!stream) return;
-
-        // If audio-only, disable video track immediately
-        if (!isVideo) {
-            stream.getVideoTracks().forEach(track => track.enabled = false);
-            setIsCameraOff(true);
-        } else {
-            setIsCameraOff(false);
-        }
-
-        setCallState('CALLING');
-        setCallerInfo({ id, name, avatar }); // Re-using callerInfo for outgoing call display info too for simplicity, or just use separate
-
-        const pc = createPeerConnection();
-        if (!pc) return;
-
-        console.log('📹 Adding local tracks to peer connection:', stream.getTracks().map(t => `${t.kind}: ${t.enabled} (id: ${t.id})`));
-        stream.getTracks().forEach(track => pc.addTrack(track, stream));
-
-        const offer = await pc.createOffer();
-        console.log('📝 Created Offer:', offer.sdp); // Log SDP to check m=video
-        await pc.setLocalDescription(offer);
-
-        // Send Offer
-        if (user) {
-            supabase.channel(`user:${id}`).send({
-                type: 'broadcast',
-                event: 'call-offer',
-                payload: {
-                    offer,
-                    from: user?.id,
-                    callerName: user?.user_metadata?.display_name || user?.user_metadata?.full_name || user?.user_metadata?.username || user?.email?.split('@')[0] || 'User',
-                    callerAvatar: user?.user_metadata?.avatar_url,
-                    isVideo: isVideo,
-                    isCameraOff: !isVideo // Initial state
-                }
-            });
-
-            // Send push notification for incoming call
-            supabase.functions.invoke('push-notifications', {
-                body: {
-                    type: 'chat_message',
-                    toUserId: id,
-                    title: `Incoming ${isVideo ? 'Video' : 'Audio'} Call`,
-                    body: `${user?.user_metadata?.display_name || user?.user_metadata?.full_name || user?.user_metadata?.username || 'Someone'} is calling you`,
-                    url: '/chat'
-                }
-            }).then(({ error }) => {
-                if (error) console.error("Error sending call notification:", error);
-            });
-        }
-    };
-
-    const acceptCall = async () => {
-        if (!callerInfo) return;
-        setRecipientId(callerInfo.id); // Set the other person as recipient context
-
-        const stream = await getMedia();
-        if (!stream) return;
-
-        setCallState('CONNECTED');
-
-        const pc = createPeerConnection();
-        if (!pc) return;
-
-        stream.getTracks().forEach(track => pc.addTrack(track, stream));
-
-        // Note: setRemoteDescription was called in the event listener when offer arrived? 
-        // No, we need to handle that pending offer.
-        // Actually, we usually setRemoteDescription immediately when RINGING starts so we can setLocalDescription now.
-        // But we need the offer object.
-        // Let's store pending offer in a ref.
-    };
-
-    const pendingOffer = useRef<RTCSessionDescriptionInit | null>(null);
-
-    // Subscribe to signaling
-    useEffect(() => {
-        if (!user) return;
-
-        const channel = supabase.channel(`user:${user.id}`)
-            .on('broadcast', { event: 'call-offer' }, async ({ payload }) => {
-                if (callState !== 'IDLE') {
-                    // Busy
-                    supabase.channel(`user:${payload.from}`).send({
-                        type: 'broadcast',
-                        event: 'end-call',
-                        payload: { from: user.id, reason: 'busy' }
-                    });
-                    return;
-                }
-
-                setCallerInfo({
-                    id: payload.from,
-                    name: payload.callerName,
-                    avatar: payload.callerAvatar
-                });
-                setIsVideoCall(payload.isVideo !== false); // Default to true if missing
-                setIsRemoteCameraOff(payload.isCameraOff || !payload.isVideo);
-                setCallState('RINGING');
-                pendingOffer.current = payload.offer;
-
-                // Initialize PC immediately to prepare answer?
-                // Or wait for accept.
-            })
-            .on('broadcast', { event: 'call-answer' }, async ({ payload }) => {
-                if (callState === 'CALLING' && peerConnection.current) {
-                    await peerConnection.current.setRemoteDescription(new RTCSessionDescription(payload.answer));
-                    await processIceQueue(); // Process any queued candidates
-                    setIsRemoteCameraOff(payload.isCameraOff || false);
-                    setCallState('CONNECTED');
-                }
-            })
-            .on('broadcast', { event: 'ice-candidate' }, async ({ payload }) => {
-                if (peerConnection.current && peerConnection.current.remoteDescription) {
-                    try {
-                        await peerConnection.current.addIceCandidate(new RTCIceCandidate(payload.candidate));
-                    } catch (e) {
-                        console.error("Error adding Ice Candidate", e);
-                    }
-                } else {
-                    // Queue it if:
-                    // 1. PC exists but no remote desc (Caller waiting for Answer, or Answerer just created PC)
-                    // 2. PC does not exist yet (Answerer ringing)
-                    console.log("❄️ Queueing ICE candidate (remote desc not ready or PC null)");
-                    iceCandidatesQueue.current.push(new RTCIceCandidate(payload.candidate));
-                }
-            })
-            .on('broadcast', { event: 'end-call' }, () => {
-                handleEnd();
-                toast.info("Call ended");
-            })
-            .on('broadcast', { event: 'camera-toggle' }, ({ payload }) => {
-                setIsRemoteCameraOff(payload.isCameraOff);
-            })
-            .subscribe();
-
-        return () => {
-            supabase.removeChannel(channel);
-        };
-    }, [user, callState]);
-
-    // Implementation of Accept Logic with access to pendingOffer
-    const handleAcceptCall = async () => {
-        if (!callerInfo || !pendingOffer.current) return;
-        setRecipientId(callerInfo.id);
-
-        const stream = await getMedia();
-        if (!stream) return;
-
-        // Respect the incoming call type
-        if (!isVideoCall) {
-            stream.getVideoTracks().forEach(track => track.enabled = false);
-            setIsCameraOff(true);
-        } else {
-            setIsCameraOff(false);
-        }
-
-        const pc = createPeerConnection(); // Should ensure PC exists
-        if (!pc) return;
-
-        console.log('📹 Adding local tracks (answering side):', stream.getTracks().map(t => `${t.kind}: ${t.enabled}`));
-        stream.getTracks().forEach(track => pc.addTrack(track, stream));
-
-        await pc.setRemoteDescription(new RTCSessionDescription(pendingOffer.current));
-        await processIceQueue(); // Process any queued candidates
-        const answer = await pc.createAnswer();
-        await pc.setLocalDescription(answer);
-
-        setCallState('CONNECTED');
-
-        // Send Answer
-        supabase.channel(`user:${callerInfo.id}`).send({
-            type: 'broadcast',
-            event: 'call-answer',
-            payload: {
-                answer,
-                from: user?.id,
-                isCameraOff: !isVideoCall // Matches local decision
-            }
-        });
-    };
-
-    const toggleMute = () => {
-        if (localStream) {
-            localStream.getAudioTracks().forEach(track => track.enabled = !track.enabled);
-            setIsMuted(!isMuted);
-        }
-    };
-
-    const toggleCamera = () => {
-        if (localStream) {
-            localStream.getVideoTracks().forEach(track => track.enabled = !track.enabled);
-            const newState = !isCameraOff;
-            setIsCameraOff(newState);
-
-            // Signal change
-            const targetId = recipientId || callerInfo?.id;
-            if (targetId) {
-                supabase.channel(`user:${targetId}`).send({
-                    type: 'broadcast',
-                    event: 'camera-toggle',
-                    payload: { isCameraOff: newState, from: user?.id }
-                });
-            }
-        }
-    };
-
-    return (
-        <CallContext.Provider value={{
-            callState,
-            localStream,
-            remoteStream,
-            callerInfo,
-            startCall,
-            acceptCall: handleAcceptCall,
-            rejectCall,
-            endCall,
-            toggleMute,
-            toggleCamera,
-            isMuted,
-            isCameraOff,
-            isVideoCall,
-            isRemoteCameraOff
-        }}>
-            {children}
-        </CallContext.Provider>
-    );
+  return (
+    <CallContext.Provider value={{
+      callState, call, incoming, peers, localStream, isMuted, isCameraOff,
+      startCall, startGroupCall, acceptCall, rejectCall, endCall, toggleMute, toggleCamera, flipCamera,
+    }}>
+      {children}
+    </CallContext.Provider>
+  );
 };
