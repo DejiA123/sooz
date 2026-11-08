@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { BarChart3, Bookmark, LogOut, MessageSquareWarning, Moon, Settings, Sparkles, Sun, Video } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { getColorMode, setColorMode } from "@/lib/theme";
 import { supabase } from "@/integrations/supabase/client";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 
@@ -37,9 +38,9 @@ export const AppMenuSheet = ({ trigger }: { trigger: ReactNode }) => {
           </button>
           <button
             onClick={() => {
-              const isDark = document.documentElement.classList.toggle("dark");
-              localStorage.setItem("sooz-mode", isDark ? "dark" : "light");
-              toast.success(isDark ? "Dark mode" : "Light mode");
+              const next = getColorMode() === "dark" ? "light" : "dark";
+              setColorMode(next);
+              toast.success(next === "dark" ? "Dark mode" : "Light mode");
               close();
             }}
             className="group flex items-center gap-4 rounded-2xl p-4 text-left transition-all hover:bg-secondary/40"

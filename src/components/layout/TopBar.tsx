@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { AppMenuSheet } from "./AppMenuSheet";
 import { ActivityBell } from "./ActivityBell";
+import { SoozLogo } from "@/components/brand/SoozLogo";
 import { motion, AnimatePresence } from "framer-motion";
 
 export const TopBar = () => {
@@ -53,15 +54,7 @@ export const TopBar = () => {
               }}
               className="relative overflow-hidden"
             >
-              <img
-                src="/sooz-logo-v3.png"
-                alt="SOOZ"
-                className={cn(
-                  "h-7 object-contain transition-all duration-500",
-                  "mix-blend-darken dark:invert dark:mix-blend-lighten", // Pure CSS background removal
-                  "filter contrast-125 brightness-110" // Make it pop
-                )}
-              />
+              <SoozLogo variant="lockup" />
             </motion.div>
           </Link>
 

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 const CreateModal = lazy(() => import("@/components/create/CreateModal").then((m) => ({ default: m.CreateModal })));
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from "@/hooks/useAuth";
+import { SoozLogo } from "@/components/brand/SoozLogo";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -54,11 +55,7 @@ export const Sidebar = () => {
             <aside className="hidden md:flex flex-col fixed left-0 top-0 z-50 h-screen w-64 bg-background border-r border-border px-4 py-6">
                 {/* Logo */}
                 <div className="mb-4 px-1 flex justify-center">
-                    <img
-                        src="/sooz-logo-v3.png"
-                        alt="SOOZ"
-                        className="h-24 w-auto object-contain"
-                    />
+                    <SoozLogo className="h-24" />
                 </div>
 
                 {/* Navigation Items */}

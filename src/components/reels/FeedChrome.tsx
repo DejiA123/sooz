@@ -125,7 +125,7 @@ export const StoriesPanel = ({ onClose }: { onClose: () => void }) => {
     <>
       <div className="absolute inset-0 z-[35] bg-black/30" onClick={onClose} aria-hidden />
       <div className="feed-stories absolute inset-x-0 z-[36] mx-auto max-w-[640px] px-2 animate-in fade-in slide-in-from-top-2 duration-200">
-        <div className="overflow-hidden rounded-3xl border border-white/10 bg-[#0b0d14]/90 text-white shadow-2xl backdrop-blur-2xl [&_.story-rail-glass]:border-0 [&_.story-rail-glass]:bg-transparent [&_.story-rail-glass]:shadow-none [&>div>div]:mb-0">
+        <div className="dark overflow-hidden rounded-3xl border border-white/10 bg-[#0b0d14]/90 text-white shadow-2xl backdrop-blur-2xl [&_.story-rail-glass]:border-0 [&_.story-rail-glass]:bg-transparent [&_.story-rail-glass]:shadow-none [&>div>div]:mb-0">
           <StoryRail />
         </div>
       </div>

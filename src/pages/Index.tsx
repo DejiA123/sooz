@@ -5,6 +5,7 @@ import { Compass, PlayCircle, RefreshCw, Users } from "lucide-react";
 import { Helmet } from "react-helmet-async";
 import { useAuth } from "@/hooks/useAuth";
 import { useLiveStatus } from "@/hooks/useLiveStatus";
+import { setThemeColor, themeStatusBarColor } from "@/lib/theme";
 import { fetchFollowingPage, fetchForYouPage, readCachedFeed, writeCachedFeed, type FeedPage } from "@/services/api/feed";
 import { ReelsFeed } from "@/components/reels/ReelsFeed";
 import { FeedTopBar, LiveViewer, SoundToggle, StoriesPanel, type FeedTab } from "@/components/reels/FeedChrome";
@@ -115,7 +116,8 @@ export default function Index() {
   useEffect(() => {
     const prev = document.body.style.overscrollBehavior;
     document.body.style.overscrollBehavior = "none";
-    return () => { document.body.style.overscrollBehavior = prev; };
+    setThemeColor("#000000");
+    return () => { document.body.style.overscrollBehavior = prev; setThemeColor(themeStatusBarColor()); };
   }, []);
 
   let body: React.ReactNode;
@@ -176,7 +178,6 @@ export default function Index() {
     <div ref={rootRef} className="feed-page relative h-full w-full overflow-hidden bg-[#030407] text-white">
       <Helmet>
         <title>SOOZ — Sound Out Of Zion</title>
-        <meta name="theme-color" content="#000000" />
       </Helmet>
 
       {body}

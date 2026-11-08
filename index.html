@@ -10,7 +10,19 @@
     content="SOOZ - A faith-based social media platform. Share your journey, connect with believers worldwide. Psalms 110:3" />
   <meta name="author" content="SOOZ" />
   <meta name="theme-color" content="#05070b" />
-  <meta name="color-scheme" content="dark" />
+  <meta name="color-scheme" content="dark light" />
+  <script>
+    // Apply the saved appearance before anything paints (dark is the default).
+    (function () {
+      try {
+        var dark = localStorage.getItem("sooz-mode") !== "light";
+        var root = document.documentElement;
+        root.classList.toggle("dark", dark);
+        root.style.colorScheme = dark ? "dark" : "light";
+        if (!dark) document.querySelector('meta[name="theme-color"]').setAttribute("content", "#faf8f4");
+      } catch (e) {}
+    })();
+  </script>
 
   <meta property="og:title" content="SOOZ - Sound Out Of Zion" />
   <meta property="og:description"
@@ -43,15 +55,20 @@
 
   <style>
     html, body { background: #05070b; margin: 0; }
+    html:not(.dark), html:not(.dark) body { background: #faf8f4; }
     .boot { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: radial-gradient(90% 60% at 50% 35%, rgba(245, 158, 11, 0.16), transparent 70%), #05070b; }
-    .boot img { width: 96px; height: auto; filter: invert(1); mix-blend-mode: screen; animation: boot-pulse 1.6s ease-in-out infinite; }
-    @keyframes boot-pulse { 0%, 100% { opacity: 0.55; transform: scale(0.97); } 50% { opacity: 1; transform: scale(1); } }
-    @media (prefers-reduced-motion: reduce) { .boot img { animation: none; } }
+    html:not(.dark) .boot { background: radial-gradient(90% 60% at 50% 35%, rgba(245, 158, 11, 0.14), transparent 70%), #faf8f4; }
+    .boot i { width: 132px; aspect-ratio: 640 / 440; background: linear-gradient(170deg, #fde68a, #fbbf24 40%, #d97706);
+      -webkit-mask: url(/brand/sooz-logo-mask.png) center / contain no-repeat; mask: url(/brand/sooz-logo-mask.png) center / contain no-repeat;
+      animation: boot-pulse 1.6s ease-in-out infinite; }
+    html:not(.dark) .boot i { background: linear-gradient(170deg, #d97706, #b45309 55%, #92400e); }
+    @keyframes boot-pulse { 0%, 100% { opacity: 0.6; transform: scale(0.97); } 50% { opacity: 1; transform: scale(1); } }
+    @media (prefers-reduced-motion: reduce) { .boot i { animation: none; } }
   </style>
 </head>
 
 <body>
-  <div id="root"><div class="boot" aria-label="Loading SOOZ"><img src="/sooz-logo-v3.png" alt="SOOZ" /></div></div>
+  <div id="root"><div class="boot" role="img" aria-label="Loading SOOZ"><i></i></div></div>
   <script type="module" src="/src/main.tsx"></script>
 </body>
 

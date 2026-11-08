@@ -4,32 +4,34 @@
 @tailwind utilities;
 
 @layer base {
+  /* Light mode — warm, clean and bright. Dark mode (below) is the default. */
   :root {
-    --background: 220 28% 5%;
-    --foreground: 210 40% 98%;
-    --card: 222 26% 8%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222 26% 8%;
-    --popover-foreground: 210 40% 98%;
+    --background: 40 30% 97%;
+    --foreground: 224 40% 10%;
+    --card: 0 0% 100%;
+    --card-foreground: 224 40% 10%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 224 40% 10%;
     --primary: 38 92% 50%;
     --primary-foreground: 222 47% 8%;
-    --secondary: 222 24% 12%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 222 24% 12%;
-    --muted-foreground: 217 15% 65%;
-    --accent: 222 24% 12%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 84% 60%;
+    --secondary: 38 22% 92%;
+    --secondary-foreground: 224 40% 10%;
+    --muted: 38 22% 92%;
+    --muted-foreground: 222 10% 38%;
+    --accent: 38 22% 92%;
+    --accent-foreground: 224 40% 10%;
+    --destructive: 0 78% 52%;
     --destructive-foreground: 0 0% 98%;
-    --border: 220 20% 14%;
-    --input: 220 20% 14%;
+    --border: 32 16% 86%;
+    --input: 32 16% 84%;
     --ring: 38 92% 50%;
     --radius: 1.25rem;
-    --glass: 222 25% 10%;
-    --glass-border: 220 20% 18%;
+    --glass: 0 0% 100%;
+    --glass-border: 32 16% 86%;
     --glass-opacity: 0.8;
-    --shadow-premium: 0 24px 64px -12px rgba(0, 0, 0, 0.7);
-    --shadow-glass: 0 8px 32px 0 rgba(0, 0, 0, 0.4);
+    --shadow-premium: 0 24px 64px -16px rgba(60, 40, 10, 0.18);
+    --shadow-glass: 0 8px 32px 0 rgba(60, 40, 10, 0.10);
+    --brand-gradient: linear-gradient(170deg, #d97706 0%, #b45309 55%, #92400e 100%);
     --bottom-nav-row-height: 64px;
     --bottom-nav-safe-area: max(env(safe-area-inset-bottom, 0px), 8px);
     --bottom-nav-height: calc(var(--bottom-nav-row-height) + var(--bottom-nav-safe-area) + 8px);
@@ -60,6 +62,7 @@
     --glass-opacity: 0.8;
     --shadow-premium: 0 24px 64px -12px rgba(0, 0, 0, 0.7);
     --shadow-glass: 0 8px 32px 0 rgba(0, 0, 0, 0.4);
+    --brand-gradient: linear-gradient(170deg, #fde68a 0%, #fbbf24 40%, #d97706 100%);
   }
 }
 
@@ -187,6 +190,17 @@ html { -ms-overflow-style: none; scrollbar-width: none; overflow-x: hidden; }
   }
 }
 
+/* ── Brand logo: the logo shape is a mask, the colour is the theme's gold gradient ── */
+.sooz-logo, .sooz-mark {
+  display: inline-block;
+  background: var(--brand-gradient);
+  -webkit-mask: var(--logo-src) center / contain no-repeat;
+  mask: var(--logo-src) center / contain no-repeat;
+}
+.sooz-logo { --logo-src: url(/brand/sooz-logo-mask.png); aspect-ratio: 640 / 440; }
+.sooz-mark { --logo-src: url(/brand/sooz-mark-mask.png); aspect-ratio: 256 / 101; }
+.sooz-wordmark { background: var(--brand-gradient); -webkit-background-clip: text; background-clip: text; color: transparent; }
+
 /* Hide Lovable badge */
 [data-testid="lovable-badge"], #lovable-badge, .lovable-badge,
 a[href*="lovable.dev"],
@@ -221,7 +235,7 @@ input, textarea { -webkit-user-select: text; user-select: text; }
 }
 
 .glass-tabbar {
-  --tabbar-fg: 0 0% 100%;
+  --tabbar-fg: 224 40% 10%;
   pointer-events: auto;
   position: relative;
   display: flex;
@@ -233,20 +247,30 @@ input, textarea { -webkit-user-select: text; user-select: text; }
   padding: 0;
   border-radius: 9999px;
   color: hsl(var(--tabbar-fg));
+  background: rgba(255, 255, 255, 0.74);
+  -webkit-backdrop-filter: blur(26px) saturate(190%);
+  backdrop-filter: blur(26px) saturate(190%);
+  border: 1px solid rgba(20, 24, 40, 0.07);
+  box-shadow:
+    0 18px 40px -18px rgba(40, 30, 10, 0.35),
+    0 4px 14px -6px rgba(40, 30, 10, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.dark .glass-tabbar,
+.mobile-bottom-nav[data-immersive="true"] .glass-tabbar {
+  --tabbar-fg: 0 0% 100%;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.10), rgba(255, 255, 255, 0.02)),
     rgba(28, 30, 38, 0.58);
-  -webkit-backdrop-filter: blur(26px) saturate(190%);
-  backdrop-filter: blur(26px) saturate(190%);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.12);
   box-shadow:
     0 18px 40px -16px rgba(0, 0, 0, 0.65),
     0 4px 12px -4px rgba(0, 0, 0, 0.35),
     inset 0 1px 0 rgba(255, 255, 255, 0.16),
     inset 0 -1px 0 rgba(255, 255, 255, 0.04);
-  touch-action: none;
-  user-select: none;
-  -webkit-user-select: none;
 }
 .mobile-bottom-nav[data-immersive="true"] .glass-tabbar {
   background:
@@ -261,16 +285,20 @@ input, textarea { -webkit-user-select: text; user-select: text; }
   left: 0;
   border-radius: 9999px;
   pointer-events: none;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.20), rgba(255, 255, 255, 0.08));
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.22),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+  background: rgba(20, 24, 40, 0.07);
+  box-shadow: inset 0 0 0 1px rgba(20, 24, 40, 0.03);
   transform-origin: center;
   will-change: transform;
 }
+.dark .glass-tabbar__lens,
+.mobile-bottom-nav[data-immersive="true"] .glass-tabbar__lens {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.20), rgba(255, 255, 255, 0.08));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+}
 /* While dragging, the lens lifts like a drop of glass that magnifies what is under it. */
-.glass-tabbar__lens--lifted {
+.mobile-bottom-nav .glass-tabbar .glass-tabbar__lens.glass-tabbar__lens--lifted {
   top: -4px;
   bottom: -4px;
   background: rgba(255, 255, 255, 0.10);

@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
+import { getColorMode, setColorMode } from "@/lib/theme";
 
 const THEMES = [
   { id: "gold", primary: "38 92% 50%", color: "hsl(38, 92%, 50%)" },
@@ -60,8 +61,8 @@ export default function Settings() {
       iconColor: "text-blue-500",
       title: "Dark Mode",
       trailing: (
-        <Switch defaultChecked={document.documentElement.classList.contains("dark")}
-          onCheckedChange={(checked) => { if (checked) document.documentElement.classList.add("dark"); else document.documentElement.classList.remove("dark"); localStorage.setItem("sooz-mode", checked ? "dark" : "light"); }} />
+        <Switch defaultChecked={getColorMode() === "dark"}
+          onCheckedChange={(checked) => setColorMode(checked ? "dark" : "light")} />
       ),
     },
     {

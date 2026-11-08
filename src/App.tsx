@@ -12,6 +12,7 @@ import { Loader2 } from "lucide-react";
 import { AuthProvider } from "@/hooks/useAuth";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { isSlowConnection } from "@/lib/network";
+import { applyColorMode, getColorMode } from "@/lib/theme";
 // Lazy load pages for performance
 const Index = lazy(() => import("./pages/Index"));
 const Auth = lazy(() => import("./pages/Auth"));
@@ -60,12 +61,7 @@ import { queryClient } from "@/lib/react-query";
 const App = () => {
   // Initialize theme
   if (typeof window !== "undefined") {
-    const theme = localStorage.getItem("sooz-mode") || "dark";
-    if (theme === "dark") {
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-    }
+    applyColorMode(getColorMode());
 
     // Normalize theme to the sacred gold accent
     const colorTheme = localStorage.getItem("sooz-theme");
