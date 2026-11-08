@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { X, Image, Film, Loader2, Upload as UploadIcon, Plus, Camera as CameraIcon, Radio, Copy } from "lucide-react";
+import { X, Image, Film, Loader2, Upload as UploadIcon, Camera as CameraIcon, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
@@ -13,6 +13,7 @@ import { getPresignedUploadUrl } from "@/integrations/s3/client";
 import { extractVideoThumbnail, extractImageThumbnail } from "@/utils/videoThumbnail";
 import { CameraCapture } from "./CameraCapture";
 import { LiveStudio } from "../live/LiveStudio";
+import { TemplatePicker, type TemplatePickerHandle } from "./TemplatePicker";
 
 interface CreateModalProps {
     isOpen: boolean;
@@ -23,14 +24,16 @@ interface CreateModalProps {
 export const CreateModal = ({ isOpen, onClose, onPostCreated }: CreateModalProps) => {
     const { user } = useAuth();
     const [caption, setCaption] = useState("");
-    const [mediaFile, setMediaFile] = useState<File | null>(null);
+    const [mediaFileState, setMediaFile] = useState<File | null>(null);
     const [mediaPreview, setMediaPreview] = useState<string | null>(null);
-    const [mediaType, setMediaType] = useState<"image" | "video" | null>(null);
+    const [mediaTypeState, setMediaType] = useState<"image" | "video" | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [uploadProgress, setUploadProgress] = useState(0);
     const [isDragging, setIsDragging] = useState(false);
     const [activeTab, setActiveTab] = useState<"post" | "story" | "live">("post");
-    const [captureMode, setCaptureMode] = useState<"upload" | "camera">("upload");
+    const [captureMode, setCaptureMode] = useState<"upload" | "camera" | "template">("upload");
+    const templateRef = useRef<TemplatePickerHandle>(null);
+    const [templateReady, setTemplateReady] = useState(false);
     const [cameraMediaType, setCameraMediaType] = useState<"photo" | "video">("photo");
     const [streamConfig, setStreamConfig] = useState<{ id?: string; playback_url: string; status: string } | null>(null);
 
@@ -127,8 +130,10 @@ export const CreateModal = ({ isOpen, onClose, onPostCreated }: CreateModalProps
         if (file) handleFileSelect(file);
     };
 
-    const handleSubmit = async () => {
+    const handleSubmit = async (override?: File) => {
         if (!user) return;
+        const mediaFile = override ?? mediaFileState;
+        const mediaType = override ? "image" : mediaTypeState;
         if (!mediaFile && activeTab === "story") {
             toast.error("Story must have media");
             return;
@@ -221,7 +226,8 @@ export const CreateModal = ({ isOpen, onClose, onPostCreated }: CreateModalProps
                 const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
 
                 const { error: storyError } = await supabase.from("stories").insert({
-                    ...commonData,
+                    user_id: user.id,
+                    media_type: commonData.media_type || "image",
                     media_url: mediaUrl!, // Enforced check above
                     expires_at: expiresAt
                 });
@@ -245,7 +251,7 @@ export const CreateModal = ({ isOpen, onClose, onPostCreated }: CreateModalProps
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/60 backdrop-blur-md animate-in fade-in duration-200">
-            <div className="relative w-full max-w-lg bg-background/40 backdrop-blur-xl border border-white/10 rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="relative w-full max-w-lg max-h-[94dvh] overflow-y-auto overflow-x-hidden overscroll-contain bg-[#0b0d12] border border-white/10 rounded-3xl shadow-2xl animate-in zoom-in-95 duration-200">
 
                 {/* Close Button */}
                 <button
@@ -317,12 +323,26 @@ export const CreateModal = ({ isOpen, onClose, onPostCreated }: CreateModalProps
                                                 <CameraIcon className="w-4 h-4 mr-2" />
                                                 Camera
                                             </Button>
+                                            <Button
+                                                type="button"
+                                                variant={captureMode === "template" ? "default" : "outline"}
+                                                className={cn(
+                                                    "flex-1 h-12 rounded-xl transition-all",
+                                                    captureMode === "template" && "shadow-md"
+                                                )}
+                                                onClick={() => setCaptureMode("template")}
+                                            >
+                                                <Sparkles className="w-4 h-4 mr-2" />
+                                                Templates
+                                            </Button>
                                         </div>
                                     )}
 
                                     {/* Media Upload/Camera Area */}
                                     {!mediaPreview ? (
-                                        captureMode === "camera" ? (
+                                        captureMode === "template" ? (
+                                            <TemplatePicker ref={templateRef} onReadyChange={setTemplateReady} />
+                                        ) : captureMode === "camera" ? (
                                             <>
                                                 {/* Photo/Video Mode Selector (for Posts) */}
                                                 {activeTab === "post" && (
@@ -381,10 +401,10 @@ export const CreateModal = ({ isOpen, onClose, onPostCreated }: CreateModalProps
                                                     <UploadIcon className="w-10 h-10 text-primary" />
                                                 </div>
                                                 <p className="text-lg font-semibold mb-2">
-                                                    {activeTab === 'story' ? 'Upload Story' : 'Upload Request'}
+                                                    {activeTab === 'story' ? 'Add a photo or video to your story' : 'Add a photo or video'}
                                                 </p>
                                                 <p className="text-sm text-muted-foreground max-w-[200px] mx-auto mb-6">
-                                                    Drag and drop or click to upload
+                                                    Tap to choose from your phone
                                                 </p>
                                                 <div className="flex items-center gap-4 text-xs font-medium text-muted-foreground bg-black/5 dark:bg-white/5 px-4 py-2 rounded-full">
                                                     <span className="flex items-center gap-1.5">
@@ -409,7 +429,7 @@ export const CreateModal = ({ isOpen, onClose, onPostCreated }: CreateModalProps
                                         )
                                     ) : (
                                         <div className="relative rounded-3xl overflow-hidden bg-black aspect-[4/5] shadow-inner group">
-                                            {mediaType === "image" ? (
+                                            {mediaTypeState === "image" ? (
                                                 <img
                                                     src={mediaPreview}
                                                     alt="Preview"
@@ -441,7 +461,7 @@ export const CreateModal = ({ isOpen, onClose, onPostCreated }: CreateModalProps
                                             <Textarea
                                                 value={caption}
                                                 onChange={(e) => setCaption(e.target.value)}
-                                                placeholder="Write a caption..."
+                                                placeholder={captureMode === "template" ? "Add a caption (optional)…" : "Write a caption..."}
                                                 className="min-h-[100px] p-4 rounded-2xl bg-muted/30 border-none focus:ring-1 focus:ring-primary/50 resize-none text-base transition-all placeholder:text-muted-foreground/50"
                                             />
                                             <div className="absolute bottom-3 right-3 text-xs text-muted-foreground/50 font-medium">
@@ -451,7 +471,7 @@ export const CreateModal = ({ isOpen, onClose, onPostCreated }: CreateModalProps
                                     )}
 
                                     {/* Progress Bar Area */}
-                                    {isLoading && mediaFile && (
+                                    {isLoading && (mediaFileState || captureMode === "template") && (
                                         <div className="space-y-1.5 animate-in fade-in slide-in-from-bottom-2">
                                             <div className="flex items-center justify-between text-xs font-medium text-muted-foreground">
                                                 <span>Uploading...</span>
@@ -465,8 +485,13 @@ export const CreateModal = ({ isOpen, onClose, onPostCreated }: CreateModalProps
                                     <Button
                                         size="lg"
                                         className="w-full h-14 rounded-2xl text-lg font-semibold bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/20 transition-all active:scale-[0.98]"
-                                        onClick={handleSubmit}
-                                        disabled={isLoading || (activeTab === "story" && !mediaFile) || (activeTab === "post" && !caption && !mediaFile)}
+                                        onClick={async () => {
+                                            if (captureMode === "template" && !mediaPreview) {
+                                                try { await handleSubmit(await templateRef.current!.toFile()); }
+                                                catch { toast.error("Couldn't create your design — please try again"); }
+                                            } else handleSubmit();
+                                        }}
+                                        disabled={isLoading || (captureMode === "template" ? !templateReady : (activeTab === "story" && !mediaFileState) || (activeTab === "post" && !caption && !mediaFileState))}
                                     >
                                         {isLoading ? (
                                             <div className="flex items-center gap-2">
