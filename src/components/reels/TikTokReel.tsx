@@ -35,11 +35,11 @@ export const TikTokReel = memo(function TikTokReel({ video, active }: TikTokReel
   const playing = useRef(false);
   const userPaused = useRef(false);
 
-  // Commands for TikTok's embed player ({ type, "x-tiktok-player": true }, see its postMessage API).
+  // Commands for TikTok's embed player, in the exact shape Mux's tiktok-video-element sends them.
   const send = useCallback((type: string, value?: unknown) => {
     const w = iframeRef.current?.contentWindow;
     if (!w) return;
-    w.postMessage({ type, value, "x-tiktok-player": true }, TIKTOK_ORIGIN);
+    w.postMessage({ "x-tiktok-player": true, type, ...(value !== undefined ? { value } : {}) }, "*");
   }, []);
 
   // Autoplay: phones only let videos start by themselves when muted, so start muted.
