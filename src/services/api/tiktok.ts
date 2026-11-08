@@ -76,10 +76,15 @@ export function starterTikToks(): TikTokVideo[] {
   });
 }
 
-/** Official TikTok embed player URL. TikTok's own play, progress and sound controls stay on. */
+/**
+ * Official TikTok embed player URL. TikTok's own play, progress and sound controls stay on.
+ * `autoplay=1` only works together with `muted=1`: phones block videos that try to start with sound
+ * (TikTok then reports AUTOPLAY_ERROR and waits for a tap). Same parameters as Mux's tiktok-video-element.
+ */
 export function tiktokPlayerUrl(tiktokId: string): string {
   const params = new URLSearchParams({
     autoplay: "1",
+    muted: "1",
     loop: "1",
     controls: "1",
     progress_bar: "1",
