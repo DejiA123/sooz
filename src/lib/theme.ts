@@ -21,12 +21,7 @@ export function applyColorMode(mode: ColorMode) {
   const root = document.documentElement;
   root.classList.toggle("dark", mode === "dark");
   root.style.colorScheme = mode;
-  // The home feed is always dark video; it manages its own status bar colour.
-  if (!document.querySelector(".feed-page")) setThemeColor(STATUS_BAR[mode]);
-}
-
-export function themeStatusBarColor() {
-  return STATUS_BAR[getColorMode()];
+  setThemeColor(STATUS_BAR[mode]);
 }
 
 export function setColorMode(mode: ColorMode) {

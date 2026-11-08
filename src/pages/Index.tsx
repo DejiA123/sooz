@@ -5,7 +5,6 @@ import { Compass, PlayCircle, RefreshCw, Users } from "lucide-react";
 import { Helmet } from "react-helmet-async";
 import { useAuth } from "@/hooks/useAuth";
 import { useLiveStatus } from "@/hooks/useLiveStatus";
-import { setThemeColor, themeStatusBarColor } from "@/lib/theme";
 import { fetchFollowingPage, fetchForYouPage, FIRST_CURSOR, readCachedFeed, writeCachedFeed, type FeedCursor, type FeedPage } from "@/services/api/feed";
 import { ReelsFeed } from "@/components/reels/ReelsFeed";
 import { FeedTopBar, LiveViewer, SoundToggle, StoriesPanel, type FeedTab } from "@/components/reels/FeedChrome";
@@ -118,8 +117,7 @@ export default function Index() {
   useEffect(() => {
     const prev = document.body.style.overscrollBehavior;
     document.body.style.overscrollBehavior = "none";
-    setThemeColor("#000000");
-    return () => { document.body.style.overscrollBehavior = prev; setThemeColor(themeStatusBarColor()); };
+    return () => { document.body.style.overscrollBehavior = prev; };
   }, []);
 
   let body: React.ReactNode;
