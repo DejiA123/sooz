@@ -125,6 +125,7 @@ export type Database = {
       conversations: {
         Row: {
           created_at: string
+          created_by: string | null
           id: string
           name: string | null
           type: Database["public"]["Enums"]["conversation_type"]
@@ -132,6 +133,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          created_by?: string | null
           id?: string
           name?: string | null
           type?: Database["public"]["Enums"]["conversation_type"]
@@ -139,6 +141,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          created_by?: string | null
           id?: string
           name?: string | null
           type?: Database["public"]["Enums"]["conversation_type"]
@@ -708,6 +711,10 @@ export type Database = {
         Returns: undefined
       }
       is_chat_member: {
+        Args: { target_conversation_id: string }
+        Returns: boolean
+      }
+      is_conversation_creator: {
         Args: { target_conversation_id: string }
         Returns: boolean
       }
