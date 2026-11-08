@@ -29,7 +29,56 @@ const TIKTOKS_WHEN_NO_POSTS = 10;
 const SHUFFLED_POSTS = 60;
 
 const postItem = (post: FeedPost): FeedItem => ({ kind: "post", key: `p:${post.id}`, post });
-const tiktokItem = (video: TikTokVideo): FeedItem => ({ kind: "tiktok", key: `t:${video.tiktok_id}`, video });
+const tiktokItem = (video: TikTokVideo, cycle = 0): FeedItem => ({ kind: "tiktok", key: cycle ? `t:${video.tiktok_id}~${cycle}` : `t:${video.tiktok_id}`, video });
+
+type Library = { creators: Record<string, string>; videos: [string, string, number, number, string][] };
+/** Refreshed every day on GitHub (scripts/refresh-christian-tiktoks.mjs), read live — no republishing needed. */
+const LIVE_LIBRARY = "https://raw.githubusercontent.com/DejiA123/sooz/main/src/data/christianTikTokLibrary.json";
+const LIBRARY_KEY = "sooz-tt-library";
+
+async function fetchLiveLibrary(timeoutMs: number): Promise<Library | null> {
+  try {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), timeoutMs);
+    const res = await fetch(LIVE_LIBRARY, { signal: ctrl.signal, cache: "no-cache" });
+    clearTimeout(t);
+    const lib = res.ok ? ((await res.json()) as Library) : null;
+    if (!lib || !Array.isArray(lib.videos) || !lib.videos.length || !lib.creators) return null;
+    try { localStorage.setItem(LIBRARY_KEY, JSON.stringify(lib)); } catch { /* full */ }
+    return lib;
+  } catch {
+    return null;
+  }
+}
+
+/** The newest library we can get without slowing the feed: this phone's copy (refreshed quietly for
+ *  next time), else the live file, else the copy built into the app. */
+async function loadLibrary(): Promise<Library> {
+  try {
+    const saved = localStorage.getItem(LIBRARY_KEY);
+    if (saved) { fetchLiveLibrary(10000); return JSON.parse(saved) as Library; }
+  } catch { /* storage blocked */ }
+  return (await fetchLiveLibrary(2500)) ?? ((await import("@/data/christianTikTokLibrary.json")).default as unknown as Library);
+}
+
+/** Hundreds of recent videos from trusted Christian creators (loaded on its own, so the app stays light). */
+async function libraryTikToks(): Promise<TikTokVideo[]> {
+  const lib = await loadLibrary();
+  return lib.videos.map(([id, handle, w, h, caption]) => ({
+    id: `lib-${id}`,
+    tiktok_id: id,
+    url: `https://www.tiktok.com/@${handle}/video/${id}`,
+    author_name: lib.creators[handle] ?? null,
+    author_handle: handle,
+    author_url: `https://www.tiktok.com/@${handle}`,
+    title: caption || null,
+    thumbnail_url: null,
+    thumbnail_width: w,
+    thumbnail_height: h,
+    faith_tags: [],
+    created_at: "2026-11-08T00:00:00Z",
+  }));
+}
 
 function shuffle<T>(list: T[]): T[] {
   const out = [...list];
@@ -63,14 +112,24 @@ function enrich(rows: TikTokVideo[]): TikTokVideo[] {
   });
 }
 
-/** All Christian TikToks (curator-approved + built-in starter videos, no duplicates), in random order. */
+/** All Christian TikToks (curator-approved + built-in + the creator library, no duplicates), in random order. */
 let tiktokPool: Promise<TikTokVideo[]> | null = null;
+/** After the whole pool has been shown, it starts again in a new order — the feed never ends. */
+const laterRounds = new Map<number, TikTokVideo[]>();
+const round = (pool: TikTokVideo[], n: number) => {
+  if (n === 0) return pool;
+  if (!laterRounds.has(n)) laterRounds.set(n, shuffle(pool));
+  return laterRounds.get(n)!;
+};
 function getTikTokPool(): Promise<TikTokVideo[]> {
   if (!tiktokPool) {
     tiktokPool = (async () => {
-      const videos = enrich((await fetchApprovedTikToks(0, 300)).videos);
-      const inDb = new Set(videos.map((v) => v.tiktok_id));
-      const all = [...videos, ...starterTikToks().filter((v) => !inDb.has(v.tiktok_id))];
+      const [db, library] = await Promise.all([
+        fetchApprovedTikToks(0, 300).then((r) => enrich(r.videos)).catch(() => [] as TikTokVideo[]),
+        libraryTikToks().catch(() => [] as TikTokVideo[]),
+      ]);
+      const seen = new Set<string>();
+      const all = [...db, ...starterTikToks(), ...library].filter((v) => !seen.has(v.tiktok_id) && !!seen.add(v.tiktok_id));
       return shuffle(all.filter((v) => !isDeadTikTok(v.tiktok_id)));
     })().catch(() => shuffle(starterTikToks().filter((v) => !isDeadTikTok(v.tiktok_id))));
   }
@@ -90,7 +149,7 @@ function getPostPool(userId?: string) {
 
 /** "For You": SOOZ posts and Christian TikToks, in a fresh random order every time it loads. */
 export async function fetchForYouPage({ pageParam = FIRST_CURSOR, userId }: { pageParam?: FeedCursor; userId?: string }): Promise<FeedPage> {
-  if (pageParam.page === 0) { tiktokPool = null; postPool = null; } // new load, new shuffle
+  if (pageParam.page === 0) { tiktokPool = null; postPool = null; laterRounds.clear(); } // new load, new shuffle
   const [pool, ttPool] = await Promise.all([getPostPool(userId), getTikTokPool()]);
 
   let posts: FeedPost[] = [];
@@ -108,13 +167,18 @@ export async function fetchForYouPage({ pageParam = FIRST_CURSOR, userId }: { pa
   const wanted = posts.length >= POSTS_PER_PAGE
     ? Math.ceil(posts.length / POSTS_BETWEEN_TIKTOKS)
     : Math.max(Math.ceil(posts.length / POSTS_BETWEEN_TIKTOKS), TIKTOKS_WHEN_NO_POSTS);
-  const tiktoks = ttPool.slice(pageParam.tiktokOffset, pageParam.tiktokOffset + wanted);
+  const tiktoks: { video: TikTokVideo; cycle: number }[] = [];
+  for (let k = 0; ttPool.length && k < wanted; k++) {
+    const at = pageParam.tiktokOffset + k;
+    const cycle = Math.floor(at / ttPool.length);
+    tiktoks.push({ video: round(ttPool, cycle)[at % ttPool.length], cycle });
+  }
 
   // Mix them: TikToks land at random spots, roughly one per two posts.
   const items: FeedItem[] = posts.map(postItem);
-  for (const v of tiktoks) {
+  for (const { video, cycle } of tiktoks) {
     const at = Math.floor(Math.random() * (items.length + 1));
-    items.splice(at, 0, tiktokItem(v));
+    items.splice(at, 0, tiktokItem(video, cycle));
   }
 
   // Keep the video the app opened on (shown instantly from the device) in first place, so the
@@ -126,7 +190,7 @@ export async function fetchForYouPage({ pageParam = FIRST_CURSOR, userId }: { pa
   }
 
   const nextTiktokOffset = pageParam.tiktokOffset + tiktoks.length;
-  const moreTiktoks = nextTiktokOffset < ttPool.length;
+  const moreTiktoks = ttPool.length > 0; // TikToks go round again, so For You never runs out
   return {
     items,
     nextCursor: morePosts || moreTiktoks

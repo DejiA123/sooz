@@ -1,154 +1,107 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { LivePlayer } from "../live/LivePlayer";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-import { Radio, Share2, MoreHorizontal } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { Radio, X } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { parseManifest } from "@/lib/liveStream";
+import { ShareArrow } from "@/components/reels/ReelRail";
+import { LivePlayer } from "../live/LivePlayer";
 
-export const LivePostCard = () => {
-    const [streamConfig, setStreamConfig] = useState<{
-        playback_url: string;
-        status: string;
-        profile?: { display_name: string | null; username: string; avatar_url: string | null }
-    } | null>(null);
-    const [isVisible, setIsVisible] = useState(true);
+type LiveInfo = {
+  playback_url: string;
+  title: string | null;
+  host: { display_name: string | null; username: string; avatar_url: string | null } | null;
+};
 
-    useEffect(() => {
-        const checkStatus = async () => {
-            const { data: configData, error } = await supabase
-                .from('live_stream_config')
-                .select('playback_url, status, stream_uid')
-                .eq('status', 'live')
-                .limit(1)
-                .maybeSingle();
+/** The live stream, full screen like a TikTok LIVE: who's live, what it's about, and the video. */
+export const LivePostCard = ({ onClose }: { onClose?: () => void }) => {
+  const [live, setLive] = useState<LiveInfo | null | undefined>(undefined);
 
-            if (error) {
-                console.error("Error fetching live stream:", error);
-                return;
-            }
+  useEffect(() => {
+    let alive = true;
+    const load = async () => {
+      const { data } = await supabase
+        .from("live_stream_config")
+        .select("playback_url, status, stream_uid, stream_key")
+        .eq("status", "live")
+        .order("updated_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (!alive) return;
+      if (!data?.playback_url) { setLive(null); return; }
+      let host: LiveInfo["host"] = null;
+      if (data.stream_uid) {
+        const { data: p } = await supabase.from("profiles").select("display_name, username, avatar_url").eq("id", data.stream_uid).maybeSingle();
+        host = p;
+      }
+      if (!alive) return;
+      // Keep the same player when only the clip list changes (it updates every few seconds).
+      setLive((prev) => prev && prev.playback_url === data.playback_url
+        ? prev
+        : { playback_url: data.playback_url!, title: parseManifest(data.stream_key)?.title ?? null, host });
+    };
+    load();
+    const channel = supabase
+      .channel(`live-card:${crypto.randomUUID().slice(0, 8)}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "live_stream_config" }, () => load())
+      .subscribe();
+    return () => { alive = false; supabase.removeChannel(channel); };
+  }, []);
 
-            if (configData) {
-                let profileData = null;
-                if (configData.stream_uid) {
-                    const { data: profile } = await supabase
-                        .from('profiles')
-                        .select('display_name, username, avatar_url')
-                        .eq('id', configData.stream_uid)
-                        .maybeSingle();
-                    profileData = profile;
-                }
+  const share = async () => {
+    const url = `${window.location.origin}/`;
+    const text = `${live?.host?.display_name || "SOOZ"} is live on SOOZ${live?.title ? `: ${live.title}` : ""} 🙏`;
+    try {
+      if (navigator.share) await navigator.share({ title: "SOOZ Live", text, url });
+      else { await navigator.clipboard.writeText(`${text} ${url}`); toast.success("Link copied"); }
+    } catch { /* cancelled */ }
+  };
 
-                setStreamConfig({
-                    playback_url: configData.playback_url,
-                    status: configData.status,
-                    profile: profileData || {
-                        display_name: 'Main Sanctuary',
-                        username: 'church',
-                        avatar_url: '/placeholder.svg'
-                    }
-                });
-            } else {
-                setStreamConfig(null);
-            }
-        };
+  const name = live?.host?.display_name || live?.host?.username || "SOOZ";
 
-        checkStatus();
+  return (
+    <div className="relative h-full w-full bg-black text-white">
+      {live ? (
+        <LivePlayer src={live.playback_url} className="absolute inset-0" />
+      ) : (
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-6 text-center">
+          {live === undefined ? (
+            <div className="h-9 w-9 animate-spin rounded-full border-[3px] border-white/20 border-t-white" />
+          ) : (
+            <><Radio className="h-9 w-9 text-white/40" /><p className="text-[16px] font-semibold">No one is live right now</p></>
+          )}
+        </div>
+      )}
 
-        const channel = supabase
-            .channel('live_feed_changes')
-            .on(
-                'postgres_changes',
-                { event: '*', schema: 'public', table: 'live_stream_config' },
-                () => checkStatus()
-            )
-            .subscribe();
-
-        return () => {
-            supabase.removeChannel(channel);
-        };
-    }, []);
-
-    if (!streamConfig || !isVisible) return null;
-
-    return (
-        <article className="mb-10 overflow-hidden bg-card border border-white/5 sm:rounded-[2.5rem] shadow-premium ring-2 ring-red-500/20 animate-in fade-in slide-in-from-bottom-4 duration-700">
-            {/* Header */}
-            <div className="flex items-center justify-between p-4 px-5">
-                <div className="flex items-center gap-3">
-                    <Avatar className="w-10 h-10 ring-2 ring-red-500/20">
-                        <AvatarImage src={streamConfig.profile?.avatar_url || "/placeholder.svg"} className="object-cover" />
-                        <AvatarFallback className="bg-red-50 text-red-600 font-bold text-xs">LIVE</AvatarFallback>
-                    </Avatar>
-                    <div className="flex flex-col">
-                        <div className="flex items-center gap-2">
-                            <h3 className="font-display font-bold text-[15px] leading-tight tracking-tight">
-                                {streamConfig.profile?.display_name || streamConfig.profile?.username}
-                            </h3>
-                            <Badge variant="destructive" className="h-4 px-1.5 text-[8px] font-black uppercase tracking-widest animate-pulse border-none">
-                                Live
-                            </Badge>
-                        </div>
-                        <p className="text-[11px] text-muted-foreground font-medium">@{streamConfig.profile?.username}</p>
-                    </div>
-                </div>
-
-                <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full">
-                    <MoreHorizontal className="w-5 h-5 text-muted-foreground" />
-                </Button>
+      {/* Top: who's live */}
+      <div className="live-top absolute inset-x-0 top-0 flex items-start justify-between gap-3 bg-gradient-to-b from-black/60 to-transparent px-3 pb-8">
+        {live ? (
+          <div className="flex min-w-0 items-center gap-2 rounded-full bg-black/40 py-1 pl-1 pr-3 backdrop-blur">
+            <Avatar className="h-9 w-9">
+              <AvatarImage src={live.host?.avatar_url || ""} className="object-cover" />
+              <AvatarFallback className="bg-gradient-to-br from-amber-400 to-amber-700 text-[14px] font-bold">{name[0]?.toUpperCase()}</AvatarFallback>
+            </Avatar>
+            <div className="min-w-0">
+              <p className="truncate text-[14px] font-bold leading-tight">{name}</p>
+              <p className="truncate text-[12px] leading-tight text-white/70">{live.title || "Live on SOOZ"}</p>
             </div>
+            <span className="ml-1 rounded bg-[#ff2d55] px-1.5 py-0.5 text-[11px] font-extrabold uppercase">Live</span>
+          </div>
+        ) : <span />}
+        {onClose && (
+          <button type="button" onClick={onClose} aria-label="Close live" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-black/40 backdrop-blur">
+            <X className="h-5 w-5" />
+          </button>
+        )}
+      </div>
 
-            {/* Live Player Container */}
-            <div className="relative w-full aspect-video bg-black overflow-hidden border-y border-white/5">
-                <LivePlayer
-                    src={streamConfig.playback_url}
-                    className="rounded-none border-none shadow-none ring-0 h-full"
-                    autoPlay={true}
-                />
-
-                {/* Live Overlays */}
-                <div className="absolute top-4 right-4 flex items-center gap-2 z-20">
-                    <div className="px-2 py-1 bg-black/40 backdrop-blur-md rounded-lg border border-white/10 flex items-center gap-1.5">
-                        <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-                        <span className="text-[10px] font-bold text-white uppercase tracking-wider">HLS Feed</span>
-                    </div>
-                </div>
-            </div>
-
-            {/* Footer / Interaction Space */}
-            <div className="p-5 pt-4">
-                <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-5">
-                        <div className="flex items-center gap-2 text-red-600">
-                            <Radio className="w-6 h-6 animate-pulse" />
-                            <span className="text-sm font-bold uppercase tracking-tight">Streaming Now</span>
-                        </div>
-                    </div>
-
-                    <button
-                        className="p-2 rounded-full hover:bg-secondary/50 transition-colors"
-                        onClick={() => {
-                            navigator.clipboard.writeText(window.location.href);
-                            toast.success("Stream link copied!");
-                        }}
-                    >
-                        <Share2 className="w-6 h-6 text-foreground" strokeWidth={2} />
-                    </button>
-                </div>
-
-                <div className="space-y-2">
-                    <p className="text-[15px] leading-relaxed">
-                        <span className="font-bold mr-2 text-red-600">LIVE:</span>
-                        <span className="text-foreground/90 font-medium">Join {streamConfig.profile?.display_name || streamConfig.profile?.username} live for the current session. Experience the broadcast in real-time with internal HLS streaming.</span>
-                    </p>
-
-                    <p className="text-[11px] font-bold text-muted-foreground/50 uppercase tracking-widest pt-1">
-                        STARTED RECENTLY
-                    </p>
-                </div>
-            </div>
-        </article>
-    );
+      {live && (
+        <button type="button" onClick={share} aria-label="Share live"
+          className="live-share absolute right-3 flex flex-col items-center gap-1 text-[12px] font-semibold">
+          <span className="flex h-12 w-12 items-center justify-center rounded-full bg-black/40 backdrop-blur"><ShareArrow className="h-7 w-7" /></span>
+          Share
+        </button>
+      )}
+    </div>
+  );
 };

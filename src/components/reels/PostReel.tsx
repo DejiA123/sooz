@@ -157,13 +157,20 @@ export const PostReel = memo(function PostReel({ post, active, mounted }: PostRe
     busy.current.save = false;
   };
 
+  const [shares, setShares] = useState(post.shares_count ?? 0);
+  // Count a share (like TikTok's number under the arrow) once it actually happened.
+  const countShare = () => {
+    if (!user) return;
+    supabase.from("post_shares").insert({ post_id: post.id, user_id: user.id }).then(({ error }) => { if (!error) setShares((n) => n + 1); });
+  };
   const share = async () => {
     const url = await getShareLink(post.id);
     try {
       if (navigator.share) await navigator.share({ title: "SOOZ", text: caption?.slice(0, 120) || "Watch this on SOOZ ✨", url });
       else { await navigator.clipboard.writeText(url); toast.success("Link copied"); }
+      countShare();
     } catch (e) {
-      if ((e as Error)?.name !== "AbortError") { await navigator.clipboard.writeText(url).catch(() => {}); toast.success("Link copied"); }
+      if ((e as Error)?.name !== "AbortError") { await navigator.clipboard.writeText(url).catch(() => {}); toast.success("Link copied"); countShare(); }
     }
   };
 
@@ -306,7 +313,7 @@ export const PostReel = memo(function PostReel({ post, active, mounted }: PostRe
           label={saved ? "Saved" : "Save"}
           icon={<Bookmark className={cn(railIconClass, saved ? "fill-amber-400 text-amber-400" : "fill-white/95 text-white/95")} strokeWidth={1.5} />}
         />
-        <RailButton ariaLabel="Share" onClick={share} label="Share" icon={<ShareArrow className={cn(railIconClass, "text-white/95")} />} />
+        <RailButton ariaLabel="Share" onClick={share} label={shares > 0 ? formatCount(shares) : "Share"} icon={<ShareArrow className={cn(railIconClass, "text-white/95")} />} />
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>

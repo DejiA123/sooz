@@ -134,19 +134,9 @@ export const StoriesPanel = ({ onClose }: { onClose: () => void }) => {
 };
 
 export const LiveViewer = ({ onClose }: { onClose: () => void }) => (
-  <div className="fixed inset-0 z-[60] flex flex-col bg-black/95 backdrop-blur-xl" role="dialog" aria-label="Live stream">
-    <div className="flex items-center justify-between px-4 pb-2 pt-[calc(0.75rem+env(safe-area-inset-top,0px))]">
-      <span className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-white">
-        <span className="h-2 w-2 animate-pulse rounded-full bg-[#ff2d55]" /> Live now
-      </span>
-      <button type="button" onClick={onClose} aria-label="Close live stream" className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white">
-        <X className="h-5 w-5" />
-      </button>
-    </div>
-    <div className="mx-auto w-full max-w-2xl flex-1 overflow-y-auto px-2">
-      <Suspense fallback={<div className="flex h-64 items-center justify-center"><div className="h-9 w-9 animate-spin rounded-full border-[3px] border-white/20 border-t-white" /></div>}>
-        <LivePostCard />
-      </Suspense>
-    </div>
+  <div className="fixed inset-0 z-[60] bg-black" role="dialog" aria-label="Live stream">
+    <Suspense fallback={<div className="flex h-full items-center justify-center"><div className="h-9 w-9 animate-spin rounded-full border-[3px] border-white/20 border-t-white" /></div>}>
+      <LivePostCard onClose={onClose} />
+    </Suspense>
   </div>
 );

@@ -16,7 +16,7 @@ export function useLiveStatus() {
 
   useEffect(() => {
     const channel = supabase
-      .channel("live-status-pill")
+      .channel(`live-status:${crypto.randomUUID().slice(0, 8)}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "live_stream_config" }, () =>
         queryClient.invalidateQueries({ queryKey: ["live-status"] })
       )

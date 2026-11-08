@@ -1,0 +1,38 @@
+name: Refresh Christian TikToks
+
+# Every day, collect the newest public videos from SOOZ's trusted Christian TikTok creators
+# (scripts/refresh-christian-tiktoks.mjs). The app reads the library file live from GitHub,
+# so new videos reach everyone without republishing.
+on:
+  schedule:
+    - cron: "17 5 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: refresh-christian-tiktoks
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: node scripts/refresh-christian-tiktoks.mjs
+      - name: Save the updated library
+        run: |
+          if git diff --quiet -- src/data/christianTikTokLibrary.json; then
+            echo "No new videos today."
+            exit 0
+          fi
+          git config user.name "sooz-bot"
+          git config user.email "sooz-bot@users.noreply.github.com"
+          git add src/data/christianTikTokLibrary.json
+          git commit -m "Refresh Christian TikTok library"
+          git push

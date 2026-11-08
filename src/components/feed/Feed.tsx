@@ -35,7 +35,7 @@ const Feed = () => {
 
     // Set up real-time subscription
     const channel = supabase
-      .channel("posts-changes")
+      .channel(`posts-changes:${crypto.randomUUID().slice(0, 8)}`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "posts" },
