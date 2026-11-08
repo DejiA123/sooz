@@ -73,6 +73,22 @@ export default defineConfig(({ mode }) => ({
       },
     }),
   ],
+  build: {
+    target: "es2020",
+    rollupOptions: {
+      output: {
+        // Long-lived vendor chunks: app updates don't make returning users re-download libraries.
+        manualChunks(id) {
+          if (!id.includes("node_modules")) return;
+          if (/[\\/]node_modules[\\/](react|react-dom|scheduler|react-router|react-router-dom|@remix-run)[\\/]/.test(id)) return "vendor-react";
+          if (id.includes("@supabase")) return "vendor-supabase";
+          if (/framer-motion|motion-dom|motion-utils/.test(id)) return "vendor-motion";
+          if (id.includes("@tanstack")) return "vendor-query";
+          if (id.includes("@radix-ui") || id.includes("@floating-ui")) return "vendor-radix";
+        },
+      },
+    },
+  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),

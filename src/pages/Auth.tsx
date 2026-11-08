@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Eye, EyeOff, Loader2, ArrowLeft } from "lucide-react";
 import { z } from "zod";
+import { SoozLogo } from "@/components/brand/SoozLogo";
 
 const emailSchema = z.string().email("Please enter a valid email address");
 const passwordSchema = z.string().min(6, "Password must be at least 6 characters");
@@ -80,7 +81,7 @@ const Auth = () => {
         {/* Glass card */}
         <div className="bg-background/60 backdrop-blur-2xl border border-border/20 rounded-3xl p-8 shadow-2xl">
           <div className="flex flex-col items-center mb-8">
-            <img src="/sooz-logo-v3.svg" alt="SOOZ" className="h-12 w-auto mb-3 object-contain" />
+            <SoozLogo className="h-20 mb-3" />
             <h2 className="text-xl font-display font-bold">
               {isLogin ? "Welcome back" : "Join SOOZ"}
             </h2>

@@ -1,11 +1,12 @@
-import { useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Home, Heart, User, PlusSquare, Search, Menu, MoreHorizontal, Settings as SettingsIcon, ActivitySquare, Bookmark, Moon, Sun, MessageSquareWarning, LogOut, MessageCircle, Code2, PlayCircle, BarChart3 } from "lucide-react";
+import { Sparkles, Home, Heart, User, PlusSquare, Search, Menu, MoreHorizontal, Settings as SettingsIcon, ActivitySquare, Bookmark, Moon, Sun, MessageSquareWarning, LogOut, MessageCircle, Code2, PlayCircle, BarChart3 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { CreateModal } from "@/components/create/CreateModal";
+const CreateModal = lazy(() => import("@/components/create/CreateModal").then((m) => ({ default: m.CreateModal })));
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from "@/hooks/useAuth";
+import { SoozLogo } from "@/components/brand/SoozLogo";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -27,7 +28,8 @@ export const Sidebar = () => {
 
     const navItems = [
         { icon: Home, label: "Home", path: "/" },
-        { icon: Search, label: "Discover", path: "/archive" },
+        { icon: Search, label: "Discover", path: "/discover" },
+        { icon: Sparkles, label: "Christian TikTok", path: "/tiktok" },
         { icon: MessageCircle, label: "Messages", path: "/chat" },
         { icon: Heart, label: "Notifications", path: "/activity" },
         { icon: PlusSquare, label: "Create", path: "#", isCreate: true },
@@ -53,11 +55,7 @@ export const Sidebar = () => {
             <aside className="hidden md:flex flex-col fixed left-0 top-0 z-50 h-screen w-64 bg-background border-r border-border px-4 py-6">
                 {/* Logo */}
                 <div className="mb-4 px-1 flex justify-center">
-                    <img
-                        src="/sooz-logo-v3.png"
-                        alt="SOOZ"
-                        className="h-24 w-auto object-contain"
-                    />
+                    <SoozLogo className="h-24" />
                 </div>
 
                 {/* Navigation Items */}
@@ -177,11 +175,15 @@ export const Sidebar = () => {
                 </div>
             </aside>
 
-            <CreateModal
-                isOpen={showCreateModal}
-                onClose={() => setShowCreateModal(false)}
-                onPostCreated={() => window.location.reload()}
-            />
+            {showCreateModal && (
+                <Suspense fallback={null}>
+                    <CreateModal
+                        isOpen
+                        onClose={() => setShowCreateModal(false)}
+                        onPostCreated={() => window.location.reload()}
+                    />
+                </Suspense>
+            )}
         </>
     );
 };

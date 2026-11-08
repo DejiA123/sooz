@@ -16,3 +16,7 @@
 - [x] One-to-one calls use Cloudflare TURN relay (turn-credentials function)
 - [ ] Group calls via Cloudflare Calls SFU (keys saved)
 - [ ] Go Live via Cloudflare Stream live input (keys saved)
+- [x] TikTok-style full-screen home feed (For You / Following, double-tap like, Bible verse links)
+- [x] Liquid-glass bottom tab bar (Home, Discover, Create, Inbox, You)
+- [x] Christian TikTok videos in the For You feed (curated, faith-filtered, official TikTok player)
+- [ ] Apply the Christian TikTok migration + deploy `tiktok-import`, then add curators and trusted creators

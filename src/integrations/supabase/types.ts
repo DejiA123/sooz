@@ -513,6 +513,105 @@ export type Database = {
           },
         ]
       }
+      tiktok_curators: {
+        Row: {
+          created_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      tiktok_trusted_creators: {
+        Row: {
+          added_by: string | null
+          created_at: string
+          handle: string
+          note: string | null
+        }
+        Insert: {
+          added_by?: string | null
+          created_at?: string
+          handle: string
+          note?: string | null
+        }
+        Update: {
+          added_by?: string | null
+          created_at?: string
+          handle?: string
+          note?: string | null
+        }
+        Relationships: []
+      }
+      tiktok_videos: {
+        Row: {
+          author_handle: string | null
+          author_name: string | null
+          author_url: string | null
+          created_at: string
+          faith_tags: string[]
+          id: string
+          metadata_refreshed_at: string
+          review_note: string | null
+          reviewed_by: string | null
+          status: string
+          submitted_by: string | null
+          thumbnail_height: number | null
+          thumbnail_url: string | null
+          thumbnail_width: number | null
+          tiktok_id: string
+          title: string | null
+          updated_at: string
+          url: string
+        }
+        Insert: {
+          author_handle?: string | null
+          author_name?: string | null
+          author_url?: string | null
+          created_at?: string
+          faith_tags?: string[]
+          id?: string
+          metadata_refreshed_at?: string
+          review_note?: string | null
+          reviewed_by?: string | null
+          status?: string
+          submitted_by?: string | null
+          thumbnail_height?: number | null
+          thumbnail_url?: string | null
+          thumbnail_width?: number | null
+          tiktok_id: string
+          title?: string | null
+          updated_at?: string
+          url: string
+        }
+        Update: {
+          author_handle?: string | null
+          author_name?: string | null
+          author_url?: string | null
+          created_at?: string
+          faith_tags?: string[]
+          id?: string
+          metadata_refreshed_at?: string
+          review_note?: string | null
+          reviewed_by?: string | null
+          status?: string
+          submitted_by?: string | null
+          thumbnail_height?: number | null
+          thumbnail_url?: string | null
+          thumbnail_width?: number | null
+          tiktok_id?: string
+          title?: string | null
+          updated_at?: string
+          url?: string
+        }
+        Relationships: []
+      }
       video_archive: {
         Row: {
           category: string | null
@@ -579,6 +678,10 @@ export type Database = {
       }
       is_chat_member: {
         Args: { target_conversation_id: string }
+        Returns: boolean
+      }
+      is_tiktok_curator: {
+        Args: { uid: string }
         Returns: boolean
       }
     }

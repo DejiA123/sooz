@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { ArrowLeft, Mail } from "lucide-react";
+import { SoozLogo } from "@/components/brand/SoozLogo";
 
 export default function ForgotPassword() {
     const [email, setEmail] = useState("");
@@ -56,7 +57,7 @@ export default function ForgotPassword() {
             </Link>
 
             <div className="flex flex-col items-center mb-8">
-                <img src="/sooz-logo-v3.svg" alt="SOOZ" className="h-16 w-auto mb-2 object-contain" />
+                <SoozLogo className="h-20 mb-2" />
             </div>
 
             <div className="glass rounded-3xl p-8 w-full max-w-md">
