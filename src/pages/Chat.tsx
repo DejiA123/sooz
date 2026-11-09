@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { MessageCircle } from "lucide-react";
 import { ChatList } from "@/components/chat/ChatList";
 import { ChatWindow } from "@/components/chat/ChatWindow";
@@ -6,11 +7,29 @@ import { cn } from "@/lib/utils";
 
 /**
  * Messages. Phone: the list, and an open conversation takes the whole screen (its own header at
- * the top, typing bar at the bottom — like WhatsApp / TikTok's inbox). Desktop: list + conversation.
+ * the top, typing bar at the bottom — like WhatsApp). Desktop: list + conversation side by side.
+ * The open chat is in the address (?c=ID, and ?m=ID to jump to a message), so the phone's back
+ * gesture closes it and notifications / profile "Message" buttons can open a chat directly.
  */
 export default function Chat() {
-  const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
+  const [params, setParams] = useSearchParams();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const selectedChatId = params.get("c");
+  const focusMessageId = params.get("m");
   const openRef = useRef<HTMLDivElement>(null);
+
+  const openChat = (id: string, messageId?: string) => {
+    const next = new URLSearchParams();
+    next.set("c", id);
+    if (messageId) next.set("m", messageId);
+    // From the list: a new history step (Back returns to the list). Chat → chat: replace.
+    setParams(next, { replace: !!selectedChatId, state: { fromList: !selectedChatId || (location.state as { fromList?: boolean } | null)?.fromList } });
+  };
+  const closeChat = () => {
+    if ((location.state as { fromList?: boolean } | null)?.fromList) navigate(-1);
+    else setParams(new URLSearchParams(), { replace: true });
+  };
 
   // iPhone keyboard: keep the open conversation exactly the visible height, so the typing bar sits
   // right above the keyboard and the header stays at the top.
@@ -32,12 +51,12 @@ export default function Chat() {
   return (
     <div className={cn("chat-page fixed inset-x-0 bottom-0 flex bg-[#05070b] md:left-64 md:top-0", selectedChatId && "z-[60] md:z-auto")}>
       <div className={cn("h-full w-full shrink-0 border-white/[0.06] md:w-80 md:border-r lg:w-96", selectedChatId ? "hidden md:block" : "block")}>
-        <ChatList selectedId={selectedChatId || undefined} onSelect={setSelectedChatId} />
+        <ChatList selectedId={selectedChatId || undefined} onSelect={openChat} />
       </div>
 
       {selectedChatId ? (
         <div ref={openRef} className="chat-open fixed inset-x-0 top-0 h-[100dvh] md:static md:z-auto md:h-full md:min-w-0 md:flex-1">
-          <ChatWindow chatId={selectedChatId} onBack={() => setSelectedChatId(null)} />
+          <ChatWindow key={selectedChatId} chatId={selectedChatId} focusMessageId={focusMessageId} onBack={closeChat} onOpenChat={(id) => openChat(id)} />
         </div>
       ) : (
         <div className="hidden flex-1 flex-col items-center justify-center gap-3 text-center md:flex">

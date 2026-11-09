@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { fetchForYouPage, FIRST_CURSOR, type FeedCursor } from "@/services/api/feed";
 import { cn } from "@/lib/utils";
+import { markChatsDelivered } from "@/services/api/chat";
 
 export const MainLayout = () => {
     const { user } = useAuth();
@@ -27,8 +28,34 @@ export const MainLayout = () => {
             staleTime: 1000 * 60 * 2,
         });
 
-        supabase.from("profiles").update({ updated_at: new Date().toISOString() }).eq("id", user.id)
-            .then(({ error }) => { if (error) console.error("Error updating last seen:", error); });
+        // "last seen" for chats, and "delivered" ticks for anything sent while the app was closed.
+        const seen = () => {
+            if (document.hidden) return;
+            supabase.from("profiles").update({ updated_at: new Date().toISOString() }).eq("id", user.id)
+                .then(({ error }) => { if (error) console.error("Error updating last seen:", error); });
+            markChatsDelivered();
+        };
+        seen();
+        document.addEventListener("visibilitychange", seen);
+        const beat = setInterval(seen, 2 * 60 * 1000);
+
+        // New messages anywhere in the app: they've reached this phone (double grey tick), and the
+        // Inbox badge updates.
+        let t = 0;
+        const channel = supabase
+            .channel(`inbox:${crypto.randomUUID().slice(0, 8)}`)
+            .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages" }, (p) => {
+                if ((p.new as { sender_id?: string }).sender_id !== user.id) markChatsDelivered();
+                clearTimeout(t);
+                t = window.setTimeout(() => queryClient.invalidateQueries({ queryKey: ["chats", user.id] }), 400);
+            })
+            .subscribe();
+        return () => {
+            document.removeEventListener("visibilitychange", seen);
+            clearInterval(beat);
+            clearTimeout(t);
+            supabase.removeChannel(channel);
+        };
     }, [user, queryClient]);
 
     // Installed iPhone app: if the first page can't scroll, iOS lays the app out one status-bar
