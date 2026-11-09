@@ -100,6 +100,7 @@ export const ChatWindow = ({ chatId, focusMessageId, onBack, onOpenChat }: ChatW
   const [pinIdx, setPinIdx] = useState(0);
 
   const scrollRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
   const stick = useRef(true);
   const firstScrollDone = useRef(false);
   const live = useRef(false);
@@ -214,6 +215,15 @@ export const ChatWindow = ({ chatId, focusMessageId, onBack, onOpenChat }: ChatW
     return messages.filter((m) => !extras.hidden.has(m.id) && (!cleared || m.createdAt > cleared || m.status) && (!m.expiresAt || new Date(m.expiresAt).getTime() > now));
   }, [messages, extras.hidden, meMember?.clearedAt]);
   const byId = useMemo(() => new Map(messages.map((m) => [m.id, m])), [messages]);
+  const dayGroups = useMemo(() => {
+    const groups: { key: string; first: string; items: { msg: ChatMessage; idx: number }[] }[] = [];
+    visible.forEach((msg, idx) => {
+      const key = new Date(msg.createdAt).toDateString();
+      if (groups[groups.length - 1]?.key !== key) groups.push({ key, first: msg.createdAt, items: [] });
+      groups[groups.length - 1].items.push({ msg, idx });
+    });
+    return groups;
+  }, [visible]);
 
   const delivery = useCallback((m: ChatMessage): Delivery => {
     if (m.status) return m.status;
@@ -260,19 +270,35 @@ export const ChatWindow = ({ chatId, focusMessageId, onBack, onOpenChat }: ChatW
     setTimeout(() => setFlashId((f) => (f === id ? null : f)), 1600);
   }, []);
 
+  // A chat opens at the newest message (the "unread messages" line stays as a marker above it),
+  // unless it was opened to show a particular message.
   useLayoutEffect(() => {
     const el = scrollRef.current;
     if (!el || loading) return;
     if (!firstScrollDone.current) {
       firstScrollDone.current = true;
       if (focusMessageId && byId.has(focusMessageId)) { requestAnimationFrame(() => jumpTo(focusMessageId)); return; }
-      const anchor = unreadAnchor && el.querySelector<HTMLElement>(`[data-unread-divider]`);
-      if (anchor) { el.scrollTop = Math.max(0, anchor.offsetTop - 80); stick.current = false; return; }
+      stick.current = true;
       el.scrollTop = el.scrollHeight;
       return;
     }
     if (stick.current) el.scrollTop = el.scrollHeight;
   }, [visible.length, loading]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Stay at the newest message while things above it finish loading (photos, maps, voice notes,
+  // reactions) and when the keyboard opens — unless they've scrolled up to read.
+  useEffect(() => {
+    const el = scrollRef.current;
+    const content = contentRef.current;
+    if (!el || !content || loading) return;
+    const keepDown = () => { if (stick.current) el.scrollTop = el.scrollHeight; };
+    const ro = new ResizeObserver(keepDown);
+    ro.observe(content);
+    ro.observe(el);
+    // Photos finishing loading don't always change the layout in one go — catch those too.
+    content.addEventListener("load", keepDown, true);
+    return () => { ro.disconnect(); content.removeEventListener("load", keepDown, true); };
+  }, [loading]);
 
   const onScroll = () => {
     const el = scrollRef.current;
@@ -610,7 +636,7 @@ export const ChatWindow = ({ chatId, focusMessageId, onBack, onOpenChat }: ChatW
       {/* Messages */}
       <div className="relative min-h-0 flex-1">
       <div ref={scrollRef} onScroll={onScroll} className="relative h-full overflow-y-auto overflow-x-hidden overscroll-contain px-3 md:px-6">
-        <div className="flex min-h-full flex-col justify-end pb-3 pt-2">
+        <div ref={contentRef} className="flex min-h-full flex-col justify-end pb-3 pt-2">
           {loading ? (
             <div className="flex flex-col gap-3">
               {[1, 2, 3, 4].map((i) => <div key={i} className={cn("h-10 animate-pulse rounded-[18px] bg-white/[0.06]", i % 2 ? "w-44 self-start" : "w-32 self-end")} />)}
@@ -632,7 +658,13 @@ export const ChatWindow = ({ chatId, focusMessageId, onBack, onOpenChat }: ChatW
                   <p className="text-[14px] text-white/50">Say hello 👋</p>
                 </div>
               )}
-              {visible.map((msg, idx) => {
+              {dayGroups.map((group) => (
+                // Each day is its own block, so only the day being read floats its date at the top.
+                <div key={group.key}>
+                <div className="sticky top-1 z-[5] my-2 flex justify-center">
+                  <span className="rounded-lg bg-[#1a1d24] px-2.5 py-1 text-[12px] font-medium text-white/70 shadow">{dayChipLabel(group.first)}</span>
+                </div>
+                {group.items.map(({ msg, idx }) => {
                 const prev = visible[idx - 1];
                 const next = visible[idx + 1];
                 const newDay = !prev || !sameDay(prev.createdAt, msg.createdAt);
@@ -642,11 +674,6 @@ export const ChatWindow = ({ chatId, focusMessageId, onBack, onOpenChat }: ChatW
                 const reply = msg.replyToId ? byId.get(msg.replyToId) ?? null : null;
                 return (
                   <Fragment key={msg.id}>
-                    {newDay && (
-                      <div className="sticky top-1 z-[5] my-2 flex justify-center">
-                        <span className="rounded-lg bg-[#1a1d24]/95 px-2.5 py-1 text-[12px] font-medium text-white/70 shadow backdrop-blur">{dayChipLabel(msg.createdAt)}</span>
-                      </div>
-                    )}
                     {unreadAnchor?.id === msg.id && (
                       <div data-unread-divider className="my-2 -mx-3 bg-white/[0.05] py-1.5 text-center text-[12.5px] font-semibold uppercase tracking-wide text-amber-300/90">
                         {unreadAnchor.count} unread message{unreadAnchor.count === 1 ? "" : "s"}
@@ -691,7 +718,9 @@ export const ChatWindow = ({ chatId, focusMessageId, onBack, onOpenChat }: ChatW
                     />
                   </Fragment>
                 );
-              })}
+                })}
+                </div>
+              ))}
             </>
           )}
         </div>
