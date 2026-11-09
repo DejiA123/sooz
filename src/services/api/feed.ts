@@ -31,7 +31,7 @@ const SHUFFLED_POSTS = 60;
 const postItem = (post: FeedPost): FeedItem => ({ kind: "post", key: `p:${post.id}`, post });
 const tiktokItem = (video: TikTokVideo, cycle = 0): FeedItem => ({ kind: "tiktok", key: cycle ? `t:${video.tiktok_id}~${cycle}` : `t:${video.tiktok_id}`, video });
 
-type Library = { creators: Record<string, string>; videos: [string, string, number, number, string][] };
+export type Library = { creators: Record<string, string>; videos: [string, string, number, number, string][]; kinds?: Record<string, string>; updated?: string };
 /** Refreshed every day on GitHub (scripts/refresh-christian-tiktoks.mjs), read live — no republishing needed. */
 const LIVE_LIBRARY = "https://raw.githubusercontent.com/DejiA123/sooz/main/src/data/christianTikTokLibrary.json";
 const LIBRARY_KEY = "sooz-tt-library";
@@ -53,7 +53,7 @@ async function fetchLiveLibrary(timeoutMs: number): Promise<Library | null> {
 
 /** The newest library we can get without slowing the feed: this phone's copy (refreshed quietly for
  *  next time), else the live file, else the copy built into the app. */
-async function loadLibrary(): Promise<Library> {
+export async function loadLibrary(): Promise<Library> {
   try {
     const saved = localStorage.getItem(LIBRARY_KEY);
     if (saved) { fetchLiveLibrary(10000); return JSON.parse(saved) as Library; }
@@ -114,11 +114,34 @@ function enrich(rows: TikTokVideo[]): TikTokVideo[] {
 
 /** All Christian TikToks (curator-approved + built-in + the creator library, no duplicates), in random order. */
 let tiktokPool: Promise<TikTokVideo[]> | null = null;
+/**
+ * Variety: deal the TikToks out one creator at a time (random creator order, random videos), so a
+ * worship song, a sermon, a gospel clip, a Bible answer… follow each other instead of ten videos
+ * from the same account in a row.
+ */
+function mixCreators(videos: TikTokVideo[]): TikTokVideo[] {
+  const byCreator = new Map<string, TikTokVideo[]>();
+  for (const v of shuffle(videos)) {
+    const k = (v.author_handle || v.tiktok_id).toLowerCase();
+    if (!byCreator.has(k)) byCreator.set(k, []);
+    byCreator.get(k)!.push(v);
+  }
+  const queues = shuffle([...byCreator.values()]);
+  const out: TikTokVideo[] = [];
+  while (queues.length) {
+    for (let i = 0; i < queues.length; ) {
+      out.push(queues[i].shift()!);
+      if (queues[i].length) i++; else queues.splice(i, 1);
+    }
+  }
+  return out;
+}
+
 /** After the whole pool has been shown, it starts again in a new order — the feed never ends. */
 const laterRounds = new Map<number, TikTokVideo[]>();
 const round = (pool: TikTokVideo[], n: number) => {
   if (n === 0) return pool;
-  if (!laterRounds.has(n)) laterRounds.set(n, shuffle(pool));
+  if (!laterRounds.has(n)) laterRounds.set(n, mixCreators(pool));
   return laterRounds.get(n)!;
 };
 function getTikTokPool(): Promise<TikTokVideo[]> {
@@ -130,7 +153,7 @@ function getTikTokPool(): Promise<TikTokVideo[]> {
       ]);
       const seen = new Set<string>();
       const all = [...db, ...starterTikToks(), ...library].filter((v) => !seen.has(v.tiktok_id) && !!seen.add(v.tiktok_id));
-      return shuffle(all.filter((v) => !isDeadTikTok(v.tiktok_id)));
+      return mixCreators(all.filter((v) => !isDeadTikTok(v.tiktok_id)));
     })().catch(() => shuffle(starterTikToks().filter((v) => !isDeadTikTok(v.tiktok_id))));
   }
   return tiktokPool;
