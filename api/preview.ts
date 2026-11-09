@@ -12,6 +12,10 @@ const SUPABASE_URL = "https://xhqpojnmcibkaydidnex.supabase.co";
 // The public (anon) key — the same one shipped in the app.
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhocXBvam5tY2lia2F5ZGlkbmV4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUzMjAzNTcsImV4cCI6MjA4MDg5NjM1N30.DkKg7S_xOEyGR2R9TtjBKzqoDACzZUYkA8BcFw6qylw";
 const DEFAULT_IMAGE = `${SITE}/og-image.jpg`;
+// Made every day by the refresh workflow (scripts/refresh-christian-tiktoks.mjs): a preview card per
+// TikTok on the "covers" branch, and the library with each video's creator and full caption.
+const CARDS = "https://raw.githubusercontent.com/DejiA123/sooz/covers/tt";
+const LIBRARY = "https://raw.githubusercontent.com/DejiA123/sooz/main/src/data/christianTikTokLibrary.json";
 const BROWSER_UA = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1";
 const ROBOT_RE = /bot|crawl|spider|preview|facebookexternalhit|facebot|whatsapp|telegram|slack|discord|linkedin|skype|embedly|pinterest|vkshare|viber|snapchat|google|bing|yandex|duckduck|applebot|iframely|redditbot|tumblr|bitly|nuzzel|mastodon|signal/i;
 
@@ -41,14 +45,46 @@ function jsonString(text: string, re: RegExp): string {
   try { return JSON.parse(`"${m[1]}"`) as string; } catch { return ""; }
 }
 
+type Library = { creators: Record<string, string>; videos: [string, string, number, number, string][] };
+let libCache: { at: number; lib: Library } | null = null;
+
+/** The video's creator name and caption from SOOZ's own library (no need to ask TikTok). */
+async function fromLibrary(id: string): Promise<{ name: string; caption: string } | null> {
+  if (!libCache || Date.now() - libCache.at > 10 * 60 * 1000) {
+    const text = await getText(LIBRARY, {}, 2500);
+    if (text) { try { libCache = { at: Date.now(), lib: JSON.parse(text) as Library }; } catch { /* keep the old copy */ } }
+  }
+  const v = libCache?.lib.videos.find((x) => x[0] === id);
+  return v ? { name: libCache!.lib.creators[v[1]] || `@${v[1]}`, caption: v[4] || "" } : null;
+}
+
+/** The ready-made preview card for this TikTok, if the daily refresh has made one. */
+async function savedCard(id: string): Promise<string> {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 2000);
+  try {
+    const res = await fetch(`${CARDS}/${id}.jpg`, { method: "HEAD", signal: ctrl.signal });
+    return res.ok ? `${CARDS}/${id}.jpg` : "";
+  } catch {
+    return "";
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function tiktokPreview(id: string, handle: string | null): Promise<Preview> {
+  const [known, card] = await Promise.all([fromLibrary(id), savedCard(id)]);
+  if (known && card) {
+    return { title: `${known.name} on SOOZ`, description: clip(oneLine(known.caption), 200) || "Watch this Christian video on SOOZ — Sound Out Of Zion.", image: card, video: true };
+  }
+  // Not in the library / no card yet: ask TikTok (this may not always answer).
   const [embed, oembed] = await Promise.all([
-    getText(`https://www.tiktok.com/embed/v2/${id}`),
-    getText(`https://www.tiktok.com/oembed?url=${encodeURIComponent(`https://www.tiktok.com/@${handle || "_"}/video/${id}`)}`),
+    getText(`https://www.tiktok.com/embed/v2/${id}`, {}, 2500),
+    getText(`https://www.tiktok.com/oembed?url=${encodeURIComponent(`https://www.tiktok.com/@${handle || "_"}/video/${id}`)}`, {}, 2500),
   ]);
-  let caption = "";
-  let name = "";
-  let image = "";
+  let caption = known?.caption || "";
+  let name = known?.name || "";
+  let image = card;
   if (oembed) {
     try { const o = JSON.parse(oembed) as { title?: string; author_name?: string }; caption = o.title || ""; name = o.author_name || ""; } catch { /* not JSON */ }
   }
@@ -60,7 +96,7 @@ async function tiktokPreview(id: string, handle: string | null): Promise<Preview
     // The cover picture: TikTok lists a few copies; a .jpeg one works everywhere.
     const covers = item.match(/"covers":\[([^\]]*)\]/)?.[1] ?? "";
     const urls = [...covers.matchAll(/"((?:[^"\\]|\\.)*)"/g)].map((m) => { try { return JSON.parse(`"${m[1]}"`) as string; } catch { return ""; } }).filter(Boolean);
-    image = urls.find((u) => /\.jpe?g\?/i.test(u)) || urls[0] || "";
+    if (!image) image = urls.find((u) => /\.jpe?g\?/i.test(u)) || urls[0] || "";
   }
   const who = name || (handle ? `@${handle}` : "a Christian creator");
   return {

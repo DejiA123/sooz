@@ -7,12 +7,22 @@
  * the app reads the file live from GitHub, so new videos show up without republishing.
  *
  * To add a creator: add  "handle": "Display name"  to "creators" in the JSON file.
+ *
+ * With COVERS_DIR set (the workflow checks out the "covers" branch there) it also saves a WhatsApp
+ * link-preview card for every video — its cover picture, a play button and a SOOZ badge, 800×420 —
+ * as tt/{id}.jpg. Shared SOOZ links show these (api/preview.ts), so previews never depend on
+ * reaching TikTok at the moment someone shares. Needs `sharp` (SHARP_DIR, installed by the workflow).
  */
+import { existsSync, mkdirSync } from "node:fs";
 import { readFile, writeFile } from "node:fs/promises";
+import { createRequire } from "node:module";
+import path from "node:path";
 
 const FILE = new URL("../src/data/christianTikTokLibrary.json", import.meta.url);
 const PER_CREATOR = 40;
 const LIKES_PER_RUN = 350;
+const COVERS_DIR = process.env.COVERS_DIR || "";
+const COVER_LOOKUPS_PER_RUN = 300; // extra embed pages per run for older videos without a card yet
 const UA = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1";
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 /** The whole caption (SOOZ shows two lines with "more", like TikTok), keeping its line breaks. */
@@ -24,6 +34,16 @@ function cleanCaption(text) {
 }
 
 const lib = JSON.parse(await readFile(FILE, "utf8"));
+/** Where each video's cover picture is (TikTok's links expire after a couple of days, so cards are made the same run). */
+const coverSrc = new Map();
+/** The cover link on a video's embed page (prefer a .jpeg copy). */
+function coverFromEmbed(html, id) {
+  const at = html.indexOf(`"id":"${id}"`);
+  const item = at >= 0 ? html.slice(at, at + 30000) : "";
+  const list = item.match(/"covers":\[([^\]]*)\]/)?.[1] ?? "";
+  const urls = [...list.matchAll(/"((?:[^"\\]|\\.)*)"/g)].map((m) => { try { return JSON.parse(`"${m[1]}"`); } catch { return ""; } }).filter(Boolean);
+  return urls.find((u) => /\.jpe?g\?/i.test(u)) || urls[0] || "";
+}
 const byCreator = new Map();
 for (const v of lib.videos) {
   if (!byCreator.has(v[1])) byCreator.set(v[1], []);
@@ -44,9 +64,9 @@ async function recentVideos(handle) {
         Object.values(o).forEach(walk);
       };
       walk(JSON.parse(m[1]));
-      return found
-        .filter((o) => !o.privateItem && (!o.authorUniqueId || o.authorUniqueId === handle))
-        .map((o) => [String(o.id), handle, Number(o.width), Number(o.height), cleanCaption(o.desc)]);
+      const ok = found.filter((o) => !o.privateItem && (!o.authorUniqueId || o.authorUniqueId === handle));
+      ok.forEach((o) => { const c = o.coverUrl || o.originCoverUrl; if (c) coverSrc.set(String(o.id), c); });
+      return ok.map((o) => [String(o.id), handle, Number(o.width), Number(o.height), cleanCaption(o.desc)]);
     }
     await sleep(8000 * (attempt + 1)); // rate limited or busy: wait and try again
   }
@@ -92,14 +112,61 @@ for (const id of due) {
   const t = html.match(new RegExp(`"id":"${id}","text":"((?:[^"\\\\]|\\\\.)*)"`));
   const row = t && lib.videos.find((v) => v[0] === id);
   if (row) { try { const full = cleanCaption(JSON.parse(`"${t[1]}"`)); if (full) row[4] = full; } catch { /* odd text: keep ours */ } }
+  const cover = coverFromEmbed(html, id);
+  if (cover) coverSrc.set(id, cover);
   await sleep(2500);
 }
 for (const id of Object.keys(lib.likes)) if (!allIds.includes(id)) { delete lib.likes[id]; delete lib.likesAt[id]; }
 
+// ---- Link-preview cards (tt/{id}.jpg on the covers branch) ----
+async function makeCard(sharp, buf) {
+  const W = 800, H = 420;
+  const bg = await sharp(buf).resize(W, H, { fit: "cover" }).blur(18).modulate({ brightness: 0.45 }).toBuffer();
+  const fg = await sharp(buf).resize(W, H, { fit: "inside" }).toBuffer({ resolveWithObject: true });
+  const play = Buffer.from(`<svg width="96" height="96" xmlns="http://www.w3.org/2000/svg"><circle cx="48" cy="48" r="44" fill="rgba(0,0,0,0.45)" stroke="rgba(255,255,255,0.9)" stroke-width="3"/><path d="M40 30 L68 48 L40 66 Z" fill="#fff"/></svg>`);
+  const badge = Buffer.from(`<svg width="132" height="42" xmlns="http://www.w3.org/2000/svg"><rect width="132" height="42" rx="21" fill="rgba(5,7,11,0.8)"/><text x="66" y="29" font-family="DejaVu Sans, Arial, sans-serif" font-size="21" font-weight="700" letter-spacing="3" fill="#fbbf24" text-anchor="middle">SOOZ</text></svg>`);
+  return sharp(bg).composite([
+    { input: fg.data, left: Math.round((W - fg.info.width) / 2), top: Math.round((H - fg.info.height) / 2) },
+    { input: play, left: (W - 96) / 2, top: (H - 96) / 2 },
+    { input: badge, left: W - 132 - 16, top: H - 42 - 16 },
+  ]).jpeg({ quality: 74, mozjpeg: true }).toBuffer();
+}
+
+if (COVERS_DIR) {
+  let sharp = null;
+  try { sharp = createRequire(path.join(process.env.SHARP_DIR || process.cwd(), "noop.js"))("sharp"); } catch { console.log("sharp not installed — skipping preview cards"); }
+  if (sharp) {
+    const dir = path.join(COVERS_DIR, "tt");
+    mkdirSync(dir, { recursive: true });
+    const missing = allIds.filter((id) => !existsSync(path.join(dir, `${id}.jpg`)));
+    let made = 0, lookups = 0, failed = 0;
+    for (const id of missing) {
+      let src = coverSrc.get(id);
+      if (!src) {
+        if (lookups >= COVER_LOOKUPS_PER_RUN) continue;
+        lookups++;
+        const res = await fetch(`https://www.tiktok.com/embed/v2/${id}`, { headers: { "user-agent": UA } }).catch(() => null);
+        const html = res?.ok ? await res.text() : "";
+        if (/ratelimit/.test(html) && html.length < 200) { await sleep(20000); continue; }
+        src = coverFromEmbed(html, id);
+        await sleep(1500);
+      }
+      if (!src) { failed++; continue; }
+      try {
+        const img = await fetch(src, { headers: { "user-agent": UA, accept: "image/jpeg,image/png;q=0.9,image/*;q=0.5" } });
+        if (!img.ok) { failed++; continue; }
+        await writeFile(path.join(dir, `${id}.jpg`), await makeCard(sharp, Buffer.from(await img.arrayBuffer())));
+        made++;
+      } catch { failed++; }
+    }
+    console.log(`Preview cards: ${made} made, ${failed} failed, ${missing.length - made - failed} still to do (${lookups} pages looked up).`);
+  }
+}
+
 if (JSON.stringify([lib.videos, lib.likes]) === before) {
   console.log("No changes — library left as it is.");
-  process.exit(0);
+} else {
+  lib.updated = new Date().toISOString().slice(0, 10);
+  await writeFile(FILE, JSON.stringify(lib));
+  console.log(`Done: ${added} new videos, ${lib.videos.length} in the library.`);
 }
-lib.updated = new Date().toISOString().slice(0, 10);
-await writeFile(FILE, JSON.stringify(lib));
-console.log(`Done: ${added} new videos, ${lib.videos.length} in the library.`);
