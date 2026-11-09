@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { importTikToks, type TikTokImportResult } from "@/services/api/tiktok";
 import { STARTER_TIKTOKS, STARTER_TRUSTED_CREATORS, STARTER_VERSION } from "@/data/christianTikTokStarter";
+import { LibraryCard } from "@/components/tiktok/LibraryCard";
 import { ChristianCreators } from "@/components/tiktok/ChristianCreators";
 
 const STARTER_FLAG = "sooz-tiktok-starter";
@@ -299,6 +300,8 @@ export default function ChristianTikTok() {
               </div>
             ))}
           </section>
+
+          <LibraryCard />
 
           {lists.isLoading && <div className="mt-8 flex justify-center"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>}
 
