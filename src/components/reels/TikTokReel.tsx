@@ -1,4 +1,5 @@
 import { lazy, memo, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { engage, tasteOfVideo, useTasteWatch } from "@/lib/taste";
 import { ExternalLink, Heart, MessageCircle, Repeat2 } from "lucide-react";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
@@ -72,9 +73,13 @@ export const TikTokReel = memo(function TikTokReel({ video, active, near = false
   const [commentCount, setCommentCount] = useState<number | null>(null);
   const [shareOpen, setShareOpen] = useState(false);
   const [liked, setLiked] = useState(() => readLiked().has(video.tiktok_id));
+  // What this viewer enjoys (For You learns from it): how it's watched, likes, comments, shares…
+  const watch = useTasteWatch(tasteOfVideo(video), active);
+  const learn = (action: Parameters<typeof engage>[1]) => engage(tasteOfVideo(video), action);
   const toggleLike = () => {
     const next = !liked;
     setLiked(next);
+    learn(next ? "like" : "unlike");
     const all = readLiked();
     if (next) all.add(video.tiktok_id); else all.delete(video.tiktok_id);
     try { localStorage.setItem(LIKED_KEY, JSON.stringify([...all].slice(-2000))); } catch { /* storage full */ }
@@ -191,6 +196,7 @@ export const TikTokReel = memo(function TikTokReel({ video, active, near = false
           playing.current = true;
           if (!activeRef.current) { ourPause.current = true; send("pause"); } // warmed up next door: wait
           else {
+            watch.played();
             setIsPlaying(true);
             setBlockedHint(false);
             // Sound is on for the feed: bring it back (allowed once a tap has started this player).
@@ -211,8 +217,12 @@ export const TikTokReel = memo(function TikTokReel({ video, active, near = false
           if (ourPause.current) ourPause.current = false;
           else if (activeRef.current) userPaused.current = true; // they paused it — leave it
         } else if (state === 0 && activeRef.current) {
+          watch.ended(); // watched to the end
           send("play"); // loop
         }
+      } else if (data.type === "onCurrentTime") {
+        const v = data.value as { currentTime?: number; duration?: number } | undefined;
+        if (activeRef.current && v && Number(v.duration) > 0) watch.progress(Number(v.currentTime) / Number(v.duration));
       } else if (data.type === "onMute") {
         const m = !!data.value;
         setMuted(m);
@@ -226,7 +236,7 @@ export const TikTokReel = memo(function TikTokReel({ video, active, near = false
     };
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
-  }, [mounted, kick, send, setGlobalMuted, setSoundUnlocked]);
+  }, [mounted, kick, send, setGlobalMuted, setSoundUnlocked, watch]);
 
   // On screen: play. Scrolled away: pause (and go quiet) — the player stays loaded next door.
   useEffect(() => {
@@ -397,7 +407,7 @@ export const TikTokReel = memo(function TikTokReel({ video, active, near = false
           {repostedBy && (
             <p className="mb-1.5 flex items-center gap-1.5 text-[13px] font-semibold text-white/85"><Repeat2 className="h-4 w-4 text-amber-400" /> {repostedBy} reposted</p>
           )}
-          <a href={profileUrl} target="_blank" rel="noopener noreferrer" className="block truncate text-[16px] font-bold text-white hover:underline">
+          <a href={profileUrl} target="_blank" rel="noopener noreferrer" onClick={() => learn("profile")} className="block truncate text-[16px] font-bold text-white hover:underline">
             {who}
           </a>
           {video.title && (captionOpen ? (
@@ -406,7 +416,7 @@ export const TikTokReel = memo(function TikTokReel({ video, active, near = false
               <span className="ml-1.5 font-semibold text-white/60">less</span>
             </button>
           ) : (
-            <button type="button" aria-expanded={false} onClick={() => captionCut && setCaptionOpen(true)} className="mt-1.5 flex w-full items-end gap-1.5 text-left text-[14.5px] leading-snug text-white/95">
+            <button type="button" aria-expanded={false} onClick={() => { if (captionCut) { setCaptionOpen(true); learn("more"); } }} className="mt-1.5 flex w-full items-end gap-1.5 text-left text-[14.5px] leading-snug text-white/95">
               <p ref={captionRef} className="line-clamp-2 min-w-0 flex-1"><TikTokCaption text={video.title.replace(/\s*\n\s*/g, " ")} /></p>
               {captionCut && <span className="shrink-0 font-bold text-white">more</span>}
             </button>
@@ -432,13 +442,13 @@ export const TikTokReel = memo(function TikTokReel({ video, active, near = false
         />
         <RailButton
           ariaLabel="Comments"
-          onClick={() => setCommentsOpen(true)}
+          onClick={() => { setCommentsOpen(true); learn("openComments"); }}
           label={commentCount ? formatCount(commentCount) : "Comment"}
           icon={<MessageCircle className={cn(railIconClass, "fill-white/95 text-white/95")} strokeWidth={1.5} />}
         />
         <RailButton
           ariaLabel="Share"
-          onClick={() => setShareOpen(true)}
+          onClick={() => { setShareOpen(true); learn("openShare"); }}
           label={reposted ? "Reposted" : "Share"}
           icon={reposted ? <Repeat2 className={cn(railIconClass, "text-amber-400")} strokeWidth={2.2} /> : <ShareArrow className={cn(railIconClass, "text-white/95")} />}
         />
