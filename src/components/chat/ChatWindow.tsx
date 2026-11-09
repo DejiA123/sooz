@@ -14,6 +14,32 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { usePresence } from "@/hooks/usePresence";
 import { isImageMessage } from "@/lib/chat";
+import { TIKTOK_LINK_RE } from "@/services/api/reposts";
+
+/** A message's text; a SOOZ TikTok link becomes a "Watch on SOOZ" card (opens it first in For You). */
+const MessageBody = ({ text, mine }: { text: string; mine: boolean }) => {
+  const m = text.match(TIKTOK_LINK_RE);
+  if (!m) return <>{text}</>;
+  const before = text.replace(m[0], "").trim();
+  return (
+    <span className="block">
+      {before && <span className="mb-2 block">{before}</span>}
+      <button
+        type="button"
+        onClick={() => window.location.assign(`/?tiktok=${m[1]}${m[2] ? `&by=${m[2]}` : ""}`)}
+        className={cn("flex w-full items-center gap-2.5 rounded-2xl px-3 py-2.5 text-left", mine ? "bg-black/15" : "bg-white/[0.07]")}
+      >
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-black text-white">
+          <svg viewBox="0 0 24 24" className="h-4.5 w-4.5" width="18" height="18" fill="currentColor" aria-hidden><path d="M16.6 2h-3.4v13.3a2.9 2.9 0 1 1-2.9-2.9c.3 0 .6 0 .9.1V9a6.4 6.4 0 1 0 5.4 6.3V8.6a8 8 0 0 0 4.6 1.5V6.7a4.7 4.7 0 0 1-4.6-4.7z" /></svg>
+        </span>
+        <span className="min-w-0">
+          <span className="block text-[14px] font-bold leading-tight">Watch on SOOZ</span>
+          <span className={cn("block truncate text-[12.5px]", mine ? "text-black/60" : "text-white/55")}>Christian TikTok{m[2] ? ` · @${m[2]}` : ""}</span>
+        </span>
+      </button>
+    </span>
+  );
+};
 
 interface Message {
   id: string;
@@ -404,7 +430,7 @@ export const ChatWindow = ({ chatId, onBack }: ChatWindowProps) => {
                               msg.status === "sending" && "opacity-70",
                             )}
                           >
-                            {msg.content}
+                            <MessageBody text={msg.content} mine={isMe} />
                           </div>
                         )}
                       </div>

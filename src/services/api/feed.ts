@@ -1,10 +1,11 @@
-import { fetchFollowingPosts, fetchPostsRange, POSTS_PER_PAGE, type FeedPost } from "./posts";
+import { fetchFollowingIds, fetchFollowingPosts, fetchPostsByIds, fetchPostsRange, POSTS_PER_PAGE, type FeedPost } from "./posts";
+import { fetchFollowingReposts, type FollowingRepost } from "./reposts";
 import { fetchApprovedTikToks, starterTikToks, type TikTokVideo } from "./tiktok";
 import { isDeadTikTok } from "./tiktokMeta";
 
 export type FeedItem =
-  | { kind: "post"; key: string; post: FeedPost }
-  | { kind: "tiktok"; key: string; video: TikTokVideo };
+  | { kind: "post"; key: string; post: FeedPost; repostedBy?: string }
+  | { kind: "tiktok"; key: string; video: TikTokVideo; repostedBy?: string };
 
 /** Where the next page of a feed continues from. */
 export interface FeedCursor {
@@ -30,6 +31,11 @@ const SHUFFLED_POSTS = 60;
 
 const postItem = (post: FeedPost): FeedItem => ({ kind: "post", key: `p:${post.id}`, post });
 const tiktokItem = (video: TikTokVideo, cycle = 0): FeedItem => ({ kind: "tiktok", key: cycle ? `t:${video.tiktok_id}~${cycle}` : `t:${video.tiktok_id}`, video });
+
+// ── A shared link (/?tiktok=ID&by=handle) opens that TikTok first in For You ──
+let openFirst: { id: string; handle?: string } | null = null;
+export function openTikTokFirst(id: string, handle?: string) { openFirst = { id, handle }; }
+export const hasTikTokToOpen = () => openFirst !== null;
 
 export type Library = { creators: Record<string, string>; videos: [string, string, number, number, string][]; kinds?: Record<string, string>; updated?: string };
 /** Refreshed every day on GitHub (scripts/refresh-christian-tiktoks.mjs), read live — no republishing needed. */
@@ -206,7 +212,19 @@ export async function fetchForYouPage({ pageParam = FIRST_CURSOR, userId }: { pa
 
   // Keep the video the app opened on (shown instantly from the device) in first place, so the
   // screen doesn't change under the viewer when the fresh shuffle arrives.
-  if (pageParam.page === 0) {
+  if (pageParam.page === 0 && openFirst) {
+    const { id, handle } = openFirst;
+    openFirst = null;
+    const known = ttPool.find((v) => v.tiktok_id === id);
+    const video: TikTokVideo = known ?? {
+      id: `link-${id}`, tiktok_id: id, url: `https://www.tiktok.com/@${handle || "_"}/video/${id}`,
+      author_name: null, author_handle: handle ?? null, author_url: handle ? `https://www.tiktok.com/@${handle}` : null,
+      title: null, thumbnail_url: null, thumbnail_width: null, thumbnail_height: null, faith_tags: [], created_at: new Date().toISOString(),
+    };
+    const at = items.findIndex((it) => it.kind === "tiktok" && it.video.tiktok_id === id);
+    if (at >= 0) items.splice(at, 1);
+    items.unshift(tiktokItem(video));
+  } else if (pageParam.page === 0) {
     const pinned = readCachedFeed("foryou")?.items[0]?.key;
     const i = pinned ? items.findIndex((it) => it.key === pinned) : -1;
     if (i > 0) items.unshift(...items.splice(i, 1));
@@ -222,8 +240,42 @@ export async function fetchForYouPage({ pageParam = FIRST_CURSOR, userId }: { pa
   };
 }
 
+const repostedVideo = (r: FollowingRepost): TikTokVideo => ({
+  id: `repost-${r.tiktok_id}`, tiktok_id: r.tiktok_id!, url: r.tiktok?.url || `https://www.tiktok.com/@_/video/${r.tiktok_id}`,
+  author_name: r.tiktok?.name ?? null, author_handle: r.tiktok?.handle ?? null,
+  author_url: r.tiktok?.handle ? `https://www.tiktok.com/@${r.tiktok.handle}` : null, title: r.tiktok?.caption ?? null,
+  thumbnail_url: null, thumbnail_width: r.tiktok?.w ?? null, thumbnail_height: r.tiktok?.h ?? null, faith_tags: [], created_at: r.created_at,
+});
+
+/** Reposts by people you follow, as feed items ("Name reposted"), newest first. */
+async function followingRepostItems(userId: string, skipPostIds: Set<string>): Promise<{ item: FeedItem; at: string }[]> {
+  const reposts = await fetchFollowingReposts(await fetchFollowingIds(userId), 40).catch(() => []);
+  if (!reposts.length) return [];
+  const postIds = [...new Set(reposts.map((r) => r.post_id).filter((id): id is string => !!id && !skipPostIds.has(id)))];
+  const posts = new Map((await fetchPostsByIds(postIds, userId)).map((p) => [p.id, p]));
+  const out: { item: FeedItem; at: string }[] = [];
+  const seen = new Set<string>();
+  for (const r of reposts) {
+    const name = r.reposter?.display_name || r.reposter?.username || "Someone";
+    const target = r.post_id ?? r.tiktok_id ?? "";
+    if (seen.has(target)) continue;
+    seen.add(target);
+    if (r.post_id && posts.has(r.post_id)) out.push({ item: { ...postItem(posts.get(r.post_id)!), key: `rp:${r.post_id}`, repostedBy: name }, at: r.created_at });
+    else if (r.tiktok_id) out.push({ item: { ...tiktokItem(repostedVideo(r)), key: `rt:${r.tiktok_id}`, repostedBy: name }, at: r.created_at });
+  }
+  return out;
+}
+
 export async function fetchFollowingPage({ pageParam = FIRST_CURSOR, userId }: { pageParam?: FeedCursor; userId: string }): Promise<FeedPage> {
   const page = await fetchFollowingPosts({ pageParam: pageParam.page, userId });
+  if (pageParam.page === 0) {
+    const reposts = await followingRepostItems(userId, new Set(page.posts.map((p) => p.id)));
+    if (reposts.length) {
+      const merged = [...page.posts.map((p) => ({ item: postItem(p), at: p.created_at })), ...reposts]
+        .sort((a, b) => b.at.localeCompare(a.at)).map((x) => x.item);
+      return { items: merged, nextCursor: page.nextPage !== null ? { ...pageParam, page: page.nextPage } : null };
+    }
+  }
   return {
     items: page.posts.map(postItem),
     nextCursor: page.nextPage !== null ? { ...pageParam, page: page.nextPage } : null,

@@ -1,13 +1,12 @@
 import { lazy, memo, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
-import { Bookmark, Check, Edit, Flag, Heart, MessageCircle, MoreHorizontal, Music2, Plus, Trash2 } from "lucide-react";
+import { Bookmark, Check, Edit, Flag, Heart, MessageCircle, MoreHorizontal, Music2, Plus, Repeat2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useVideoStore } from "@/store/useVideoStore";
-import { getShareLink } from "@/lib/shareLink";
 import type { FeedPost } from "@/services/api/posts";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { ReelVideo, type ReelVideoHandle } from "./ReelVideo";
@@ -19,6 +18,7 @@ import { useFollowing } from "./useFollowing";
 // Only needed once someone taps comments/edit, so they load on demand.
 const CommentDrawer = lazy(() => import("@/components/feed/CommentDrawer").then((m) => ({ default: m.CommentDrawer })));
 const EditPostDialog = lazy(() => import("@/components/feed/EditPostDialog").then((m) => ({ default: m.EditPostDialog })));
+const ShareSheet = lazy(() => import("./ShareSheet").then((m) => ({ default: m.ShareSheet })));
 
 export const timeAgo = (iso: string) => {
   const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
@@ -83,9 +83,11 @@ interface PostReelProps {
   active: boolean;
   /** Whether heavy media (the <video> element) should be mounted. */
   mounted: boolean;
+  /** Shown in Following when someone you follow reposted it. */
+  repostedBy?: string;
 }
 
-export const PostReel = memo(function PostReel({ post, active, mounted }: PostReelProps) {
+export const PostReel = memo(function PostReel({ post, active, mounted, repostedBy }: PostReelProps) {
   const { user } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -163,16 +165,9 @@ export const PostReel = memo(function PostReel({ post, active, mounted }: PostRe
     if (!user) return;
     supabase.from("post_shares").insert({ post_id: post.id, user_id: user.id }).then(({ error }) => { if (!error) setShares((n) => n + 1); });
   };
-  const share = async () => {
-    const url = await getShareLink(post.id);
-    try {
-      if (navigator.share) await navigator.share({ title: "SOOZ", text: caption?.slice(0, 120) || "Watch this on SOOZ ✨", url });
-      else { await navigator.clipboard.writeText(url); toast.success("Link copied"); }
-      countShare();
-    } catch (e) {
-      if ((e as Error)?.name !== "AbortError") { await navigator.clipboard.writeText(url).catch(() => {}); toast.success("Link copied"); countShare(); }
-    }
-  };
+  // Share opens SOOZ's share sheet: Repost, send to a chat, copy link, WhatsApp, other apps.
+  const [shareOpen, setShareOpen] = useState(false);
+  const share = () => setShareOpen(true);
 
   const remove = async () => {
     if (!user || user.id !== post.user_id || !confirm("Delete this post?")) return;
@@ -229,6 +224,9 @@ export const PostReel = memo(function PostReel({ post, active, mounted }: PostRe
         )}
 
         <div className="reel-caption">
+          {repostedBy && (
+            <p className="mb-1.5 flex items-center gap-1.5 text-[13px] font-semibold text-white/85"><Repeat2 className="h-4 w-4 text-amber-400" /> {repostedBy} reposted</p>
+          )}
           <div className="flex items-center gap-2">
             <Link to={`/profile/${profile?.username ?? ""}`} onClick={(e) => e.stopPropagation()} className="truncate text-[16px] font-bold text-white hover:underline">
               {name}
@@ -335,6 +333,11 @@ export const PostReel = memo(function PostReel({ post, active, mounted }: PostRe
       </div>
 
       <Suspense fallback={null}>
+        {shareOpen && (
+          <Suspense fallback={null}>
+            <ShareSheet item={{ kind: "post", post }} open={shareOpen} onOpenChange={setShareOpen} onShared={countShare} />
+          </Suspense>
+        )}
         {commentsOpen && <CommentDrawer postId={post.id} postOwnerUsername={profile?.username} open={commentsOpen} onOpenChange={setCommentsOpen} />}
         {editOpen && <EditPostDialog post={{ id: post.id, caption }} open={editOpen} onOpenChange={setEditOpen} onUpdate={setCaption} />}
       </Suspense>
