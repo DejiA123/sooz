@@ -120,7 +120,7 @@ async function embed(handle) {
 
 /** The real usernames of accounts mentioned in a creator's videos (from each video's embed page). */
 async function harvest(handle, vids) {
-  for (const v of vids.filter((x) => String(x.desc || "").includes("@")).slice(0, 5)) {
+  for (const v of vids.filter((x) => String(x.desc || "").includes("@")).slice(0, 12)) {
     try {
       const res = await fetch(`https://www.tiktok.com/embed/v2/${v.id}`, { headers: { "user-agent": UA }, signal: AbortSignal.timeout(20000) });
       const html = await res.text();
@@ -192,8 +192,11 @@ function add(handle, res, vids) {
 }
 
 for (const s of [...state.seeds, ...state.approved]) enqueue(s, true);
-// The library's own creators are sources: what they mention, once each.
-for (const h of Object.keys(lib.creators)) if (!state.harvested[h]) state.queue.push(`=${h}`);
+// The library's own creators are sources: who they mention — looked at again every two weeks, as new
+// videos bring new names.
+const today = new Date().toISOString().slice(0, 10);
+const due = (h) => !state.harvested[h] || state.harvested[h] === 1 || (Date.now() - Date.parse(state.harvested[h])) / 86_400_000 >= 14;
+for (const h of Object.keys(lib.creators)) if (due(h)) state.queue.push(`=${h}`);
 
 let checkedNow = 0, addedNow = 0;
 const save = () => {
@@ -206,9 +209,9 @@ async function worker() {
     let h = state.queue.shift();
     if (h.startsWith("=")) {
       h = h.slice(1);
-      if (state.harvested[h]) continue;
+      if (!due(h)) continue;
       const r = await embed(h);
-      if (r?.videos) { await harvest(h, r.videos); state.harvested[h] = 1; }
+      if (r?.videos) { await harvest(h, r.videos); state.harvested[h] = today; }
       await sleep(800);
       continue;
     }
@@ -219,7 +222,7 @@ async function worker() {
     checkedNow++;
     if (res.ok) {
       add(h, res, res.vids);
-      state.harvested[h] = 1;
+      state.harvested[h] = today;
       addedNow++;
       console.log(`+ ${h} (${res.name}) ${res.kind}${res.where ? ` ${res.where}` : ""} · ${res.followers} followers`);
     }
