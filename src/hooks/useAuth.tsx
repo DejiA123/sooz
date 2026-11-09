@@ -6,7 +6,7 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
-  signUp: (email: string, password: string, username: string, displayName: string) => Promise<{ error: Error | null }>;
+  signUp: (email: string, password: string, username: string, displayName: string) => Promise<{ error: Error | null; signedIn?: boolean }>;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
 }
@@ -39,10 +39,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const signUp = async (email: string, password: string, username: string, displayName: string) => {
-    const appDomain = import.meta.env.VITE_APP_DOMAIN || "https://sooz.lovable.app";
-    const redirectUrl = `${appDomain}/email-confirmation`;
+    // Links in emails come back to the address they signed up on (both are allowed in Supabase).
+    const redirectUrl = `${window.location.origin}/email-confirmation`;
 
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -53,7 +53,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         }
       }
     });
-    return { error: error as Error | null };
+    // New members are confirmed straight away, so they usually come back already signed in.
+    return { error: error as Error | null, signedIn: !!data?.session };
   };
 
   const signIn = async (email: string, password: string) => {
