@@ -102,13 +102,30 @@ const friendlyOtpError = (message: string) => {
   return message;
 };
 
-/** Emails a one-time sign-in code (and link) to an existing account. */
-export async function sendEmailCode(email: string): Promise<{ error?: string }> {
+/**
+ * Emails a one-time code (and link). Without `signup` it only signs in an existing account; with it,
+ * a new account is created with that username when the code is entered (an existing account just
+ * signs in). New members are confirmed automatically, so the code is all they need.
+ */
+export async function sendEmailCode(email: string, signup?: { username: string; displayName: string }): Promise<{ error?: string }> {
   const { error } = await supabase.auth.signInWithOtp({
     email: email.trim(),
-    options: { shouldCreateUser: false, emailRedirectTo: `${window.location.origin}/` },
+    options: {
+      shouldCreateUser: !!signup,
+      emailRedirectTo: `${window.location.origin}/`,
+      ...(signup && { data: { username: signup.username, display_name: signup.displayName || signup.username } }),
+    },
   });
+  if (error && !signup && /signups? not allowed|user not found/i.test(error.message)) {
+    return { error: "There's no SOOZ account for that email yet — tap Sign Up to join." };
+  }
   return error ? { error: friendlyOtpError(error.message) } : {};
+}
+
+/** Is this username already someone's? (Checked before sign-up, so it never fails half-way.) */
+export async function usernameTaken(username: string): Promise<boolean> {
+  const { data } = await supabase.from("profiles").select("id").ilike("username", username.trim()).limit(1);
+  return !!data?.length;
 }
 
 export async function verifyEmailCode(email: string, code: string): Promise<{ error?: string }> {
