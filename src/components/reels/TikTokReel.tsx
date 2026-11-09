@@ -416,20 +416,19 @@ export const TikTokReel = memo(function TikTokReel({ video, active, near = false
         </div>
       </div>
 
-      {/* SOOZ's buttons. TikTok's player always draws its own like / comment / share column and SOOZ
-          can't remove it (it's TikTok's page), so on full-screen TikToks a dark panel covers that whole
-          column — wherever TikTok puts it — and SOOZ shows TikTok's like count on its own heart. */}
+      {/* SOOZ's buttons, in the same dock as on SOOZ posts. TikTok's player always draws its own like /
+          comment / share column and SOOZ can't remove it (it's TikTok's page), so on full-screen TikToks
+          the dock covers that whole column — wherever TikTok puts it — and SOOZ's heart shows TikTok's
+          like count. */}
       {fill && <div className="tiktok-topband" aria-hidden />}
-      <div className={cn("tiktok-sooz-rail", fill && "tiktok-sooz-rail--cover")}>
-        {fill && (
-          <RailButton
-            ariaLabel={liked ? "Unlike" : "Like"}
-            pressed={liked}
-            onClick={toggleLike}
-            label={video.likes != null ? formatCount(video.likes + (liked ? 1 : 0)) : "Like"}
-            icon={<Heart key={String(liked)} className={cn(railIconClass, liked ? "fill-[#ff2d55] text-[#ff2d55] animate-like-pop" : "fill-white/95 text-white/95")} strokeWidth={1.5} />}
-          />
-        )}
+      <div className={cn("tiktok-sooz-rail reel-dock", fill && "tiktok-sooz-rail--cover")}>
+        <RailButton
+          ariaLabel={liked ? "Unlike" : "Like"}
+          pressed={liked}
+          onClick={toggleLike}
+          label={video.likes != null ? formatCount(video.likes + (liked ? 1 : 0)) : "Like"}
+          icon={<Heart key={String(liked)} className={cn(railIconClass, liked ? "fill-[#ff2d55] text-[#ff2d55] animate-like-pop" : "fill-white/95 text-white/95")} strokeWidth={1.5} />}
+        />
         <RailButton
           ariaLabel="Comments"
           onClick={() => setCommentsOpen(true)}

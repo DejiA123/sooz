@@ -34,7 +34,7 @@ const FeedSkeleton = () => (
         <div className="h-3.5 w-48 animate-pulse rounded-full bg-white/[0.07]" />
       </div>
     </div>
-    <div className="reel-rail">
+    <div className="reel-rail reel-dock">
       {[0, 1, 2, 3, 4].map((i) => (
         <div key={i} className={`animate-pulse rounded-full bg-white/10 ${i === 0 ? "mb-3 h-12 w-12" : "h-10 w-10"}`} />
       ))}
