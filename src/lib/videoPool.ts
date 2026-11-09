@@ -15,8 +15,24 @@ let active: HTMLVideoElement | null = null;
 let started = false;
 let unlocked = false;
 
+type WebKitVideo = HTMLVideoElement & {
+  webkitPresentationMode?: string;
+  webkitSetPresentationMode?: (mode: "inline" | "picture-in-picture" | "fullscreen") => void;
+};
+
+/**
+ * iPhone can move a playing video into picture-in-picture (e.g. when the viewer leaves the app), even
+ * with picture-in-picture "disabled". The page then shows a frozen frame, taps go to the stashed
+ * window (the little tab on the screen's edge) and the player is stuck there when it's reused for the
+ * next video. So feed players are always brought straight back into the page.
+ */
+function backInline(v: WebKitVideo) {
+  try { if (document.pictureInPictureElement === v) void document.exitPictureInPicture().catch(() => {}); } catch { /* not supported */ }
+  try { if (v.webkitPresentationMode && v.webkitPresentationMode !== "inline") v.webkitSetPresentationMode?.("inline"); } catch { /* not supported */ }
+}
+
 function create(): HTMLVideoElement {
-  const v = document.createElement("video");
+  const v = document.createElement("video") as WebKitVideo;
   v.muted = true;
   v.defaultMuted = true;
   v.playsInline = true;
@@ -26,7 +42,19 @@ function create(): HTMLVideoElement {
   v.setAttribute("playsinline", "");
   v.setAttribute("webkit-playsinline", "true");
   v.setAttribute("x-webkit-airplay", "deny");
+  v.setAttribute("disablepictureinpicture", "");
+  v.addEventListener("enterpictureinpicture", () => backInline(v));
+  v.addEventListener("webkitpresentationmodechanged", () => { if (v.webkitPresentationMode === "picture-in-picture") backInline(v); });
   return v;
+}
+
+/** Leaving the app: stop every feed video at once (a still-playing one is what iPhone moves into
+ *  picture-in-picture); coming back: make sure none is still out there. */
+function onVisibility() {
+  for (const v of all) {
+    if (document.visibilityState === "hidden") v.pause();
+    else backInline(v as WebKitVideo);
+  }
 }
 
 function unlock() {
@@ -56,6 +84,8 @@ const EVENTS = ["touchend", "pointerup", "click", "keydown"] as const;
 export function startVideoPool() {
   if (started || typeof document === "undefined") return;
   started = true;
+  document.addEventListener("visibilitychange", onVisibility);
+  window.addEventListener("pagehide", onVisibility);
   for (let i = 0; i < POOL_SIZE; i++) {
     const v = create();
     all.push(v);
@@ -76,6 +106,7 @@ export function acquireVideo(): HTMLVideoElement {
 
 export function releaseVideo(v: HTMLVideoElement) {
   if (active === v) active = null;
+  backInline(v as WebKitVideo);
   v.pause();
   v.removeAttribute("src");
   v.removeAttribute("poster");
