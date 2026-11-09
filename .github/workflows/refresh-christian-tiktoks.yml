@@ -2,7 +2,8 @@ name: Refresh Christian TikToks
 
 # Every day, collect the newest public videos from SOOZ's trusted Christian TikTok creators
 # (scripts/refresh-christian-tiktoks.mjs). The app reads the library file live from GitHub,
-# so new videos reach everyone without republishing.
+# so new videos reach everyone without republishing. It also makes a WhatsApp link-preview card
+# for every video (tt/{id}.jpg on the "covers" branch), used by api/preview.ts.
 on:
   schedule:
     - cron: "17 5 * * *"
@@ -18,13 +19,45 @@ concurrency:
 jobs:
   refresh:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+      - name: Install the image tool (for preview cards)
+        run: npm install --no-save --no-package-lock --prefix "$RUNNER_TEMP/sharp" sharp@0.33.5
+      - name: Get the saved preview cards (covers branch)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          remote="https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          if git ls-remote --exit-code --heads origin covers >/dev/null 2>&1; then
+            git clone --quiet --depth 1 --branch covers "$remote" "$RUNNER_TEMP/covers"
+          else
+            mkdir -p "$RUNNER_TEMP/covers"
+            git -C "$RUNNER_TEMP/covers" init --quiet -b covers
+            git -C "$RUNNER_TEMP/covers" remote add origin "$remote"
+          fi
       - run: node scripts/refresh-christian-tiktoks.mjs
+        env:
+          COVERS_DIR: ${{ runner.temp }}/covers
+          SHARP_DIR: ${{ runner.temp }}/sharp
+      - name: Save the preview cards
+        run: |
+          cd "$RUNNER_TEMP/covers"
+          # Only pictures live here: tell Vercel not to build this branch as a website.
+          printf '{ "git": { "deploymentEnabled": false } }\n' > vercel.json
+          printf '# SOOZ link-preview cards\n\nMade daily by .github/workflows/refresh-christian-tiktoks.yml on main: tt/{tiktokId}.jpg (800x420) for each Christian TikTok in the library. Shown by api/preview.ts when a SOOZ link is shared.\n' > README.md
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No new preview cards."
+            exit 0
+          fi
+          git config user.name "sooz-bot"
+          git config user.email "sooz-bot@users.noreply.github.com"
+          git commit --quiet -m "Preview cards for shared TikToks"
+          git push --quiet origin covers
       - name: Save the updated library
         run: |
           if git diff --quiet -- src/data/christianTikTokLibrary.json; then
@@ -35,4 +68,5 @@ jobs:
           git config user.email "sooz-bot@users.noreply.github.com"
           git add src/data/christianTikTokLibrary.json
           git commit -m "Refresh Christian TikTok library"
+          git pull --rebase --quiet origin main || true
           git push
