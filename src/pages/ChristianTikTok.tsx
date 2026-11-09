@@ -15,6 +15,7 @@ import { importTikToks, type TikTokImportResult } from "@/services/api/tiktok";
 import { STARTER_TIKTOKS, STARTER_TRUSTED_CREATORS, STARTER_VERSION } from "@/data/christianTikTokStarter";
 import { LibraryCard } from "@/components/tiktok/LibraryCard";
 import { ChristianCreators } from "@/components/tiktok/ChristianCreators";
+import { resetForYou } from "@/services/api/feed";
 
 const STARTER_FLAG = "sooz-tiktok-starter";
 
@@ -123,6 +124,7 @@ function ChristianTikTokManager() {
 
   const refreshAll = () => {
     queryClient.invalidateQueries({ queryKey: ["tiktok-admin"] });
+    resetForYou();
     queryClient.invalidateQueries({ queryKey: ["feed"] });
   };
 

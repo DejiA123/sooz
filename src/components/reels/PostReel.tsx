@@ -14,6 +14,8 @@ import { RichCaption } from "./RichCaption";
 import { RailButton, ShareArrow, railIconClass } from "./ReelRail";
 import { formatCount, useHeartBursts, useTapGesture } from "./gestures";
 import { useFollowing } from "./useFollowing";
+import { engage, tasteOfPost, useTasteWatch } from "@/lib/taste";
+import { resetForYou } from "@/services/api/feed";
 
 // Only needed once someone taps comments/edit, so they load on demand.
 const CommentDrawer = lazy(() => import("@/components/feed/CommentDrawer").then((m) => ({ default: m.CommentDrawer })));
@@ -123,6 +125,9 @@ export const PostReel = memo(function PostReel({ post, active, mounted, reposted
   const viewed = useRef(false);
   const { add: burst, node: bursts } = useHeartBursts();
   const { isFollowing, canFollow, follow } = useFollowing();
+  // What this viewer enjoys (For You learns from it): how long it's watched, likes, comments, shares…
+  useTasteWatch(tasteOfPost(post), active);
+  const learn = (action: Parameters<typeof engage>[1]) => engage(tasteOfPost(post), action);
 
   useEffect(() => { setLiked(post.is_liked_by_user); setLikes(post.likes_count); }, [post.is_liked_by_user, post.likes_count]);
   useEffect(() => { setSaved(post.is_saved_by_user); }, [post.is_saved_by_user]);
@@ -145,6 +150,7 @@ export const PostReel = memo(function PostReel({ post, active, mounted, reposted
   const setLike = async (next: boolean) => {
     if (!requireUser("like posts") || busy.current.like || next === liked) return;
     busy.current.like = true;
+    learn(next ? "like" : "unlike");
     setLiked(next);
     setLikes((c) => Math.max(0, c + (next ? 1 : -1)));
     const { error } = next
@@ -179,13 +185,14 @@ export const PostReel = memo(function PostReel({ post, active, mounted, reposted
   };
   // Share opens SOOZ's share sheet: Repost, send to a chat, copy link, WhatsApp, other apps.
   const [shareOpen, setShareOpen] = useState(false);
-  const share = () => setShareOpen(true);
+  const share = () => { setShareOpen(true); learn("openShare"); };
 
   const remove = async () => {
     if (!user || user.id !== post.user_id || !confirm("Delete this post?")) return;
     const { error } = await supabase.from("posts").delete().eq("id", post.id);
     if (error) { toast.error("Couldn't delete post"); return; }
     setDeleted(true);
+    resetForYou();
     queryClient.invalidateQueries({ queryKey: ["feed"] });
   };
 
@@ -240,7 +247,7 @@ export const PostReel = memo(function PostReel({ post, active, mounted, reposted
             <p className="mb-1.5 flex items-center gap-1.5 text-[13px] font-semibold text-white/85"><Repeat2 className="h-4 w-4 text-amber-400" /> {repostedBy} reposted</p>
           )}
           <div className="flex items-center gap-2">
-            <Link to={`/profile/${profile?.username ?? ""}`} onClick={(e) => e.stopPropagation()} className="truncate text-[16px] font-bold text-white hover:underline">
+            <Link to={`/profile/${profile?.username ?? ""}`} onClick={(e) => { e.stopPropagation(); learn("profile"); }} className="truncate text-[16px] font-bold text-white hover:underline">
               {name}
             </Link>
             <span className="shrink-0 text-[13px] text-white/60">· {timeAgo(post.created_at)}</span>
@@ -260,7 +267,7 @@ export const PostReel = memo(function PostReel({ post, active, mounted, reposted
             <button
               type="button"
               aria-expanded={false}
-              onClick={(e) => { e.stopPropagation(); if (captionCut) setExpanded(true); }}
+              onClick={(e) => { e.stopPropagation(); if (captionCut) { setExpanded(true); learn("more"); } }}
               className="mt-1.5 flex w-full items-end gap-1.5 text-left text-[14.5px] leading-snug text-white/95"
             >
               <span ref={captionRef} className="line-clamp-2 min-w-0 flex-1"><RichCaption text={caption} /></span>
@@ -282,7 +289,7 @@ export const PostReel = memo(function PostReel({ post, active, mounted, reposted
         <div className="relative mb-2.5">
           <Link
             to={`/profile/${profile?.username ?? ""}`}
-            onClick={(e) => e.stopPropagation()}
+            onClick={(e) => { e.stopPropagation(); learn("profile"); }}
             aria-label={`${name}'s profile`}
             className="reel-dock-avatar block overflow-hidden rounded-full bg-neutral-700 ring-2 ring-white/90"
           >
@@ -302,6 +309,7 @@ export const PostReel = memo(function PostReel({ post, active, mounted, reposted
                 e.stopPropagation();
                 if (!requireUser("follow people")) return;
                 follow(profile!.id);
+                learn("follow");
                 setJustFollowed(true);
                 setTimeout(() => setJustFollowed(false), 1400);
               }}
@@ -324,7 +332,7 @@ export const PostReel = memo(function PostReel({ post, active, mounted, reposted
         />
         <RailButton
           ariaLabel="Comments"
-          onClick={() => setCommentsOpen(true)}
+          onClick={() => { setCommentsOpen(true); learn("openComments"); }}
           label={formatCount(post.comments_count)}
           icon={<MessageCircle className={cn(railIconClass, "fill-white/95 text-white/95")} strokeWidth={1.5} />}
         />

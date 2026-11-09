@@ -103,9 +103,10 @@ export default function Index() {
     staleTime: 1000 * 60 * 2,
   });
 
+  const savedFirst = useRef(false);
   useEffect(() => {
     const first = forYou.data?.pages[0];
-    if (first && !forYou.isPlaceholderData) writeCachedFeed("foryou", first);
+    if (first && !forYou.isPlaceholderData && !savedFirst.current) { savedFirst.current = true; writeCachedFeed("foryou", first); }
   }, [forYou.data, forYou.isPlaceholderData]);
 
   const following = useInfiniteQuery<FeedPage, Error, InfiniteData<FeedPage>, (string | null)[], FeedCursor>({
@@ -122,6 +123,19 @@ export default function Index() {
   const loadMore = useCallback(() => { if (!q.isPlaceholderData) q.fetchNextPage(); }, [q]);
   const onIndexChange = useCallback((i: number) => { savedIndex[tab] = i; setActiveIndex(i); }, [tab]);
   const activeKind = items[Math.min(activeIndex, Math.max(items.length - 1, 0))]?.kind;
+
+  // Leaving the app: keep the videos after this one for next time, so it opens on something new.
+  const upcoming = useRef({ items, activeIndex, tab });
+  upcoming.current = { items, activeIndex, tab };
+  useEffect(() => {
+    const onHide = () => {
+      const u = upcoming.current;
+      if (document.visibilityState !== "hidden" || u.tab !== "foryou" || u.items.length <= u.activeIndex + 1) return;
+      writeCachedFeed("foryou", { items: u.items, nextCursor: null }, u.activeIndex + 1);
+    };
+    document.addEventListener("visibilitychange", onHide);
+    return () => document.removeEventListener("visibilitychange", onHide);
+  }, []);
   const toTop = () => window.dispatchEvent(new CustomEvent("sooz:feed-top"));
 
   // Stop the page behind the feed from scrolling/bouncing on iOS.

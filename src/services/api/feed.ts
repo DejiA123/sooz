@@ -2,6 +2,7 @@ import { fetchFollowingIds, fetchFollowingPosts, fetchPostsByIds, fetchPostsRang
 import { fetchFollowingReposts, repostedTikTokVideo } from "./reposts";
 import { fetchApprovedTikToks, starterTikToks, type TikTokVideo } from "./tiktok";
 import { isDeadTikTok } from "./tiktokMeta";
+import { categoryOf, exposure, interest, isSeen, seenAt, setCategories, tasteOfPost, tasteOfVideo, tiktokAgeDays } from "@/lib/taste";
 
 export type FeedItem =
   | { kind: "post"; key: string; post: FeedPost; repostedBy?: string }
@@ -118,38 +119,8 @@ function enrich(rows: TikTokVideo[]): TikTokVideo[] {
   });
 }
 
-/** All Christian TikToks (curator-approved + built-in + the creator library, no duplicates), in random order. */
+/** All Christian TikToks (curator-approved + built-in + the creator library, no duplicates). */
 let tiktokPool: Promise<TikTokVideo[]> | null = null;
-/**
- * Variety: deal the TikToks out one creator at a time (random creator order, random videos), so a
- * worship song, a sermon, a gospel clip, a Bible answer… follow each other instead of ten videos
- * from the same account in a row.
- */
-function mixCreators(videos: TikTokVideo[]): TikTokVideo[] {
-  const byCreator = new Map<string, TikTokVideo[]>();
-  for (const v of shuffle(videos)) {
-    const k = (v.author_handle || v.tiktok_id).toLowerCase();
-    if (!byCreator.has(k)) byCreator.set(k, []);
-    byCreator.get(k)!.push(v);
-  }
-  const queues = shuffle([...byCreator.values()]);
-  const out: TikTokVideo[] = [];
-  while (queues.length) {
-    for (let i = 0; i < queues.length; ) {
-      out.push(queues[i].shift()!);
-      if (queues[i].length) i++; else queues.splice(i, 1);
-    }
-  }
-  return out;
-}
-
-/** After the whole pool has been shown, it starts again in a new order — the feed never ends. */
-const laterRounds = new Map<number, TikTokVideo[]>();
-const round = (pool: TikTokVideo[], n: number) => {
-  if (n === 0) return pool;
-  if (!laterRounds.has(n)) laterRounds.set(n, mixCreators(pool));
-  return laterRounds.get(n)!;
-};
 function getTikTokPool(): Promise<TikTokVideo[]> {
   if (!tiktokPool) {
     tiktokPool = (async () => {
@@ -157,90 +128,208 @@ function getTikTokPool(): Promise<TikTokVideo[]> {
         fetchApprovedTikToks(0, 300).then((r) => enrich(r.videos)).catch(() => [] as TikTokVideo[]),
         loadLibrary().catch(() => null),
       ]);
+      setCategories(lib?.kinds);
       const library = lib ? libraryTikToks(lib) : [];
       const seen = new Set<string>();
       const all = [...db, ...starterTikToks(), ...library]
         .filter((v) => !seen.has(v.tiktok_id) && !!seen.add(v.tiktok_id))
         .map((v) => (v.likes == null && lib?.likes?.[v.tiktok_id] != null ? { ...v, likes: lib.likes[v.tiktok_id] } : v));
-      return mixCreators(all.filter((v) => !isDeadTikTok(v.tiktok_id)));
+      return all.filter((v) => !isDeadTikTok(v.tiktok_id));
     })().catch(() => shuffle(starterTikToks().filter((v) => !isDeadTikTok(v.tiktok_id))));
   }
   return tiktokPool;
 }
 
-/** The newest SOOZ posts, shuffled. (Older posts follow afterwards, newest first.) */
-let postPool: Promise<{ posts: FeedPost[]; hasMore: boolean }> | null = null;
-function getPostPool(userId?: string) {
-  if (!postPool) {
-    postPool = fetchPostsRange({ from: 0, count: SHUFFLED_POSTS, userId })
-      .then((r) => ({ posts: shuffle(r.posts), hasMore: r.hasMore }))
-      .catch((e) => { postPool = null; throw e; });
-  }
-  return postPool;
+// ── For You: ranked for this viewer, like TikTok (src/lib/taste.ts learns what they enjoy) ──
+//
+// Each page is picked fresh from everything they haven't seen yet, using what this phone has learnt
+// so far (so the feed keeps adapting while they watch):
+//   interest in the creator / kind of video / hashtags  +  how new it is  +  how popular  +  a little
+//   chance (so it never feels the same and new interests can appear),
+// then dealt out so the same creator doesn't come back for a while, the same kind doesn't run on,
+// every fifth TikTok is from a creator they haven't met yet, and The Power House's own videos keep
+// coming round. Videos they've already watched only return once there's nothing new left.
+
+/** When this copy of the app started (things seen since then still count as new for the instant start). */
+const APP_START = Date.now();
+const CHURCH = "Our church";
+/** A random "luck" term (Gumbel), so equal scores share the top spots. */
+const luck = () => -Math.log(-Math.log(Math.random() * 0.999998 + 0.000001));
+
+type Session = {
+  user: string | null;
+  pages: Map<number, FeedPage>;
+  /** TikTok id → times dealt in this session (repeats get their own keys). */
+  times: Map<string, number>;
+  /** Dealt in the current round (cleared only if every single video has been shown). */
+  dealt: Set<string>;
+  dealtPosts: Set<string>;
+  recent: string[];
+  recentKinds: (string | null)[];
+  sinceChurch: number;
+  slot: number;
+  posts: FeedPost[];
+  postFrom: number;
+  postsMore: boolean;
+  postsLoaded: boolean;
+};
+let session: Session | null = null;
+const newSession = (user: string | null): Session => {
+  tiktokPool = null;
+  return {
+    user, pages: new Map(), times: new Map(), dealt: new Set(), dealtPosts: new Set(), recent: [], recentKinds: [],
+    sinceChurch: 0, slot: 0, posts: [], postFrom: 0, postsMore: true, postsLoaded: false,
+  };
+};
+/** Start For You afresh (e.g. after a post was deleted or TikToks were added). */
+export function resetForYou() { session = null; }
+
+async function loadPosts(sess: Session, count: number) {
+  if (!sess.postsMore) return;
+  const r = await fetchPostsRange({ from: sess.postFrom, count, userId: sess.user ?? undefined });
+  const have = new Set(sess.posts.map((p) => p.id));
+  sess.posts.push(...r.posts.filter((p) => !have.has(p.id)));
+  sess.postFrom += count;
+  sess.postsMore = r.hasMore;
 }
 
-/** "For You": SOOZ posts and Christian TikToks, in a fresh random order every time it loads. */
+/** The SOOZ posts this viewer hasn't seen, best first (new, liked, and from people they enjoy). */
+async function dealPosts(sess: Session, n: number): Promise<FeedPost[]> {
+  if (!sess.postsLoaded) { await loadPosts(sess, SHUFFLED_POSTS); sess.postsLoaded = true; }
+  const fresh = () => sess.posts.filter((p) => !sess.dealtPosts.has(p.id) && !isSeen("post", p.id));
+  for (let tries = 0; fresh().length < n && sess.postsMore && tries < 3; tries++) await loadPosts(sess, POSTS_PER_PAGE * 3);
+  const scored = fresh().map((p) => {
+    const hours = Math.max(0, (Date.now() - new Date(p.created_at).getTime()) / 3_600_000);
+    const buzz = (p.likes_count ?? 0) + 2 * (p.comments_count ?? 0) + 3 * (p.shares_count ?? 0);
+    return { p, s: interest(tasteOfPost(p)) + 1.6 * Math.exp(-hours / 72) + 0.35 * Math.log10(1 + buzz) + 0.6 * luck() };
+  }).sort((a, b) => b.s - a.s);
+  const out: FeedPost[] = [];
+  while (out.length < n && scored.length) {
+    // Not the same person twice in a row when there's a choice.
+    const i = Math.max(0, scored.findIndex((x) => x.p.user_id !== out[out.length - 1]?.user_id));
+    out.push(scored.splice(i, 1)[0].p);
+  }
+  out.forEach((p) => sess.dealtPosts.add(p.id));
+  return out;
+}
+
+function noteDealt(sess: Session, v: TikTokVideo) {
+  const creator = (v.author_handle || v.tiktok_id).toLowerCase();
+  const kind = categoryOf(creator);
+  sess.dealt.add(v.tiktok_id);
+  sess.recent = [...sess.recent, creator].slice(-6);
+  sess.recentKinds = [...sess.recentKinds, kind].slice(-3);
+  sess.sinceChurch = kind === CHURCH ? 0 : sess.sinceChurch + 1;
+  sess.slot += 1;
+  const times = sess.times.get(v.tiktok_id) ?? 0;
+  sess.times.set(v.tiktok_id, times + 1);
+  return times;
+}
+
+/** The next `n` TikToks for this viewer. */
+function dealTikToks(sess: Session, pool: TikTokVideo[], n: number): { video: TikTokVideo; cycle: number }[] {
+  if (!pool.length || n <= 0) return [];
+  let cands = pool.filter((v) => !sess.dealt.has(v.tiktok_id) && !isSeen("tiktok", v.tiktok_id));
+  if (cands.length < n) {
+    // Nothing (or little) new left: the ones watched longest ago come back too.
+    cands = pool.filter((v) => !sess.dealt.has(v.tiktok_id));
+    if (cands.length < n) {
+      const last = new Set(sess.recent);
+      sess.dealt.clear(); // a whole new round
+      cands = pool.filter((v) => !last.has((v.author_handle || v.tiktok_id).toLowerCase()) || pool.length < 20);
+    }
+  }
+  const base = new Map<string, number>();
+  for (const v of cands) {
+    const age = tiktokAgeDays(v.tiktok_id);
+    let s = interest(tasteOfVideo(v))
+      + 0.22 * Math.log10((v.likes ?? 0) + 1)
+      + (age == null ? 0.4 : 1.3 * Math.exp(-age / 7))
+      + 0.7 * luck();
+    const seen = seenAt("tiktok", v.tiktok_id);
+    if (seen != null) s += -3 + Math.min(2.5, (Date.now() - seen) / 86_400_000 / 10);
+    base.set(v.tiktok_id, s);
+  }
+  const out: { video: TikTokVideo; cycle: number }[] = [];
+  const taken = new Set<string>();
+  for (let i = 0; i < n; i++) {
+    const discover = sess.slot % 5 === 4;
+    let best: TikTokVideo | null = null;
+    let bestScore = -Infinity;
+    for (const v of cands) {
+      if (taken.has(v.tiktok_id)) continue;
+      const creator = (v.author_handle || v.tiktok_id).toLowerCase();
+      const kind = categoryOf(creator);
+      let s = base.get(v.tiktok_id)!;
+      const back = sess.recent.lastIndexOf(creator);
+      if (back >= 0) s -= 4 - (sess.recent.length - 1 - back) * 0.6;
+      if (kind && sess.recentKinds[sess.recentKinds.length - 1] === kind) s -= sess.recentKinds[sess.recentKinds.length - 2] === kind ? 1.2 : 0.35;
+      if (kind === CHURCH && sess.sinceChurch >= 10) s += 3;
+      if (discover) { const e = exposure(creator); s += e === 0 ? 2.5 : e < 3 ? 1 : -1; }
+      if (s > bestScore) { bestScore = s; best = v; }
+    }
+    if (!best) break;
+    taken.add(best.tiktok_id);
+    out.push({ video: best, cycle: noteDealt(sess, best) });
+  }
+  return out;
+}
+
+/** Posts and TikToks evenly woven together (TikTok first), each list already in best-first order. */
+function weave(posts: FeedItem[], tiktoks: FeedItem[]): FeedItem[] {
+  const total = posts.length + tiktoks.length;
+  const at = (k: number, of: number, shift: number) => ((k + shift) * total) / of;
+  return [
+    ...tiktoks.map((item, k) => ({ item, t: at(k, tiktoks.length, 0.25) })),
+    ...posts.map((item, k) => ({ item, t: at(k, posts.length, 0.75) })),
+  ].sort((a, b) => a.t - b.t).map((x) => x.item);
+}
+
+/** "For You": SOOZ posts and Christian TikToks picked for this viewer, never what they've already seen. */
 export async function fetchForYouPage({ pageParam = FIRST_CURSOR, userId }: { pageParam?: FeedCursor; userId?: string }): Promise<FeedPage> {
-  if (pageParam.page === 0) { tiktokPool = null; postPool = null; laterRounds.clear(); } // new load, new shuffle
-  const [pool, ttPool] = await Promise.all([getPostPool(userId), getTikTokPool()]);
+  const uid = userId ?? null;
+  if (!session || session.user !== uid || (pageParam.page === 0 && openFirst)) session = newSession(uid);
+  const sess = session;
+  // The same page asked for again (coming back to Home) gives the same videos, so nothing jumps.
+  const already = sess.pages.get(pageParam.page);
+  if (already) return already;
 
-  let posts: FeedPost[] = [];
-  let morePosts = false;
-  const off = pageParam.postOffset;
-  if (off < pool.posts.length) {
-    posts = pool.posts.slice(off, off + POSTS_PER_PAGE);
-    morePosts = off + posts.length < pool.posts.length || pool.hasMore;
-  } else if (pool.hasMore) {
-    const older = await fetchPostsRange({ from: off, count: POSTS_PER_PAGE, userId });
-    posts = older.posts;
-    morePosts = older.hasMore;
-  }
+  const [ttPool] = await Promise.all([getTikTokPool(), sess.postsLoaded ? null : dealPosts(sess, 0).catch(() => { sess.postsLoaded = true; sess.postsMore = false; })]);
+  const first: FeedItem[] = [];
 
-  const wanted = posts.length >= POSTS_PER_PAGE
-    ? Math.ceil(posts.length / POSTS_BETWEEN_TIKTOKS)
-    : Math.max(Math.ceil(posts.length / POSTS_BETWEEN_TIKTOKS), TIKTOKS_WHEN_NO_POSTS);
-  const tiktoks: { video: TikTokVideo; cycle: number }[] = [];
-  for (let k = 0; ttPool.length && k < wanted; k++) {
-    const at = pageParam.tiktokOffset + k;
-    const cycle = Math.floor(at / ttPool.length);
-    tiktoks.push({ video: round(ttPool, cycle)[at % ttPool.length], cycle });
-  }
-
-  // Mix them: TikToks land at random spots, roughly one per two posts.
-  const items: FeedItem[] = posts.map(postItem);
-  for (const { video, cycle } of tiktoks) {
-    const at = Math.floor(Math.random() * (items.length + 1));
-    items.splice(at, 0, tiktokItem(video, cycle));
-  }
-
-  // Keep the video the app opened on (shown instantly from the device) in first place, so the
-  // screen doesn't change under the viewer when the fresh shuffle arrives.
   if (pageParam.page === 0 && openFirst) {
+    // A shared link: that TikTok first.
     const { id, handle } = openFirst;
     openFirst = null;
-    const known = ttPool.find((v) => v.tiktok_id === id);
-    const video: TikTokVideo = known ?? {
+    const video: TikTokVideo = ttPool.find((v) => v.tiktok_id === id) ?? {
       id: `link-${id}`, tiktok_id: id, url: `https://www.tiktok.com/@${handle || "_"}/video/${id}`,
       author_name: null, author_handle: handle ?? null, author_url: handle ? `https://www.tiktok.com/@${handle}` : null,
       title: null, thumbnail_url: null, thumbnail_width: null, thumbnail_height: null, faith_tags: [], created_at: new Date().toISOString(),
     };
-    const at = items.findIndex((it) => it.kind === "tiktok" && it.video.tiktok_id === id);
-    if (at >= 0) items.splice(at, 1);
-    items.unshift(tiktokItem(video));
+    first.push(tiktokItem(video, noteDealt(sess, video)));
   } else if (pageParam.page === 0) {
-    const pinned = readCachedFeed("foryou")?.items[0]?.key;
-    const i = pinned ? items.findIndex((it) => it.key === pinned) : -1;
-    if (i > 0) items.unshift(...items.splice(i, 1));
+    // Keep the video the app opened on (shown instantly from this phone) in first place, so the
+    // screen doesn't change under the viewer when this page arrives.
+    const pinned = readCachedFeed("foryou")?.items[0];
+    if (pinned?.kind === "tiktok") { noteDealt(sess, pinned.video); first.push(tiktokItem(pinned.video)); }
+    else if (pinned?.kind === "post") { sess.dealtPosts.add(pinned.post.id); first.push(pinned); }
   }
 
-  const nextTiktokOffset = pageParam.tiktokOffset + tiktoks.length;
-  const moreTiktoks = ttPool.length > 0; // TikToks go round again, so For You never runs out
-  return {
+  const posts = await dealPosts(sess, POSTS_PER_PAGE).catch(() => [] as FeedPost[]);
+  const wanted = posts.length >= POSTS_PER_PAGE
+    ? Math.ceil(posts.length / POSTS_BETWEEN_TIKTOKS)
+    : Math.max(Math.ceil(posts.length / POSTS_BETWEEN_TIKTOKS), TIKTOKS_WHEN_NO_POSTS);
+  const tiktoks = dealTikToks(sess, ttPool, wanted).map(({ video, cycle }) => tiktokItem(video, cycle));
+  const items = [...first, ...weave(posts.map(postItem), tiktoks)];
+
+  const page: FeedPage = {
     items,
-    nextCursor: morePosts || moreTiktoks
-      ? { postOffset: off + posts.length, tiktokOffset: nextTiktokOffset, page: pageParam.page + 1 }
+    nextCursor: items.length || ttPool.length || sess.postsMore
+      ? { postOffset: 0, tiktokOffset: 0, page: pageParam.page + 1 }
       : null,
   };
+  sess.pages.set(pageParam.page, page);
+  return page;
 }
 
 /** Reposts by people you follow, as feed items ("Name reposted"), newest first. */
@@ -287,19 +376,28 @@ export function readCachedFeed(scope: string): FeedPage | undefined {
     const raw = localStorage.getItem(CACHE_PREFIX + scope);
     if (!raw) return undefined;
     const page = JSON.parse(raw) as FeedPage;
-    return Array.isArray(page.items) && page.items.length ? page : undefined;
+    if (!Array.isArray(page.items)) return undefined;
+    // For You never opens on something already watched before this launch.
+    if (scope === "foryou") {
+      page.items = page.items.filter((it) => {
+        const at = it.kind === "tiktok" ? seenAt("tiktok", it.video.tiktok_id) : seenAt("post", it.post.id);
+        return at == null || at >= APP_START - 60_000;
+      });
+    }
+    return page.items.length ? page : undefined;
   } catch {
     return undefined;
   }
 }
 
 /**
- * Saves a screenful for next time. It starts from the *second* item, so each launch opens on a
- * different video (and the fresh shuffle then keeps that one in first place).
+ * Saves a screenful for next time, starting `from` the given item (by default the *second*, so each
+ * launch opens on a different video; when leaving the app, the ones after the current video), and
+ * the next load keeps the first of them in first place.
  */
-export function writeCachedFeed(scope: string, page: FeedPage) {
+export function writeCachedFeed(scope: string, page: FeedPage, from = 1) {
   try {
-    const items = page.items.length > 1 ? page.items.slice(1, 13) : page.items;
+    const items = page.items.length > from ? page.items.slice(from, from + 12) : page.items.slice(-1);
     localStorage.setItem(CACHE_PREFIX + scope, JSON.stringify({ items, nextCursor: page.nextCursor }));
   } catch {
     /* storage full or blocked — the feed still works, just without the instant start */
