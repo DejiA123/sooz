@@ -19,6 +19,8 @@ export interface TikTokVideo {
   thumbnail_height: number | null;
   faith_tags: string[];
   created_at: string;
+  /** TikTok's like count (from the library, refreshed daily) — shown on SOOZ's heart. */
+  likes?: number | null;
 }
 
 const COLUMNS =

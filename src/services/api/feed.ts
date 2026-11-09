@@ -1,5 +1,5 @@
 import { fetchFollowingIds, fetchFollowingPosts, fetchPostsByIds, fetchPostsRange, POSTS_PER_PAGE, type FeedPost } from "./posts";
-import { fetchFollowingReposts, type FollowingRepost } from "./reposts";
+import { fetchFollowingReposts, repostedTikTokVideo } from "./reposts";
 import { fetchApprovedTikToks, starterTikToks, type TikTokVideo } from "./tiktok";
 import { isDeadTikTok } from "./tiktokMeta";
 
@@ -29,15 +29,15 @@ const TIKTOKS_WHEN_NO_POSTS = 10;
 /** The newest posts are dealt out in a fresh random order every time the feed loads. */
 const SHUFFLED_POSTS = 60;
 
-const postItem = (post: FeedPost): FeedItem => ({ kind: "post", key: `p:${post.id}`, post });
-const tiktokItem = (video: TikTokVideo, cycle = 0): FeedItem => ({ kind: "tiktok", key: cycle ? `t:${video.tiktok_id}~${cycle}` : `t:${video.tiktok_id}`, video });
+export const postItem = (post: FeedPost): FeedItem => ({ kind: "post", key: `p:${post.id}`, post });
+export const tiktokItem = (video: TikTokVideo, cycle = 0): FeedItem => ({ kind: "tiktok", key: cycle ? `t:${video.tiktok_id}~${cycle}` : `t:${video.tiktok_id}`, video });
 
 // ── A shared link (/?tiktok=ID&by=handle) opens that TikTok first in For You ──
 let openFirst: { id: string; handle?: string } | null = null;
 export function openTikTokFirst(id: string, handle?: string) { openFirst = { id, handle }; }
 export const hasTikTokToOpen = () => openFirst !== null;
 
-export type Library = { creators: Record<string, string>; videos: [string, string, number, number, string][]; kinds?: Record<string, string>; updated?: string };
+export type Library = { creators: Record<string, string>; videos: [string, string, number, number, string][]; kinds?: Record<string, string>; updated?: string; likes?: Record<string, number> };
 /** Refreshed every day on GitHub (scripts/refresh-christian-tiktoks.mjs), read live — no republishing needed. */
 const LIVE_LIBRARY = "https://raw.githubusercontent.com/DejiA123/sooz/main/src/data/christianTikTokLibrary.json";
 const LIBRARY_KEY = "sooz-tt-library";
@@ -68,8 +68,7 @@ export async function loadLibrary(): Promise<Library> {
 }
 
 /** Hundreds of recent videos from trusted Christian creators (loaded on its own, so the app stays light). */
-async function libraryTikToks(): Promise<TikTokVideo[]> {
-  const lib = await loadLibrary();
+function libraryTikToks(lib: Library): TikTokVideo[] {
   return lib.videos.map(([id, handle, w, h, caption]) => ({
     id: `lib-${id}`,
     tiktok_id: id,
@@ -83,6 +82,7 @@ async function libraryTikToks(): Promise<TikTokVideo[]> {
     thumbnail_height: h,
     faith_tags: [],
     created_at: "2026-11-08T00:00:00Z",
+    likes: lib.likes?.[id] ?? null,
   }));
 }
 
@@ -153,12 +153,15 @@ const round = (pool: TikTokVideo[], n: number) => {
 function getTikTokPool(): Promise<TikTokVideo[]> {
   if (!tiktokPool) {
     tiktokPool = (async () => {
-      const [db, library] = await Promise.all([
+      const [db, lib] = await Promise.all([
         fetchApprovedTikToks(0, 300).then((r) => enrich(r.videos)).catch(() => [] as TikTokVideo[]),
-        libraryTikToks().catch(() => [] as TikTokVideo[]),
+        loadLibrary().catch(() => null),
       ]);
+      const library = lib ? libraryTikToks(lib) : [];
       const seen = new Set<string>();
-      const all = [...db, ...starterTikToks(), ...library].filter((v) => !seen.has(v.tiktok_id) && !!seen.add(v.tiktok_id));
+      const all = [...db, ...starterTikToks(), ...library]
+        .filter((v) => !seen.has(v.tiktok_id) && !!seen.add(v.tiktok_id))
+        .map((v) => (v.likes == null && lib?.likes?.[v.tiktok_id] != null ? { ...v, likes: lib.likes[v.tiktok_id] } : v));
       return mixCreators(all.filter((v) => !isDeadTikTok(v.tiktok_id)));
     })().catch(() => shuffle(starterTikToks().filter((v) => !isDeadTikTok(v.tiktok_id))));
   }
@@ -240,13 +243,6 @@ export async function fetchForYouPage({ pageParam = FIRST_CURSOR, userId }: { pa
   };
 }
 
-const repostedVideo = (r: FollowingRepost): TikTokVideo => ({
-  id: `repost-${r.tiktok_id}`, tiktok_id: r.tiktok_id!, url: r.tiktok?.url || `https://www.tiktok.com/@_/video/${r.tiktok_id}`,
-  author_name: r.tiktok?.name ?? null, author_handle: r.tiktok?.handle ?? null,
-  author_url: r.tiktok?.handle ? `https://www.tiktok.com/@${r.tiktok.handle}` : null, title: r.tiktok?.caption ?? null,
-  thumbnail_url: null, thumbnail_width: r.tiktok?.w ?? null, thumbnail_height: r.tiktok?.h ?? null, faith_tags: [], created_at: r.created_at,
-});
-
 /** Reposts by people you follow, as feed items ("Name reposted"), newest first. */
 async function followingRepostItems(userId: string, skipPostIds: Set<string>): Promise<{ item: FeedItem; at: string }[]> {
   const reposts = await fetchFollowingReposts(await fetchFollowingIds(userId), 40).catch(() => []);
@@ -261,7 +257,7 @@ async function followingRepostItems(userId: string, skipPostIds: Set<string>): P
     if (seen.has(target)) continue;
     seen.add(target);
     if (r.post_id && posts.has(r.post_id)) out.push({ item: { ...postItem(posts.get(r.post_id)!), key: `rp:${r.post_id}`, repostedBy: name }, at: r.created_at });
-    else if (r.tiktok_id) out.push({ item: { ...tiktokItem(repostedVideo(r)), key: `rt:${r.tiktok_id}`, repostedBy: name }, at: r.created_at });
+    else if (r.tiktok_id) out.push({ item: { ...tiktokItem(repostedTikTokVideo(r)), key: `rt:${r.tiktok_id}`, repostedBy: name }, at: r.created_at });
   }
   return out;
 }

@@ -4,12 +4,14 @@ import { BarChart3, Bookmark, LogOut, MessageSquareWarning, Settings, Sparkles, 
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
+import { useIsAdmin } from "@/lib/admin";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 
-/** The app's side menu (archive, Christian TikTok, settings, log out). */
+/** The app's side menu (archive, settings, log out; Christian TikTok for admins only). */
 export const AppMenuSheet = ({ trigger }: { trigger: ReactNode }) => {
   const [open, setOpen] = useState(false);
   const close = () => setOpen(false);
+  const { isAdmin } = useIsAdmin();
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
@@ -21,7 +23,7 @@ export const AppMenuSheet = ({ trigger }: { trigger: ReactNode }) => {
         </SheetHeader>
         <div className="flex flex-col gap-1 p-6">
           {[
-            { to: "/tiktok", icon: Sparkles, label: "Christian TikTok", color: "text-amber-400" },
+            ...(isAdmin ? [{ to: "/tiktok", icon: Sparkles, label: "Christian TikTok", color: "text-amber-400" }] : []),
             { to: "/archive", icon: Video, label: "Video Archive", color: "text-violet-500" },
             { to: "/settings", icon: Settings, label: "Settings", color: "text-blue-500" },
             { to: "/analytics", icon: BarChart3, label: "Analytics", color: "text-emerald-500" },

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, Navigate, useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CheckCircle2, Clock, ExternalLink, Loader2, PackageOpen, ShieldCheck, Sparkles, Trash2, UserPlus, XCircle } from "lucide-react";
 import { toast } from "sonner";
@@ -7,6 +7,7 @@ import { Helmet } from "react-helmet-async";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useIsAdmin } from "@/lib/admin";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
@@ -72,7 +73,15 @@ const VideoRow = ({ row, actions }: { row: Row; actions?: React.ReactNode }) => 
   </li>
 );
 
+/** Only SOOZ's admins can open the library manager; everyone else goes back to the feed. */
 export default function ChristianTikTok() {
+  const { isAdmin, loading } = useIsAdmin();
+  if (loading) return null;
+  if (!isAdmin) return <Navigate to="/" replace />;
+  return <ChristianTikTokManager />;
+}
+
+function ChristianTikTokManager() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();

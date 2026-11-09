@@ -65,6 +65,26 @@ export async function fetchFollowingReposts(followingIds: string[], limit = 40):
   return error || !data ? [] : (data as unknown as FollowingRepost[]);
 }
 
+/** Everything one member reposted, newest first (their profile's Reposts tab). */
+export interface UserRepost { created_at: string; post_id: string | null; tiktok_id: string | null; tiktok: RepostedTikTok | null }
+export async function fetchUserReposts(userId: string, limit = 120): Promise<UserRepost[]> {
+  const { data, error } = await supabase
+    .from("reposts" as never)
+    .select("created_at, post_id, tiktok_id, tiktok")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  return error || !data ? [] : (data as unknown as UserRepost[]);
+}
+
+/** A reposted TikTok as a playable video, from the copy of its details saved with the repost. */
+export const repostedTikTokVideo = (r: Pick<UserRepost, "tiktok_id" | "tiktok" | "created_at">): TikTokVideo => ({
+  id: `repost-${r.tiktok_id}`, tiktok_id: r.tiktok_id!, url: r.tiktok?.url || `https://www.tiktok.com/@_/video/${r.tiktok_id}`,
+  author_name: r.tiktok?.name ?? null, author_handle: r.tiktok?.handle ?? null,
+  author_url: r.tiktok?.handle ? `https://www.tiktok.com/@${r.tiktok.handle}` : null, title: r.tiktok?.caption ?? null,
+  thumbnail_url: null, thumbnail_width: r.tiktok?.w ?? null, thumbnail_height: r.tiktok?.h ?? null, faith_tags: [], created_at: r.created_at,
+});
+
 /** Link that opens this TikTok first in SOOZ's For You. */
 export const soozTikTokLink = (v: TikTokVideo) =>
   `${window.location.origin}/?tiktok=${encodeURIComponent(v.tiktok_id)}${v.author_handle ? `&by=${encodeURIComponent(v.author_handle)}` : ""}`;
