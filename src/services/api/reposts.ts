@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { TikTokVideo } from "./tiktok";
+import { tiktokShareUrl } from "@/lib/shareLink";
 
 /**
  * Reposts, like TikTok: share a SOOZ post or a Christian TikTok with your followers (they see it in
@@ -85,9 +86,8 @@ export const repostedTikTokVideo = (r: Pick<UserRepost, "tiktok_id" | "tiktok" |
   thumbnail_url: null, thumbnail_width: r.tiktok?.w ?? null, thumbnail_height: r.tiktok?.h ?? null, faith_tags: [], created_at: r.created_at,
 });
 
-/** Link that opens this TikTok first in SOOZ's For You. */
-export const soozTikTokLink = (v: TikTokVideo) =>
-  `${window.location.origin}/?tiktok=${encodeURIComponent(v.tiktok_id)}${v.author_handle ? `&by=${encodeURIComponent(v.author_handle)}` : ""}`;
+/** Shared link for a TikTok: shows its preview in WhatsApp etc. and opens it first in SOOZ's For You. */
+export const soozTikTokLink = (v: TikTokVideo) => tiktokShareUrl(v.tiktok_id, v.author_handle);
 
-/** SOOZ links to a TikTok inside a chat message (to show them as a card). */
-export const TIKTOK_LINK_RE = /https?:\/\/[^\s]+\/\?tiktok=(\d{5,25})(?:&by=([\w.]+))?/;
+/** SOOZ links to a TikTok inside a message (new /t/{id} links and older /?tiktok={id} ones). */
+export const TIKTOK_LINK_RE = /https?:\/\/[^\s]+\/(?:\?tiktok=|t\/)(\d{5,25})(?:[?&]by=([\w.]+))?/;

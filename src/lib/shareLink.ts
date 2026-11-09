@@ -1,5 +1,15 @@
 import { getPresignedUploadUrl } from "@/integrations/s3/client";
 
+/**
+ * Where shared links point. sooz.vercel.app serves rich link previews for them (api/preview.ts:
+ * the TikTok's cover / the post's picture, the creator and the caption) and sends people on to the
+ * app — so links shared from any copy of SOOZ show a proper preview in WhatsApp.
+ */
+export const SHARE_ORIGIN = (import.meta.env.VITE_SHARE_ORIGIN as string | undefined) || "https://sooz.vercel.app";
+export const tiktokShareUrl = (tiktokId: string, handle?: string | null) =>
+  `${SHARE_ORIGIN}/t/${encodeURIComponent(tiktokId)}${handle ? `?by=${encodeURIComponent(handle)}` : ""}`;
+export const postShareUrl = (postId: string) => `${SHARE_ORIGIN}/p/${postId}`;
+
 const FN = "https://xhqpojnmcibkaydidnex.supabase.co/functions/v1/share-preview";
 const CACHE_KEY = "sooz-share-links";
 
