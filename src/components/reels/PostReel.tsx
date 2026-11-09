@@ -278,13 +278,13 @@ export const PostReel = memo(function PostReel({ post, active, mounted, reposted
       </div>
 
       {/* Right-hand actions */}
-      <div className="reel-rail">
-        <div className="relative mb-3">
+      <div className="reel-rail reel-dock">
+        <div className="relative mb-2.5">
           <Link
             to={`/profile/${profile?.username ?? ""}`}
             onClick={(e) => e.stopPropagation()}
             aria-label={`${name}'s profile`}
-            className="block h-12 w-12 overflow-hidden rounded-full bg-neutral-700 ring-2 ring-white"
+            className="reel-dock-avatar block overflow-hidden rounded-full bg-neutral-700 ring-2 ring-white/90"
           >
             {profile?.avatar_url ? (
               <img src={profile.avatar_url} alt="" className="h-full w-full object-cover" loading="lazy" decoding="async" />
