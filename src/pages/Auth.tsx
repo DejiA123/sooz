@@ -9,7 +9,7 @@ import { Eye, EyeOff, Loader2, ArrowLeft, KeyRound, Mail } from "lucide-react";
 import { z } from "zod";
 import { SoozLogo } from "@/components/brand/SoozLogo";
 import { cn } from "@/lib/utils";
-import { googleAvailable, sendEmailCode, signInWithGoogle, usernameTaken, verifyEmailCode } from "@/lib/authProviders";
+import { googleAvailable, nameFromEmail, sendEmailCode, signInWithGoogle, usernameFromEmail, usernameTaken, verifyEmailCode } from "@/lib/authProviders";
 
 /** Official multi-colour Google "G". */
 const GoogleG = () => (
@@ -40,6 +40,7 @@ const Auth = () => {
   // Sign-in method: password, or a one-time passcode emailed to you.
   const [method, setMethod] = useState<"password" | "code">("password");
   const [codeSentTo, setCodeSentTo] = useState<string | null>(null);
+  const [codeUsername, setCodeUsername] = useState<string | null>(null);
   const [code, setCode] = useState("");
   const [cooldown, setCooldown] = useState(0);
   const [googleLoading, setGoogleLoading] = useState(false);
@@ -66,23 +67,19 @@ const Auth = () => {
 
   const handleSendCode = async (e?: React.FormEvent) => {
     e?.preventDefault();
-    const newErrors: typeof errors = {};
     const emailResult = emailSchema.safeParse(email.trim());
-    if (!emailResult.success) newErrors.email = emailResult.error.errors[0].message;
-    if (!isLogin) {
-      const usernameResult = usernameSchema.safeParse(username);
-      if (!usernameResult.success) newErrors.username = usernameResult.error.errors[0].message;
-    }
-    setErrors(newErrors);
-    if (Object.keys(newErrors).length) return;
+    if (!emailResult.success) { setErrors({ email: emailResult.error.errors[0].message }); return; }
+    setErrors({});
     setIsLoading(true);
-    // Joining: make sure the username is free before the code goes out.
-    if (!isLogin && !codeSentTo && await usernameTaken(username)) {
-      setIsLoading(false);
-      setErrors({ username: "That username is taken — try another" });
-      return;
+    // Joining with a code needs only the email: SOOZ picks a free username and a name from it
+    // (both can be changed any time in Edit Profile). A resent code keeps the same username.
+    let joinAs: { username: string; displayName: string } | undefined;
+    if (!isLogin) {
+      const handle = codeSentTo === email.trim() && codeUsername ? codeUsername : await usernameFromEmail(email);
+      setCodeUsername(handle);
+      joinAs = { username: handle, displayName: nameFromEmail(email) };
     }
-    const { error } = await sendEmailCode(email, isLogin ? undefined : { username, displayName });
+    const { error } = await sendEmailCode(email, joinAs);
     setIsLoading(false);
     if (error) { toast.error(error); return; }
     setCodeSentTo(email.trim());
@@ -95,10 +92,11 @@ const Auth = () => {
     e.preventDefault();
     if (!codeSentTo || code.length < 6) return;
     setIsLoading(true);
-    const { error } = await verifyEmailCode(codeSentTo, code);
+    const { error, username: joined, isNew } = await verifyEmailCode(codeSentTo, code);
     setIsLoading(false);
     if (error) { toast.error(error); return; }
-    if (!isLogin) toast.success("Welcome to SOOZ! 🙌");
+    if (!isLogin && isNew) toast.success(`Welcome to SOOZ! 🙌 You're @${joined} — change it any time in Edit Profile.`, { duration: 6000 });
+    else if (!isLogin) toast.success("Welcome back! You already had a SOOZ account, so we signed you in.");
     navigate("/");
   };
 
@@ -231,25 +229,12 @@ const Auth = () => {
               </form>
             ) : (
               <form onSubmit={handleSendCode} className="space-y-5">
-                {!isLogin && (
-                  <>
-                    <div className="space-y-1">
-                      <Label htmlFor="code-username" className="text-[12px] font-medium text-muted-foreground">Username</Label>
-                      <input id="code-username" type="text" autoComplete="username" placeholder="Choose a username" value={username} onChange={(e) => setUsername(e.target.value.toLowerCase())} className={inputClass} />
-                      {errors.username && <p className="text-destructive text-[11px]">{errors.username}</p>}
-                    </div>
-                    <div className="space-y-1">
-                      <Label htmlFor="code-display" className="text-[12px] font-medium text-muted-foreground">Display Name <span className="opacity-50">(optional)</span></Label>
-                      <input id="code-display" type="text" autoComplete="name" placeholder="How others see you" value={displayName} onChange={(e) => setDisplayName(e.target.value)} className={inputClass} />
-                    </div>
-                  </>
-                )}
                 <div className="space-y-1">
                   <Label htmlFor="code-email" className="text-[12px] font-medium text-muted-foreground">Email</Label>
                   <input id="code-email" type="email" inputMode="email" autoComplete="email" placeholder="email@example.com" value={email} onChange={(e) => setEmail(e.target.value)} className={inputClass} />
                   {errors.email && <p className="text-destructive text-[11px]">{errors.email}</p>}
                 </div>
-                <p className="text-[12px] text-muted-foreground">{isLogin ? "No password needed — we'll email you a one-time code." : "No password needed — we'll email you a 6-digit code to finish joining."}</p>
+                <p className="text-[12px] text-muted-foreground">{isLogin ? "No password needed — we'll email you a one-time code." : "Just your email — no password needed. We'll send a 6-digit code to finish joining, and you can pick your username any time in Edit Profile."}</p>
                 <Button type="submit" className="w-full h-12 rounded-full text-[15px] font-bold bg-primary text-primary-foreground hover:opacity-90 transition-opacity" disabled={isLoading}>
                   {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : "Send code"}
                 </Button>

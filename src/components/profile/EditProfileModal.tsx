@@ -6,6 +6,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { X, Camera, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { useLocation, useNavigate } from "react-router-dom";
+import { usernameTaken } from "@/lib/authProviders";
 import { ImageCropperModal } from "@/components/ui/ImageCropperModal";
 
 interface Profile {
@@ -26,6 +28,10 @@ interface EditProfileModalProps {
 
 const EditProfileModal = ({ profile, onClose, onUpdate }: EditProfileModalProps) => {
   const [displayName, setDisplayName] = useState(profile.display_name || "");
+  const [username, setUsername] = useState(profile.username || "");
+  const [usernameError, setUsernameError] = useState<string | null>(null);
+  const navigate = useNavigate();
+  const location = useLocation();
   const [bio, setBio] = useState(profile.bio || "");
   const [avatarUrl, setAvatarUrl] = useState(profile.avatar_url || "");
   // @ts-ignore
@@ -91,11 +97,21 @@ const EditProfileModal = ({ profile, onClose, onUpdate }: EditProfileModalProps)
   };
 
   const handleSave = async () => {
+    // Username: letters, numbers and underscores, and not already someone else's.
+    const newUsername = username.trim().toLowerCase();
+    const changedUsername = newUsername !== profile.username;
+    if (changedUsername) {
+      if (!/^[a-z0-9_]{3,30}$/.test(newUsername)) { setUsernameError("3–30 letters, numbers or underscores"); return; }
+      setIsLoading(true);
+      if (await usernameTaken(newUsername)) { setUsernameError("That username is taken — try another"); setIsLoading(false); return; }
+    }
+    setUsernameError(null);
     setIsLoading(true);
 
     const { error } = await supabase
       .from("profiles")
       .update({
+        ...(changedUsername && { username: newUsername }),
         display_name: displayName || null,
         bio: bio || null,
         avatar_url: avatarUrl || null,
@@ -107,9 +123,11 @@ const EditProfileModal = ({ profile, onClose, onUpdate }: EditProfileModalProps)
       .eq("id", profile.id);
 
     if (error) {
-      toast.error("Failed to update profile");
+      toast.error(/duplicate|unique/i.test(error.message) ? "That username is taken — try another" : "Failed to update profile");
     } else {
       toast.success("Profile updated!");
+      // The profile's address uses the username: follow it if it changed.
+      if (changedUsername && location.pathname === `/profile/${profile.username}`) navigate(`/profile/${newUsername}`, { replace: true });
       onUpdate();
       onClose();
     }
@@ -175,6 +193,24 @@ const EditProfileModal = ({ profile, onClose, onUpdate }: EditProfileModalProps)
 
           {/* Form Fields */}
           <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="username">Username</Label>
+              <div className="relative">
+                <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">@</span>
+                <Input
+                  id="username"
+                  value={username}
+                  onChange={(e) => { setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, "")); setUsernameError(null); }}
+                  placeholder="yourname"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  maxLength={30}
+                  className="bg-muted/50 border-border/50 pl-7"
+                />
+              </div>
+              {usernameError && <p className="text-[12px] text-destructive">{usernameError}</p>}
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="displayName">Display Name</Label>
               <Input

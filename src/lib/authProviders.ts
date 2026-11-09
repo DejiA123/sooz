@@ -124,11 +124,37 @@ export async function sendEmailCode(email: string, signup?: { username: string; 
 
 /** Is this username already someone's? (Checked before sign-up, so it never fails half-way.) */
 export async function usernameTaken(username: string): Promise<boolean> {
-  const { data } = await supabase.from("profiles").select("id").ilike("username", username.trim()).limit(1);
+  // ilike so "Joy" and "joy" count as the same; "_" and "%" escaped so they match only themselves.
+  const { data } = await supabase.from("profiles").select("id").ilike("username", username.trim().replace(/[\\%_]/g, "\\$&")).limit(1);
   return !!data?.length;
 }
 
-export async function verifyEmailCode(email: string, code: string): Promise<{ error?: string }> {
-  const { error } = await supabase.auth.verifyOtp({ email: email.trim(), token: code.trim(), type: "email" });
-  return error ? { error: friendlyOtpError(error.message) } : {};
+/** A free username made from an email: "joy.adams@…" → "joyadams" (or "joyadams27" if that's taken). */
+export async function usernameFromEmail(email: string): Promise<string> {
+  let base = email.trim().split("@")[0].toLowerCase().replace(/\+.*$/, "").replace(/[^a-z0-9_]/g, "").slice(0, 20);
+  if (base.length < 3) base = `${base}member`;
+  if (!(await usernameTaken(base))) return base;
+  for (let i = 0; i < 8; i++) {
+    const candidate = `${base.slice(0, 18)}${Math.floor(i < 4 ? 10 + Math.random() * 90 : 1000 + Math.random() * 9000)}`;
+    if (!(await usernameTaken(candidate))) return candidate;
+  }
+  return `${base.slice(0, 14)}${Date.now().toString().slice(-6)}`;
+}
+
+/** A friendly name from an email: "joy.adams@…" → "Joy Adams". */
+export function nameFromEmail(email: string): string {
+  const local = email.trim().split("@")[0].replace(/\+.*$/, "");
+  const words = local.split(/[._-]+/).map((w) => w.replace(/\d+/g, "")).filter(Boolean);
+  return words.map((w) => w[0].toUpperCase() + w.slice(1).toLowerCase()).join(" ") || local;
+}
+
+export async function verifyEmailCode(email: string, code: string): Promise<{ error?: string; username?: string; isNew?: boolean }> {
+  const { data, error } = await supabase.auth.verifyOtp({ email: email.trim(), token: code.trim(), type: "email" });
+  if (error) return { error: friendlyOtpError(error.message) };
+  const user = data.user;
+  return {
+    username: (user?.user_metadata?.username as string | undefined) ?? undefined,
+    // Created in the last few minutes → they just joined (otherwise the code signed them back in).
+    isNew: !!user?.created_at && Date.now() - new Date(user.created_at).getTime() < 10 * 60 * 1000,
+  };
 }
