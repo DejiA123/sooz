@@ -15,6 +15,7 @@ import { LazyVideo } from "@/components/feed/LazyVideo";
 import { ReelsViewer } from "@/components/reels/ReelsViewer";
 import { TikTokMark } from "@/components/reels/TikTokReel";
 import { fetchProfileTab, type ProfileTab } from "@/services/api/profileTabs";
+import { openDirectChat } from "@/services/api/chat";
 import type { FeedItem } from "@/services/api/feed";
 import type { TikTokVideo } from "@/services/api/tiktok";
 import { useVideoCache } from "@/store/useVideoCache";
@@ -172,6 +173,12 @@ const Profile = () => {
     queryClient.invalidateQueries({ queryKey: ['profile', username] });
   };
 
+  const handleMessage = async () => {
+    if (!user || !profile) { navigate("/auth"); return; }
+    try { navigate(`/chat?c=${await openDirectChat(profile.id)}`); }
+    catch { toast.error("Couldn't open the chat"); }
+  };
+
   const formatNumber = (num: number) => {
     if (num >= 1000000) return (num / 1000000).toFixed(1) + "M";
     if (num >= 1000) return (num / 1000).toFixed(1) + "K";
@@ -267,9 +274,14 @@ const Profile = () => {
           {isOwnProfile ? (
             <Button onClick={() => setShowEditModal(true)} variant="secondary" className="h-10 px-8 rounded-full font-bold">Edit Profile</Button>
           ) : (
-            <Button onClick={handleFollow} className={cn("h-10 px-8 rounded-full font-bold transition-all active:scale-95", profileData?.isFollowing ? "bg-secondary text-foreground hover:bg-secondary/80" : "bg-primary text-primary-foreground hover:opacity-90")}>
-              {profileData?.isFollowing ? "Following" : "Follow"}
-            </Button>
+            <div className="flex gap-2">
+              <Button onClick={handleFollow} className={cn("h-10 px-8 rounded-full font-bold transition-all active:scale-95", profileData?.isFollowing ? "bg-secondary text-foreground hover:bg-secondary/80" : "bg-primary text-primary-foreground hover:opacity-90")}>
+                {profileData?.isFollowing ? "Following" : "Follow"}
+              </Button>
+              <Button variant="secondary" onClick={handleMessage} className="h-10 rounded-full px-6 font-bold active:scale-95">
+                <MessageCircle className="mr-1.5 h-4 w-4" /> Message
+              </Button>
+            </div>
           )}
         </div>
       </div>

@@ -6,6 +6,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchChatList, isChatVisible, isMuted } from "@/services/api/chat";
 
 // The create flow is heavy (camera, uploads, live studio) — only download it when opened.
 const CreateModal = lazy(() => import("@/components/create/CreateModal").then((m) => ({ default: m.CreateModal })));
@@ -51,6 +52,10 @@ export const BottomNav = () => {
   const { user } = useAuth();
   const [showCreate, setShowCreate] = useState(false);
   const isFeed = location.pathname === "/" || location.pathname === "/index";
+
+  // Unread chats, like WhatsApp's badge (same cached list the Messages screen uses).
+  const { data: chatList } = useQuery({ queryKey: ["chats", user?.id ?? ""], queryFn: fetchChatList, enabled: !!user, staleTime: 30_000 });
+  const unreadChats = (chatList ?? []).filter((c) => !c.archived && isChatVisible(c) && !isMuted(c.mutedUntil) && (c.unread > 0 || c.markedUnread)).length;
 
   const { data: me } = useQuery({
     queryKey: ["nav-profile", user?.id],
@@ -201,7 +206,12 @@ export const BottomNav = () => {
             );
             const content = (
               <>
-                <span className="relative flex h-[27px] items-center justify-center">{icon}</span>
+                <span className="relative flex h-[27px] items-center justify-center">
+                  {icon}
+                  {tab.key === "inbox" && unreadChats > 0 && (
+                    <span className="absolute -right-2.5 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-amber-400 px-1 text-[10.5px] font-bold leading-none text-[#1a1204]">{unreadChats > 99 ? "99+" : unreadChats}</span>
+                  )}
+                </span>
                 <span className="glass-tabbar__label">{tab.label}</span>
               </>
             );

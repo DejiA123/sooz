@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { openDirectChat } from "@/services/api/chat";
 
 interface CreateGroupModalProps {
     onClose: () => void;
@@ -69,6 +70,14 @@ export const CreateGroupModal = ({ onClose, onCreate }: CreateGroupModalProps) =
         setLoading(true);
         try {
             const isGroup = participantIds.length > 1;
+
+            // One person: open your existing chat with them (or start one) — never a duplicate.
+            if (!isGroup) {
+                await openDirectChat(participantIds[0]);
+                onCreate("", participantIds);
+                onClose();
+                return;
+            }
 
             // 1. Create Conversation
             const { data: conv, error: convError } = await supabase
