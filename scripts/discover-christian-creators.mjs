@@ -17,7 +17,7 @@
  */
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 
-const FILE = new URL("../src/data/christianTikTokLibrary.json", import.meta.url);
+const FILE = process.env.LIBRARY_FILE || new URL("../src/data/christianTikTokLibrary.json", import.meta.url);
 const STATE = process.env.DISCOVERY_STATE || new URL("../data/creator-discovery.json", import.meta.url);
 const MINUTES = Number(process.env.DISCOVERY_MINUTES || 30);
 const TARGET = Number(process.env.TARGET || 2000);
