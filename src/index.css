@@ -404,14 +404,18 @@ input, textarea { -webkit-user-select: text; user-select: text; }
   left: calc((100cqw - var(--w)) / 2);
   top: max(var(--clear-top), min(calc((100cqh - var(--h)) / 2), calc(100cqh - var(--clear-bottom) - var(--h))));
 }
-/* Portrait videos: zoom to fill the screen like TikTok. Pinned to the bottom so TikTok's controls
-   stay on screen; at most 12px is trimmed off each side (so its sound button never goes off the
-   edge) and anything extra comes off the top, under the For You tabs. */
-.tiktok-player--fill {
-  --w: min(max(100cqw, calc(100cqh * var(--ar))), calc(100cqw + 24px));
+/* Portrait videos fill the screen like the TikTok app, right up under the For You tabs with no shadow.
+   They're pinned to the bottom so TikTok's controls stay on screen. TikTok's player always draws its
+   own name / photo strip along its top (--tt-head tall; no parameter hides it), so the video is made
+   just tall enough to tuck that strip under the status bar (or off the top of the screen). At most
+   20px comes off each side, so TikTok's play / sound buttons stay on screen. */
+.tiktok-player--fill, .tiktok-topband {
+  --tt-head: 66px;
+  --tuck: calc(100cqh + var(--tt-head) + 2px - env(safe-area-inset-top, 0px));
+  --w: min(max(100cqw, calc(100cqh * var(--ar)), calc(var(--tuck) * var(--ar))), calc(100cqw + 40px));
   --h: calc(var(--w) / var(--ar));
-  top: auto; bottom: 0;
 }
+.tiktok-player--fill { top: auto; bottom: 0; }
 .tiktok-scrim {
   position: absolute; left: 0; right: 0; z-index: 1; pointer-events: none;
   bottom: var(--bottom-nav-height); height: 34%;
@@ -444,11 +448,15 @@ input, textarea { -webkit-user-select: text; user-select: text; }
 .reel-dock-avatar { width: 44px; height: 44px; }
 .reel-rail.reel-dock { gap: 10px; padding-top: 16px; padding-bottom: 14px; }
 .tiktok-sooz-rail--cover { min-height: 234px; justify-content: space-evenly; }
-/* …and a dark band at the top over TikTok's own name / logo header, behind SOOZ's For You tabs. */
+/* Only where TikTok's name strip can't be tucked away (a short status bar on a tall screen, or a wide
+   video): a plain bar in the status bar's colour behind the For You tabs covers it, with a clean edge.
+   Its height is 0 whenever the strip is already hidden. */
 .tiktok-topband {
+  --player-top: calc(100cqh - var(--h));
+  --strip-shows: calc(var(--player-top) + var(--tt-head) - env(safe-area-inset-top, 0px));
   position: absolute; inset: 0 0 auto 0; z-index: 3; pointer-events: none;
-  height: calc(env(safe-area-inset-top, 0px) + 132px);
-  background: linear-gradient(to bottom, rgb(5, 7, 11) 0, rgb(5, 7, 11) calc(env(safe-area-inset-top, 0px) + 92px), rgba(5, 7, 11, 0.55) calc(env(safe-area-inset-top, 0px) + 114px), rgba(5, 7, 11, 0) 100%);
+  background: hsl(var(--background));
+  height: clamp(0px, calc(var(--strip-shows) * 1000), max(calc(env(safe-area-inset-top, 0px) + 56px), calc(var(--player-top) + var(--tt-head) + 6px)));
 }
 /* Small gold SOOZ mark on a button, so it's clear it's SOOZ's (not TikTok's). */
 .sooz-badge {
@@ -512,6 +520,7 @@ body.reels-viewer-open .mobile-bottom-nav .glass-tabbar {
   .chat-header { padding-top: 0; min-height: 64px; }
   .chat-composer { padding-bottom: 16px; }
   .tiktok-player { --clear-top: 0px; --clear-bottom: 160px; }
+  .tiktok-player--fill { --w: min(max(100cqw, calc(100cqh * var(--ar))), calc(100cqw + 24px)); }
   .tiktok-scrim { bottom: 0; }
   .reel-caption--tiktok { bottom: 60px; right: 84px; }
   .tiktok-sooz-rail, .tiktok-sooz-rail--cover { right: auto; left: calc(100% + 16px); bottom: 6px; min-height: 0; }
