@@ -11,9 +11,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
+import { ReportSheet } from "@/components/safety/ReportSheet";
+import { useSafeFilter } from "@/components/safety/useSafeFilter";
 
 interface Comment {
     id: string;
+    user_id?: string;
     content: string;
     created_at: string;
     user: {
@@ -41,6 +44,9 @@ export const CommentDrawer = ({ postId, postOwnerUsername, trigger, open: contro
     const [newComment, setNewComment] = useState("");
     const [loading, setLoading] = useState(false);
     const [submitting, setSubmitting] = useState(false);
+    const { allowed, refresh } = useSafeFilter();
+    const [reporting, setReporting] = useState<Comment | null>(null);
+    const shown = comments.filter((c) => c.user_id === user?.id || allowed("comment", c.id, c.content));
 
     useEffect(() => {
         if (isOpen) {
@@ -54,6 +60,7 @@ export const CommentDrawer = ({ postId, postOwnerUsername, trigger, open: contro
             .from("comments")
             .select(`
         id,
+        user_id,
         content,
         created_at,
         user:user_id(username, avatar_url)
@@ -114,14 +121,14 @@ export const CommentDrawer = ({ postId, postOwnerUsername, trigger, open: contro
                         <div className="flex justify-center py-10">
                             <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
                         </div>
-                    ) : comments.length === 0 ? (
+                    ) : shown.length === 0 ? (
                         <div className="text-center text-muted-foreground py-10">
                             <p>No comments yet.</p>
                             <p className="text-sm">Be the first to comment!</p>
                         </div>
                     ) : (
                         <div className="space-y-6">
-                            {comments.map((comment) => (
+                            {shown.map((comment) => (
                                 <div key={comment.id} className="flex gap-3 animate-fade-in">
                                     <Avatar className="w-8 h-8 flex-shrink-0">
                                         <AvatarImage src={comment.user.avatar_url || ""} />
@@ -134,6 +141,9 @@ export const CommentDrawer = ({ postId, postOwnerUsername, trigger, open: contro
                                         </p>
                                         <p className="text-xs text-muted-foreground mt-1">
                                             {formatDistanceToNow(new Date(comment.created_at), { addSuffix: true })}
+                                            {comment.user_id !== user?.id && (
+                                                <button type="button" className="ml-3 font-semibold" onClick={() => setReporting(comment)}>Report</button>
+                                            )}
                                         </p>
                                     </div>
                                 </div>
@@ -172,6 +182,14 @@ export const CommentDrawer = ({ postId, postOwnerUsername, trigger, open: contro
                     </div>
                 </div>
             </DrawerContent>
+            {reporting && (
+                <ReportSheet
+                    target={{ type: "comment", id: reporting.id, owner: reporting.user_id, snapshot: `${reporting.user.username} on post ${postId}: ${reporting.content}` }}
+                    open={!!reporting}
+                    onOpenChange={(o) => { if (!o) setReporting(null); }}
+                    onReported={refresh}
+                />
+            )}
         </Drawer>
     );
 };

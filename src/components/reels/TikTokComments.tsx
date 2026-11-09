@@ -8,6 +8,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
+import { ReportSheet } from "@/components/safety/ReportSheet";
+import { useSafeFilter } from "@/components/safety/useSafeFilter";
 
 interface CommentRow {
   id: string;
@@ -48,6 +50,8 @@ export const TikTokComments = ({ tiktokId, tiktokUrl, open, onOpenChange, onCoun
   const [text, setText] = useState("");
   const [replyTo, setReplyTo] = useState<CommentRow | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const { allowed, refresh } = useSafeFilter();
+  const [reporting, setReporting] = useState<CommentRow | null>(null);
 
   const load = useCallback(async () => {
     const { data, error } = await supabase.from("tiktok_comments").select(SELECT).eq("tiktok_id", tiktokId).order("created_at", { ascending: false }).limit(300);
@@ -71,10 +75,12 @@ export const TikTokComments = ({ tiktokId, tiktokUrl, open, onOpenChange, onCoun
 
   // Top-level comments newest first, each followed by its replies (oldest first).
   const threads = useMemo(() => {
-    const top = rows.filter((r) => !r.parent_id || !rows.some((p) => p.id === r.parent_id));
-    const replies = (id: string) => rows.filter((r) => r.parent_id === id).sort((a, b) => a.created_at.localeCompare(b.created_at));
+    // Not what this person reported, and in family-safe mode nothing unsuitable.
+    const shown = rows.filter((r) => r.sending || r.user_id === user?.id || allowed("tiktok_comment", r.id, r.content));
+    const top = shown.filter((r) => !r.parent_id || !shown.some((p) => p.id === r.parent_id));
+    const replies = (id: string) => shown.filter((r) => r.parent_id === id).sort((a, b) => a.created_at.localeCompare(b.created_at));
     return top.map((c) => ({ c, replies: replies(c.id) }));
-  }, [rows]);
+  }, [rows, allowed, user?.id]);
 
   const nameOf = (r: CommentRow) => r.user?.display_name || r.user?.username || "SOOZ member";
 
@@ -127,6 +133,9 @@ export const TikTokComments = ({ tiktokId, tiktokUrl, open, onOpenChange, onCoun
           )}
           {!r.sending && user?.id === r.user_id && (
             <button type="button" className="font-semibold text-white/60" onClick={() => remove(r.id)}>Delete</button>
+          )}
+          {!r.sending && user?.id !== r.user_id && (
+            <button type="button" className="font-semibold text-white/40" onClick={() => setReporting(r)}>Report</button>
           )}
         </div>
       </div>
@@ -199,6 +208,14 @@ export const TikTokComments = ({ tiktokId, tiktokUrl, open, onOpenChange, onCoun
           </div>
         </div>
       </DrawerContent>
+      {reporting && (
+        <ReportSheet
+          target={{ type: "tiktok_comment", id: reporting.id, owner: reporting.user_id, snapshot: `${nameOf(reporting)} on TikTok ${tiktokId}: ${reporting.content}` }}
+          open={!!reporting}
+          onOpenChange={(o) => { if (!o) setReporting(null); }}
+          onReported={refresh}
+        />
+      )}
     </Drawer>
   );
 };

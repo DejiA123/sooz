@@ -1,12 +1,12 @@
 import { lazy, Suspense, useEffect, useState } from "react";
-import { Copy, CheckSquare, Forward, Info, Pencil, Pin, PinOff, Plus, Reply, Star, StarOff, Trash2 } from "lucide-react";
+import { Copy, CheckSquare, Flag, Forward, Info, Pencil, Pin, PinOff, Plus, Reply, Star, StarOff, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { messageSummary, type ChatMessage } from "@/services/api/chat";
 
 const EmojiPicker = lazy(() => import("emoji-picker-react"));
 export const QUICK_REACTIONS = ["👍", "❤️", "😂", "😮", "😢", "🙏"];
 
-export type MenuAction = "reply" | "forward" | "copy" | "star" | "pin" | "edit" | "info" | "select" | "deleteMe" | "deleteAll";
+export type MenuAction = "reply" | "forward" | "copy" | "star" | "pin" | "edit" | "info" | "select" | "report" | "deleteMe" | "deleteAll";
 
 /** Long-press menu on a message: reactions on top, actions below, like WhatsApp. */
 export const MessageMenu = ({ msg, rect, mine, starred, pinned, myReaction, canEdit, canDeleteForAll, canPin, onReact, onAction, onClose }: {
@@ -44,6 +44,7 @@ export const MessageMenu = ({ msg, rect, mine, starred, pinned, myReaction, canE
     { a: "edit", label: "Edit", icon: Pencil, show: canEdit },
     { a: "info", label: "Info", icon: Info, show: mine && !msg.isDeleted },
     { a: "select", label: "Select", icon: CheckSquare, show: true },
+    { a: "report", label: "Report", icon: Flag, danger: true, show: !mine && !msg.isDeleted },
     { a: "deleteMe", label: "Delete", icon: Trash2, danger: true, show: true },
   ];
   const shown = items.filter((i) => i.show);

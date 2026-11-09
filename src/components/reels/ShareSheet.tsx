@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { Check, ExternalLink, HeartCrack, Link2, Repeat2, Send, Share2, Users, X } from "lucide-react";
+import { Check, ExternalLink, Flag, HeartCrack, Link2, Repeat2, Send, Share2, Users, X } from "lucide-react";
 import { toast } from "sonner";
 import { Drawer, DrawerContent, DrawerTitle } from "@/components/ui/drawer";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -10,6 +10,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
 import { postShareUrl } from "@/lib/shareLink";
 import { engage, notInterested, tasteOfPost, tasteOfVideo } from "@/lib/taste";
+import { ReportSheet } from "@/components/safety/ReportSheet";
 import { isReposted, setReposted, soozTikTokLink, type RepostTarget } from "@/services/api/reposts";
 import type { TikTokVideo } from "@/services/api/tiktok";
 import type { FeedPost } from "@/services/api/posts";
@@ -70,6 +71,16 @@ export const ShareSheet = ({ item, open, onOpenChange, onShared, onRepostChange 
 
   const tasteItem = item.kind === "tiktok" ? tasteOfVideo(item.video) : tasteOfPost(item.post);
   const shared = () => { engage(tasteItem, "share"); onShared?.(); };
+  // Report: the share sheet makes way for the report sheet, then both close.
+  const [reporting, setReporting] = useState(false);
+  const reportTarget = item.kind === "tiktok"
+    ? { type: "tiktok" as const, id: item.video.tiktok_id, snapshot: `@${item.video.author_handle ?? "?"}: ${item.video.title ?? ""}` }
+    : { type: "post" as const, id: item.post.id, owner: item.post.user_id, snapshot: `${item.post.profiles?.username ?? "?"}: ${item.post.caption ?? ""}${item.post.media_url ? `\n${item.post.media_url}` : ""}` };
+  const reported = () => {
+    notInterested(tasteItem);
+    window.dispatchEvent(new CustomEvent("sooz:feed-next"));
+  };
+
   const notForMe = () => {
     notInterested(tasteItem);
     onOpenChange(false);
@@ -109,7 +120,8 @@ export const ShareSheet = ({ item, open, onOpenChange, onShared, onRepostChange 
   const whatsapp = () => { window.open(`https://wa.me/?text=${encodeURIComponent(`${text}\n${link}`)}`, "_blank", "noopener"); shared(); };
 
   return (
-    <Drawer open={open} onOpenChange={onOpenChange}>
+    <>
+    <Drawer open={open && !reporting} onOpenChange={(o) => { if (!reporting) onOpenChange(o); }}>
       <DrawerContent className="rounded-t-[20px] border-white/10 bg-[#121317] pb-[max(env(safe-area-inset-bottom),16px)] text-white">
         <div className="relative flex items-center justify-center px-4 pb-2 pt-1">
           <DrawerTitle className="text-[15px] font-bold">Share to</DrawerTitle>
@@ -148,11 +160,16 @@ export const ShareSheet = ({ item, open, onOpenChange, onShared, onRepostChange 
           </Circle>
           <Circle label="More" onClick={more}><Share2 className="h-6 w-6" /></Circle>
           <Circle label="Not interested" onClick={notForMe}><HeartCrack className="h-6 w-6" /></Circle>
+          <Circle label="Report" onClick={() => setReporting(true)}><Flag className="h-6 w-6" /></Circle>
           {item.kind === "tiktok" && (
             <Circle label="Open TikTok" onClick={() => window.open(item.video.url, "_blank", "noopener")}><ExternalLink className="h-6 w-6" /></Circle>
           )}
         </div>
       </DrawerContent>
     </Drawer>
+    {reporting && (
+      <ReportSheet target={reportTarget} open={reporting} onOpenChange={(o) => { if (!o) { setReporting(false); onOpenChange(false); } }} onReported={reported} />
+    )}
+    </>
   );
 };

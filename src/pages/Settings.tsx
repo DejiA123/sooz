@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
+import { FamilySafeSetting } from "@/components/safety/FamilySafeSetting";
 
 const THEMES = [
   { id: "gold", primary: "38 92% 50%", color: "hsl(38, 92%, 50%)" },
@@ -64,7 +65,7 @@ export default function Settings() {
   ];
 
   return (
-    <div className="pb-20 min-h-screen bg-background">
+    <div className="min-h-screen bg-background pb-[calc(var(--bottom-nav-height)+6rem)]">
       <div className="px-5 py-6">
         <div className="flex items-center gap-4 mb-8">
           <Button variant="ghost" size="icon" className="rounded-full" onClick={() => navigate(-1)}>
@@ -91,6 +92,10 @@ export default function Settings() {
               {section.content}
             </div>
           ))}
+
+          {/* Safety */}
+          <p className="px-1 pt-4 text-[12px] font-bold uppercase tracking-wider text-muted-foreground">Safety</p>
+          <FamilySafeSetting />
 
           {/* Logout */}
           <div className="pt-4">

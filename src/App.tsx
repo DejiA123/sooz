@@ -36,6 +36,7 @@ const Algorithms = lazy(() => import("./pages/Algorithms"));
 const AnalyticsDashboard = lazy(() => import("./pages/AnalyticsDashboard"));
 const VideoArchive = lazy(() => import("./pages/VideoArchive"));
 const ChristianTikTok = lazy(() => import("./pages/ChristianTikTok"));
+const Moderation = lazy(() => import("./pages/Moderation"));
 
 // Warm up the main tabs in the background so switching between them is instant.
 // Skipped on data-saver / 2G so the first video gets all the bandwidth.
@@ -50,6 +51,10 @@ if (typeof window !== "undefined") {
   window.addEventListener("load", () => setTimeout(() => ric(warm), 2500));
 }
 import { AuthListener } from "./components/AuthListener";
+import { useAccountSync } from "./lib/tasteSync";
+
+/** Keeps the For You taste and family-safe mode on the signed-in account. */
+const AccountSync = () => { useAccountSync(); return null; };
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { NotificationManager } from "./components/NotificationManager";
 import { CallProvider, useCall } from "@/contexts/CallContext";
@@ -129,6 +134,7 @@ const App = () => {
               <BrowserRouter>
 <OfflineBanner />
                 <AuthListener />
+                <AccountSync />
                 <NotificationManager />
                 <Routes>
                   <Route path="/auth" element={<Suspense fallback={null}><Auth /></Suspense>} />
@@ -149,6 +155,7 @@ const App = () => {
                     <Route path="/analytics" element={<Suspense fallback={null}><AnalyticsDashboard /></Suspense>} />
                     <Route path="/archive" element={<Suspense fallback={null}><VideoArchive /></Suspense>} />
                     <Route path="/tiktok" element={<Suspense fallback={null}><ChristianTikTok /></Suspense>} />
+                    <Route path="/moderation" element={<Suspense fallback={null}><Moderation /></Suspense>} />
                     <Route element={<ProtectedRoute />}>
                       <Route path="/chat" element={<Suspense fallback={null}><Chat /></Suspense>} />
                     </Route>

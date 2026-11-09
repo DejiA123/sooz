@@ -3,6 +3,25 @@ import { fetchFollowingReposts, repostedTikTokVideo } from "./reposts";
 import { fetchApprovedTikToks, starterTikToks, type TikTokVideo } from "./tiktok";
 import { isDeadTikTok } from "./tiktokMeta";
 import { categoryOf, exposure, interest, isSeen, seenAt, setCategories, tasteOfPost, tasteOfVideo, tiktokAgeDays } from "@/lib/taste";
+import { familySafeOn, unsafeText } from "@/lib/familySafe";
+import { blockedTikToks, isHiddenLocally, reportedItems, tiktokIsBlocked } from "./safety";
+
+/**
+ * What may be shown: never what a moderator took out (handled by the database for posts, by
+ * `blocked_tiktoks` for TikToks) or what this person reported; in family-safe mode also nothing with
+ * strong language / adult themes or an open report.
+ */
+async function contentFilter() {
+  const family = familySafeOn();
+  const reported = family ? await reportedItems() : null;
+  return {
+    tiktok: (v: TikTokVideo) => !isHiddenLocally("tiktok", v.tiktok_id) && !(family && (unsafeText(v.title) || reported?.has(`tiktok:${v.tiktok_id}`))),
+    post: (p: FeedPost) => !isHiddenLocally("post", p.id) && !(family && (unsafeText(p.caption) || reported?.has(`post:${p.id}`))),
+    item: (it: FeedItem) => (it.kind === "tiktok" ? !isHiddenLocally("tiktok", it.video.tiktok_id) && !(family && (unsafeText(it.video.title) || reported?.has(`tiktok:${it.video.tiktok_id}`)))
+      : !isHiddenLocally("post", it.post.id) && !(family && (unsafeText(it.post.caption) || reported?.has(`post:${it.post.id}`)))),
+  };
+}
+type ContentFilter = Awaited<ReturnType<typeof contentFilter>>;
 
 export type FeedItem =
   | { kind: "post"; key: string; post: FeedPost; repostedBy?: string }
@@ -145,9 +164,10 @@ let tiktokPool: Promise<TikTokVideo[]> | null = null;
 function getTikTokPool(): Promise<TikTokVideo[]> {
   if (!tiktokPool) {
     tiktokPool = (async () => {
-      const [db, lib] = await Promise.all([
+      const [db, lib, blocked] = await Promise.all([
         fetchApprovedTikToks(0, 300).then((r) => enrich(r.videos)).catch(() => [] as TikTokVideo[]),
         loadLibrary().catch(() => null),
+        blockedTikToks(),
       ]);
       setCategories(lib?.kinds);
       const library = lib ? libraryTikToks(lib) : [];
@@ -155,7 +175,7 @@ function getTikTokPool(): Promise<TikTokVideo[]> {
       const all = [...db, ...starterTikToks(), ...library]
         .filter((v) => !seen.has(v.tiktok_id) && !!seen.add(v.tiktok_id))
         .map((v) => (v.likes == null && lib?.likes?.[v.tiktok_id] != null ? { ...v, likes: lib.likes[v.tiktok_id] } : v));
-      return all.filter((v) => !isDeadTikTok(v.tiktok_id));
+      return all.filter((v) => !isDeadTikTok(v.tiktok_id) && !tiktokIsBlocked(blocked, v));
     })().catch(() => shuffle(starterTikToks().filter((v) => !isDeadTikTok(v.tiktok_id))));
   }
   return tiktokPool;
@@ -193,13 +213,14 @@ type Session = {
   postFrom: number;
   postsMore: boolean;
   postsLoaded: boolean;
+  allow: ContentFilter | null;
 };
 let session: Session | null = null;
 const newSession = (user: string | null): Session => {
   tiktokPool = null;
   return {
     user, pages: new Map(), times: new Map(), dealt: new Set(), dealtPosts: new Set(), recent: [], recentKinds: [],
-    sinceChurch: 0, slot: 0, posts: [], postFrom: 0, postsMore: true, postsLoaded: false,
+    sinceChurch: 0, slot: 0, posts: [], postFrom: 0, postsMore: true, postsLoaded: false, allow: null,
   };
 };
 /** Start For You afresh (e.g. after a post was deleted or TikToks were added). */
@@ -217,7 +238,7 @@ async function loadPosts(sess: Session, count: number) {
 /** The SOOZ posts this viewer hasn't seen, best first (new, liked, and from people they enjoy). */
 async function dealPosts(sess: Session, n: number): Promise<FeedPost[]> {
   if (!sess.postsLoaded) { await loadPosts(sess, SHUFFLED_POSTS); sess.postsLoaded = true; }
-  const fresh = () => sess.posts.filter((p) => !sess.dealtPosts.has(p.id) && !isSeen("post", p.id));
+  const fresh = () => sess.posts.filter((p) => !sess.dealtPosts.has(p.id) && !isSeen("post", p.id) && (!sess.allow || sess.allow.post(p)));
   for (let tries = 0; fresh().length < n && sess.postsMore && tries < 3; tries++) await loadPosts(sess, POSTS_PER_PAGE * 3);
   const scored = fresh().map((p) => {
     const hours = Math.max(0, (Date.now() - new Date(p.created_at).getTime()) / 3_600_000);
@@ -250,6 +271,7 @@ function noteDealt(sess: Session, v: TikTokVideo) {
 /** The next `n` TikToks for this viewer. */
 function dealTikToks(sess: Session, pool: TikTokVideo[], n: number): { video: TikTokVideo; cycle: number }[] {
   if (!pool.length || n <= 0) return [];
+  if (sess.allow) pool = pool.filter(sess.allow.tiktok);
   let cands = pool.filter((v) => !sess.dealt.has(v.tiktok_id) && !isSeen("tiktok", v.tiktok_id));
   if (cands.length < n) {
     // Nothing (or little) new left: the ones watched longest ago come back too.
@@ -315,6 +337,7 @@ export async function fetchForYouPage({ pageParam = FIRST_CURSOR, userId }: { pa
   const already = sess.pages.get(pageParam.page);
   if (already) return already;
 
+  sess.allow = await contentFilter();
   const [ttPool] = await Promise.all([getTikTokPool(), sess.postsLoaded ? null : dealPosts(sess, 0).catch(() => { sess.postsLoaded = true; sess.postsMore = false; })]);
   const first: FeedItem[] = [];
 
@@ -331,7 +354,7 @@ export async function fetchForYouPage({ pageParam = FIRST_CURSOR, userId }: { pa
   } else if (pageParam.page === 0) {
     // Keep the video the app opened on (shown instantly from this phone) in first place, so the
     // screen doesn't change under the viewer when this page arrives.
-    const pinned = readCachedFeed("foryou")?.items[0];
+    const pinned = readCachedFeed("foryou")?.items.find(sess.allow.item);
     if (pinned?.kind === "tiktok") { noteDealt(sess, pinned.video); first.push(tiktokItem(pinned.video)); }
     else if (pinned?.kind === "post") { sess.dealtPosts.add(pinned.post.id); first.push(pinned); }
   }
@@ -373,11 +396,12 @@ async function followingRepostItems(userId: string, skipPostIds: Set<string>): P
 }
 
 export async function fetchFollowingPage({ pageParam = FIRST_CURSOR, userId }: { pageParam?: FeedCursor; userId: string }): Promise<FeedPage> {
-  const page = await fetchFollowingPosts({ pageParam: pageParam.page, userId });
+  const [raw, allow] = await Promise.all([fetchFollowingPosts({ pageParam: pageParam.page, userId }), contentFilter()]);
+  const page = { ...raw, posts: raw.posts.filter(allow.post) };
   if (pageParam.page === 0) {
     const reposts = await followingRepostItems(userId, new Set(page.posts.map((p) => p.id)));
     if (reposts.length) {
-      const merged = [...page.posts.map((p) => ({ item: postItem(p), at: p.created_at })), ...reposts]
+      const merged = [...page.posts.map((p) => ({ item: postItem(p), at: p.created_at })), ...reposts.filter((r) => allow.item(r.item))]
         .sort((a, b) => b.at.localeCompare(a.at)).map((x) => x.item);
       return { items: merged, nextCursor: page.nextPage !== null ? { ...pageParam, page: page.nextPage } : null };
     }
