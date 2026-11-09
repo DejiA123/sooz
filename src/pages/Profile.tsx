@@ -1,20 +1,22 @@
 
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useParams, useNavigate, Link } from "react-router-dom";
+import { useParams, useNavigate, Link, useLocation, useSearchParams } from "react-router-dom";
 import { Link as LinkIcon } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-import { Settings, Grid3X3, Bookmark, Heart, Loader2, Camera, Play, X, VideoOff, MessageCircle } from "lucide-react";
+import { Settings, Bookmark, Heart, Loader2, Camera, Play, VideoOff, MessageCircle, Repeat2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import EditProfileModal from "@/components/profile/EditProfileModal";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
-import { PostCard } from "@/components/feed/PostCard";
-import { LazyImage } from "@/components/feed/LazyImage";
 import { LazyVideo } from "@/components/feed/LazyVideo";
-import { VideoFeedModal } from "@/components/feed/VideoFeedModal";
+import { ReelsViewer } from "@/components/reels/ReelsViewer";
+import { TikTokMark } from "@/components/reels/TikTokReel";
+import { fetchProfileTab, type ProfileTab } from "@/services/api/profileTabs";
+import type { FeedItem } from "@/services/api/feed";
+import type { TikTokVideo } from "@/services/api/tiktok";
 import { useVideoCache } from "@/store/useVideoCache";
 import { Skeleton } from "@/components/ui/skeleton";
 import { motion } from "framer-motion";
@@ -76,18 +78,34 @@ interface Profile {
   isFollowing: boolean;
 }
 
-interface Post {
-  id: string;
-  media_url: string | null;
-  media_type: string | null;
-  thumbnail_url: string | null;
-  caption: string | null;
-  created_at: string;
-  likes_count: number;
-  comments_count: number;
-  is_liked_by_user: boolean;
-  user_id: string;
-}
+/** A reposted TikTok in the grid (TikTok gives no picture, so its caption makes the tile). */
+const TikTokTile = ({ video }: { video: TikTokVideo }) => {
+  const handle = video.author_handle || "";
+  let hue = 32;
+  for (const c of handle) hue = (hue * 31 + c.charCodeAt(0)) % 360;
+  return (
+    <div className="absolute inset-0 flex flex-col p-3" style={{ background: `linear-gradient(155deg, hsl(${hue} 42% 26%), hsl(${(hue + 40) % 360} 48% 9%))` }}>
+      <span className="flex items-center gap-1 text-[11px] font-semibold text-white/75"><TikTokMark className="h-3.5 w-3.5" /> TikTok</span>
+      <p className="mt-2 line-clamp-6 text-[13.5px] font-semibold leading-snug text-white">{video.title || "Christian TikTok"}</p>
+      <span className="mt-auto truncate pt-2 text-[12px] font-medium text-white/70">{video.author_name || (handle ? `@${handle}` : "")}</span>
+    </div>
+  );
+};
+
+/** A SOOZ post with words only. */
+const TextTile = ({ text }: { text: string }) => (
+  <div className="absolute inset-0 flex items-center justify-center bg-[radial-gradient(120%_90%_at_20%_0%,rgba(245,158,11,0.28),transparent_60%),linear-gradient(160deg,#1c1710,#0b0b0e)] p-4">
+    <p className="line-clamp-6 text-center font-display text-[15px] font-semibold leading-snug text-white/95">{text || "…"}</p>
+  </div>
+);
+
+const TAB_LABEL: Record<ProfileTab, string> = { posts: "Posts", reposts: "Reposts", saved: "Saved", liked: "Liked" };
+const EMPTY: Record<ProfileTab, { icon: typeof Camera; title: string; mine: string; theirs: string }> = {
+  posts: { icon: Camera, title: "No posts yet", mine: "Share moments with your community.", theirs: "Their posts will show up here." },
+  reposts: { icon: Repeat2, title: "No reposts yet", mine: "Videos you repost from the Share button show up here.", theirs: "Videos they repost will show up here." },
+  saved: { icon: Bookmark, title: "Nothing saved yet", mine: "Tap Save on a post to keep it here.", theirs: "" },
+  liked: { icon: Heart, title: "No liked posts yet", mine: "Posts you like show up here.", theirs: "" },
+};
 
 const Profile = () => {
   const { username } = useParams<{ username: string }>();
@@ -95,10 +113,14 @@ const Profile = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  const [activeTab, setActiveTab] = useState<"posts" | "saved" | "liked">("posts");
+  const [activeTab, setActiveTab] = useState<ProfileTab>("posts");
+  // The full-screen player (?watch=N) — in the address, so the phone's back gesture closes it.
+  const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const watchParam = searchParams.get("watch");
+  const watching = watchParam !== null && /^\d+$/.test(watchParam) ? Number(watchParam) : null;
   const [showEditModal, setShowEditModal] = useState(false);
   const [showAvatarModal, setShowAvatarModal] = useState(false);
-  const [selectedPost, setSelectedPost] = useState<Post | null>(null);
 
   useEffect(() => { window.scrollTo(0, 0); }, []);
 
@@ -124,27 +146,20 @@ const Profile = () => {
     staleTime: 1000 * 60 * 5,
   });
 
-  const { data: posts = [], isLoading: isPostsLoading } = useQuery({
-    queryKey: ['profile-posts', profileData?.id, activeTab],
-    queryFn: async () => {
-      if (!profileData?.id) return [];
-      let rawPosts: any[] = [];
-      if (activeTab === 'posts') { const { data } = await supabase.from("posts").select(`*, likes:likes(count), comments:comments(count)`).eq("user_id", profileData.id).order("created_at", { ascending: false }); rawPosts = data || []; }
-      else if (activeTab === 'saved') { const { data } = await supabase.from("bookmarks").select(`post:posts(*, likes:likes(count), comments:comments(count))`).eq("user_id", profileData.id).order("created_at", { ascending: false }); // @ts-ignore
-        rawPosts = data?.map(item => item.post).filter(Boolean) || []; }
-      else if (activeTab === 'liked') { const { data } = await supabase.from("likes").select(`post:posts(*, likes:likes(count), comments:comments(count))`).eq("user_id", profileData.id).order("created_at", { ascending: false }); // @ts-ignore
-        rawPosts = data?.map(item => item.post).filter(Boolean) || []; }
-      let likedPostIds = new Set<string>();
-      if (user && rawPosts.length > 0) {
-        const postIds = rawPosts.map(p => p.id);
-        const { data: likesData } = await supabase.from("likes").select("post_id").eq("user_id", user.id).in("post_id", postIds);
-        likesData?.forEach(l => likedPostIds.add(l.post_id));
-      }
-      return rawPosts.map(p => ({ id: p.id, media_url: p.media_url, media_type: p.media_type, caption: p.caption, created_at: p.created_at, user_id: p.user_id, likes_count: p.likes?.[0]?.count || 0, comments_count: p.comments?.[0]?.count || 0, is_liked_by_user: likedPostIds.has(p.id) })) as Post[];
-    },
+  const { data: items = [], isLoading: isPostsLoading } = useQuery({
+    queryKey: ['profile-tab', profileData?.id, activeTab, user?.id],
+    queryFn: () => fetchProfileTab(profileData!.id, activeTab, user?.id),
     enabled: !!profileData?.id,
-    staleTime: 1000 * 60 * 5,
+    staleTime: 1000 * 30,
   });
+
+  const openViewer = (index: number) => {
+    setSearchParams((p) => { p.set("watch", String(index)); return p; }, { state: { soozViewer: true } });
+  };
+  const closeViewer = () => {
+    if ((location.state as { soozViewer?: boolean } | null)?.soozViewer) navigate(-1);
+    else setSearchParams((p) => { p.delete("watch"); return p; }, { replace: true });
+  };
 
   const profile = profileData;
   const isOwnProfile = user?.id === profile?.id;
@@ -191,13 +206,8 @@ const Profile = () => {
     );
   }
 
-  const tabs = [
-    { id: "posts" as const, label: "Posts" },
-    ...(isOwnProfile ? [
-      { id: "saved" as const, label: "Saved" },
-      { id: "liked" as const, label: "Liked" },
-    ] : []),
-  ];
+  const tabs: ProfileTab[] = isOwnProfile ? ["posts", "reposts", "saved", "liked"] : ["posts", "reposts"];
+  const empty = EMPTY[activeTab];
 
   return (
     <div className="min-h-screen bg-background pb-32">
@@ -269,16 +279,18 @@ const Profile = () => {
         <div className="flex gap-2 bg-secondary/50 p-1 rounded-full">
           {tabs.map((tab) => (
             <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              aria-pressed={activeTab === tab}
               className={cn(
-                "flex-1 py-2 text-[13px] font-bold rounded-full transition-all",
-                activeTab === tab.id
+                "flex flex-1 items-center justify-center gap-1 rounded-full py-2 text-[13px] font-bold transition-all",
+                activeTab === tab
                   ? "bg-background text-foreground shadow-sm"
                   : "text-muted-foreground hover:text-foreground"
               )}
             >
-              {tab.label}
+              {tab === "reposts" && <Repeat2 className="h-3.5 w-3.5" />}
+              {TAB_LABEL[tab]}
             </button>
           ))}
         </div>
@@ -294,62 +306,73 @@ const Profile = () => {
               </div>
             ))}
           </div>
-        ) : posts.length > 0 ? (
+        ) : items.length > 0 ? (
           <div className="grid grid-cols-2 gap-1">
-            {posts.map((post, index) => (
-              <motion.div
-                key={post.id}
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: index * 0.03 }}
-                className={cn(
-                  "rounded-xl overflow-hidden relative group cursor-pointer bg-secondary/30",
-                  index % 3 === 0 ? "aspect-[3/4]" : "aspect-square"
-                )}
-                onClick={() => setSelectedPost(post)}
-              >
-                {post.media_type === 'video' ? (
-                  <div className="w-full h-full relative">
-                    <GridVideo src={post.media_url || ""} poster={post.thumbnail_url || ""} className="pointer-events-none" priority={index < 6} />
-                    <div className="absolute top-2 right-2 z-30">
-                      <Play className="w-4 h-4 text-white drop-shadow-md fill-white/20" />
+            {items.map((item: FeedItem, index) => {
+              const post = item.kind === "post" ? item.post : null;
+              return (
+                <motion.button
+                  type="button"
+                  key={item.key}
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: Math.min(index, 12) * 0.03 }}
+                  className={cn(
+                    "group relative block w-full cursor-pointer overflow-hidden rounded-xl bg-secondary/30 text-left",
+                    index % 3 === 0 ? "aspect-[3/4]" : "aspect-square"
+                  )}
+                  onClick={() => openViewer(index)}
+                  aria-label={item.kind === "tiktok" ? `TikTok by ${item.video.author_name || item.video.author_handle || "a creator"}` : post?.caption || "Post"}
+                >
+                  {item.kind === "tiktok" ? (
+                    <>
+                      <TikTokTile video={item.video} />
+                      <Play className="absolute right-2 top-2 z-30 h-4 w-4 fill-white/20 text-white drop-shadow-md" />
+                    </>
+                  ) : post!.media_type === "video" ? (
+                    <div className="relative h-full w-full">
+                      <GridVideo src={post!.media_url || ""} poster={post!.thumbnail_url || ""} className="pointer-events-none" priority={index < 6} />
+                      <div className="absolute right-2 top-2 z-30">
+                        <Play className="h-4 w-4 fill-white/20 text-white drop-shadow-md" />
+                      </div>
                     </div>
-                  </div>
-                ) : post.media_url ? (
-                  <LazyImage src={post.media_url} alt="" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" priority={index < 6} />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-muted-foreground/20 bg-card">
-                    <Camera className="w-8 h-8" />
-                  </div>
-                )}
-                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-all duration-300 pointer-events-none" />
-                <div className="absolute inset-0 flex items-center justify-center gap-3 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 hidden md:flex pointer-events-none">
-                  <div className="flex items-center gap-1 text-white font-bold text-sm">
-                    <Heart className="w-4 h-4 fill-white" />
-                    <span>{formatNumber(post.likes_count)}</span>
-                  </div>
-                  <div className="flex items-center gap-1 text-white font-bold text-sm">
-                    <MessageCircle className="w-4 h-4 fill-white" />
-                    <span>{formatNumber(post.comments_count)}</span>
-                  </div>
-                </div>
-              </motion.div>
-            ))}
+                  ) : post!.media_url ? (
+                    <img src={post!.media_url} alt="" loading={index < 6 ? "eager" : "lazy"} decoding="async" className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                  ) : (
+                    <TextTile text={post!.caption || ""} />
+                  )}
+                  {post && (
+                    <div className="pointer-events-none absolute inset-0 hidden items-center justify-center gap-3 bg-black/20 opacity-0 transition-opacity duration-300 group-hover:opacity-100 md:flex">
+                      <div className="flex items-center gap-1 text-sm font-bold text-white">
+                        <Heart className="h-4 w-4 fill-white" />
+                        <span>{formatNumber(post.likes_count)}</span>
+                      </div>
+                      <div className="flex items-center gap-1 text-sm font-bold text-white">
+                        <MessageCircle className="h-4 w-4 fill-white" />
+                        <span>{formatNumber(post.comments_count)}</span>
+                      </div>
+                    </div>
+                  )}
+                </motion.button>
+              );
+            })}
           </div>
         ) : (
           <div className="py-24 text-center">
-            <Camera className="w-12 h-12 text-muted-foreground/20 mx-auto mb-4" />
-            <h3 className="text-lg font-bold">No posts yet</h3>
-            <p className="text-muted-foreground mt-1 text-sm">Share moments with your community.</p>
+            <empty.icon className="mx-auto mb-4 h-12 w-12 text-muted-foreground/20" />
+            <h3 className="text-lg font-bold">{empty.title}</h3>
+            {(isOwnProfile ? empty.mine : empty.theirs) && <p className="mt-1 text-sm text-muted-foreground">{isOwnProfile ? empty.mine : empty.theirs}</p>}
           </div>
         )}
       </div>
 
-      {selectedPost && (
-        <VideoFeedModal
-          posts={posts.map(p => ({ ...p, profiles: { username: profile.username, display_name: profile.display_name, avatar_url: profile.avatar_url }, likes: p.is_liked_by_user ? [{ user_id: user?.id }] : [], comments: [{ count: p.comments_count }] }))}
-          initialIndex={posts.findIndex(p => p.id === selectedPost.id)}
-          onClose={() => setSelectedPost(null)}
+      {watching !== null && items.length > 0 && (
+        <ReelsViewer
+          key={activeTab}
+          items={items}
+          startIndex={watching}
+          title={activeTab === "posts" ? undefined : TAB_LABEL[activeTab]}
+          onClose={closeViewer}
         />
       )}
 

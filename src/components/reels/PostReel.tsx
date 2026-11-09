@@ -1,4 +1,4 @@
-import { lazy, memo, Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { lazy, memo, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { Bookmark, Check, Edit, Flag, Heart, MessageCircle, MoreHorizontal, Music2, Plus, Repeat2, Trash2 } from "lucide-react";
@@ -101,6 +101,18 @@ export const PostReel = memo(function PostReel({ post, active, mounted, reposted
   const [saved, setSaved] = useState(post.is_saved_by_user);
   const [caption, setCaption] = useState(post.caption);
   const [expanded, setExpanded] = useState(false);
+  // Two lines with "more" when the caption is longer, like TikTok.
+  const [captionCut, setCaptionCut] = useState(false);
+  const captionRef = useRef<HTMLSpanElement>(null);
+  useLayoutEffect(() => {
+    const el = captionRef.current;
+    if (!el || expanded) return;
+    const check = () => setCaptionCut(el.scrollHeight > el.clientHeight + 1);
+    check();
+    const ro = new ResizeObserver(check);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [caption, expanded]);
   const [commentsOpen, setCommentsOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [deleted, setDeleted] = useState(false);
@@ -234,15 +246,27 @@ export const PostReel = memo(function PostReel({ post, active, mounted, reposted
             <span className="shrink-0 text-[13px] text-white/60">· {timeAgo(post.created_at)}</span>
           </div>
 
-          {caption && !isText && (
+          {caption && !isText && (expanded ? (
             <button
               type="button"
-              onClick={(e) => { e.stopPropagation(); setExpanded((v) => !v); }}
-              className={cn("mt-1.5 block w-full text-left text-[14.5px] leading-snug text-white/95", expanded ? "max-h-[40vh] overflow-y-auto hide-scrollbar" : "line-clamp-2")}
+              aria-expanded
+              onClick={(e) => { e.stopPropagation(); setExpanded(false); }}
+              className="mt-1.5 block max-h-[40vh] w-full overflow-y-auto overscroll-contain text-left text-[14.5px] leading-snug text-white/95 hide-scrollbar"
             >
               <RichCaption text={caption} />
+              <span className="ml-1.5 font-semibold text-white/60">less</span>
             </button>
-          )}
+          ) : (
+            <button
+              type="button"
+              aria-expanded={false}
+              onClick={(e) => { e.stopPropagation(); if (captionCut) setExpanded(true); }}
+              className="mt-1.5 flex w-full items-end gap-1.5 text-left text-[14.5px] leading-snug text-white/95"
+            >
+              <span ref={captionRef} className="line-clamp-2 min-w-0 flex-1"><RichCaption text={caption} /></span>
+              {captionCut && <span className="shrink-0 font-bold text-white">more</span>}
+            </button>
+          ))}
 
           {isVideo && (
             <div className="mt-2.5 flex max-w-[75%] items-center gap-1.5 overflow-hidden text-[13px] text-white/85">

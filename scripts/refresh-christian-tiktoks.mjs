@@ -12,8 +12,16 @@ import { readFile, writeFile } from "node:fs/promises";
 
 const FILE = new URL("../src/data/christianTikTokLibrary.json", import.meta.url);
 const PER_CREATOR = 40;
+const LIKES_PER_RUN = 350;
 const UA = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1";
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+/** The whole caption (SOOZ shows two lines with "more", like TikTok), keeping its line breaks. */
+const MAX_CAPTION = 600;
+function cleanCaption(text) {
+  let c = String(text || "").replace(/\r/g, "").replace(/[^\S\n]+/g, " ").replace(/ *\n */g, "\n").replace(/\n{3,}/g, "\n\n").trim();
+  if (c.length > MAX_CAPTION) c = `${c.slice(0, MAX_CAPTION - 1).replace(/\s+\S*$/, "")}…`;
+  return c;
+}
 
 const lib = JSON.parse(await readFile(FILE, "utf8"));
 const byCreator = new Map();
@@ -38,23 +46,23 @@ async function recentVideos(handle) {
       walk(JSON.parse(m[1]));
       return found
         .filter((o) => !o.privateItem && (!o.authorUniqueId || o.authorUniqueId === handle))
-        .map((o) => {
-          let caption = String(o.desc || "").replace(/\s+/g, " ").trim();
-          if (caption.length > 120) caption = `${caption.slice(0, 117).replace(/\s+\S*$/, "")}…`;
-          return [String(o.id), handle, Number(o.width), Number(o.height), caption];
-        });
+        .map((o) => [String(o.id), handle, Number(o.width), Number(o.height), cleanCaption(o.desc)]);
     }
     await sleep(8000 * (attempt + 1)); // rate limited or busy: wait and try again
   }
   return null;
 }
 
+const before = JSON.stringify([lib.videos, lib.likes]);
 let added = 0;
 for (const handle of Object.keys(lib.creators)) {
   const fresh = await recentVideos(handle);
   if (!fresh) { console.log(`${handle}: no answer, keeping what we have`); await sleep(2000); continue; }
   const old = byCreator.get(handle) ?? [];
   const ids = new Set(old.map((v) => v[0]));
+  // Fresh copies win, but never swap a full caption for a shorter, cut-off one.
+  const oldCaption = new Map(old.map((v) => [v[0], v[4]]));
+  for (const v of fresh) { const was = oldCaption.get(v[0]); if (was && was.length > v[4].length) v[4] = was; }
   const merged = [...fresh, ...old].filter((v, i, all) => all.findIndex((x) => x[0] === v[0]) === i);
   merged.sort((a, b) => (BigInt(b[0]) > BigInt(a[0]) ? 1 : -1)); // TikTok ids grow over time: newest first
   byCreator.set(handle, merged.slice(0, PER_CREATOR));
@@ -64,9 +72,31 @@ for (const handle of Object.keys(lib.creators)) {
   await sleep(2500);
 }
 
-const before = JSON.stringify(lib.videos);
 lib.videos = [...byCreator.values()].flat();
-if (JSON.stringify(lib.videos) === before) {
+
+// TikTok's like count for each video (shown on SOOZ's own heart) and its full caption. Each video's
+// public embed page has both; a few hundred per day, oldest-checked first, so every count stays fresh
+// within a few days.
+lib.likes ??= {};
+lib.likesAt ??= {};
+const today = new Date().toISOString().slice(0, 10);
+const starterIds = [...(await readFile(new URL("../src/data/christianTikTokStarter.ts", import.meta.url), "utf8")).matchAll(/\/video\/(\d+)/g)].map((m) => m[1]);
+const allIds = [...new Set([...lib.videos.map((v) => v[0]), ...starterIds])];
+const due = allIds.filter((id) => lib.likesAt[id] !== today).sort((a, b) => (lib.likesAt[a] ?? "").localeCompare(lib.likesAt[b] ?? "")).slice(0, LIKES_PER_RUN);
+for (const id of due) {
+  const res = await fetch(`https://www.tiktok.com/embed/v2/${id}`, { headers: { "user-agent": UA } }).catch(() => null);
+  const html = res?.ok ? await res.text() : "";
+  if (/ratelimit/.test(html) && html.length < 200) { await sleep(20000); continue; }
+  const m = html.match(new RegExp(`"id":"${id}"[\\s\\S]{0,4000}?"diggCount":(\\d+)`)) || html.match(/"diggCount":(\d+)/);
+  if (m) { lib.likes[id] = Number(m[1]); lib.likesAt[id] = today; }
+  const t = html.match(new RegExp(`"id":"${id}","text":"((?:[^"\\\\]|\\\\.)*)"`));
+  const row = t && lib.videos.find((v) => v[0] === id);
+  if (row) { try { const full = cleanCaption(JSON.parse(`"${t[1]}"`)); if (full) row[4] = full; } catch { /* odd text: keep ours */ } }
+  await sleep(2500);
+}
+for (const id of Object.keys(lib.likes)) if (!allIds.includes(id)) { delete lib.likes[id]; delete lib.likesAt[id]; }
+
+if (JSON.stringify([lib.videos, lib.likes]) === before) {
   console.log("No changes — library left as it is.");
   process.exit(0);
 }

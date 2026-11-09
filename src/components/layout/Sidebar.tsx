@@ -16,6 +16,7 @@ import {
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { usePrefetch } from "@/hooks/usePrefetch";
+import { isAdmin } from "@/lib/admin";
 
 export const Sidebar = () => {
     const location = useLocation();
@@ -29,7 +30,7 @@ export const Sidebar = () => {
     const navItems = [
         { icon: Home, label: "Home", path: "/" },
         { icon: Search, label: "Discover", path: "/discover" },
-        { icon: Sparkles, label: "Christian TikTok", path: "/tiktok" },
+        ...(isAdmin(user?.id) ? [{ icon: Sparkles, label: "Christian TikTok", path: "/tiktok" }] : []),
         { icon: MessageCircle, label: "Messages", path: "/chat" },
         { icon: Heart, label: "Notifications", path: "/activity" },
         { icon: PlusSquare, label: "Create", path: "#", isCreate: true },

@@ -136,6 +136,13 @@ export const fetchFollowingPosts = async ({ pageParam = 0, userId }: { pageParam
     return { posts, nextPage: data.length === POSTS_PER_PAGE ? pageParam + 1 : null };
 };
 
+/** One member's posts, newest first (their profile grid), with counts and the viewer's like/save state. */
+export const fetchUserPosts = async (userId: string, viewerId?: string, limit = 120): Promise<FeedPost[]> => {
+    const { data, error } = await supabase.from("posts").select(POST_SELECT).eq("user_id", userId).order("created_at", { ascending: false }).limit(limit);
+    if (error || !data) return [];
+    return enrichPosts(data as unknown as RawPost[], viewerId);
+};
+
 /** Particular posts (e.g. ones reposted by people you follow), with counts and like/save state. */
 export const fetchPostsByIds = async (ids: string[], userId?: string): Promise<FeedPost[]> => {
     if (!ids.length) return [];

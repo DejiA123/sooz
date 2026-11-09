@@ -1,5 +1,5 @@
 import { lazy, memo, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { ExternalLink, MessageCircle, Repeat2 } from "lucide-react";
+import { ExternalLink, Heart, MessageCircle, Repeat2 } from "lucide-react";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
@@ -11,6 +11,10 @@ import { useVideoStore } from "@/store/useVideoStore";
 import { countTikTokComments } from "@/services/api/tiktokComments";
 import { formatCount, Spinner } from "./gestures";
 import { RailButton, ShareArrow, railIconClass } from "./ReelRail";
+
+/** Hearts given on this phone (SOOZ's heart shows TikTok's like count, +1 once you've liked it). */
+const LIKED_KEY = "sooz-tt-liked";
+const readLiked = (): Set<string> => { try { return new Set(JSON.parse(localStorage.getItem(LIKED_KEY) || "[]")); } catch { return new Set(); } };
 
 // The comments sheet only downloads when someone opens it.
 const TikTokComments = lazy(() => import("./TikTokComments").then((m) => ({ default: m.TikTokComments })));
@@ -26,6 +30,11 @@ export const TikTokMark = ({ className }: { className?: string }) => (
   <svg viewBox="0 0 24 24" className={className} fill="currentColor" aria-hidden>
     <path d="M16.6 2h-3.4v13.3a2.9 2.9 0 1 1-2.9-2.9c.3 0 .6 0 .9.1V9a6.4 6.4 0 1 0 5.4 6.3V8.6a8 8 0 0 0 4.6 1.5V6.7a4.7 4.7 0 0 1-4.6-4.7z" />
   </svg>
+);
+
+/** A TikTok caption with its #hashtags and @mentions in bold, like TikTok. */
+const TikTokCaption = ({ text }: { text: string }) => (
+  <>{text.split(/([#@][\p{L}\p{N}_.]+)/u).map((part, i) => (i % 2 ? <strong key={i} className="font-semibold text-white">{part}</strong> : part))}</>
 );
 
 interface TikTokReelProps {
@@ -62,7 +71,29 @@ export const TikTokReel = memo(function TikTokReel({ video, active, near = false
   const [commentsOpen, setCommentsOpen] = useState(false);
   const [commentCount, setCommentCount] = useState<number | null>(null);
   const [shareOpen, setShareOpen] = useState(false);
+  const [liked, setLiked] = useState(() => readLiked().has(video.tiktok_id));
+  const toggleLike = () => {
+    const next = !liked;
+    setLiked(next);
+    const all = readLiked();
+    if (next) all.add(video.tiktok_id); else all.delete(video.tiktok_id);
+    try { localStorage.setItem(LIKED_KEY, JSON.stringify([...all].slice(-2000))); } catch { /* storage full */ }
+  };
   const [reposted, setRepostedState] = useState(false);
+  // Long captions show two lines with "more"; a tap opens the whole caption (and dims the video).
+  const [captionOpen, setCaptionOpen] = useState(false);
+  const [captionCut, setCaptionCut] = useState(false);
+  const captionRef = useRef<HTMLParagraphElement>(null);
+  useEffect(() => { if (!active) setCaptionOpen(false); }, [active]);
+  useLayoutEffect(() => {
+    const el = captionRef.current;
+    if (!el || captionOpen) return;
+    const check = () => setCaptionCut(el.scrollHeight > el.clientHeight + 1);
+    check();
+    const ro = new ResizeObserver(check);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [video.title, captionOpen]);
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -357,6 +388,8 @@ export const TikTokReel = memo(function TikTokReel({ video, active, near = false
         <div className="reel-scrim-top" aria-hidden />
         <div className="tiktok-scrim" aria-hidden />
 
+        {captionOpen && <div className="absolute inset-0 z-[1] bg-black/50 animate-fade-in" onClick={() => setCaptionOpen(false)} aria-hidden />}
+
         {/* Who made it, like TikTok's caption (kept above TikTok's own play / sound bar) */}
         <div className="reel-caption reel-caption--tiktok">
           {repostedBy && (
@@ -365,7 +398,17 @@ export const TikTokReel = memo(function TikTokReel({ video, active, near = false
           <a href={profileUrl} target="_blank" rel="noopener noreferrer" className="block truncate text-[16px] font-bold text-white hover:underline">
             {who}
           </a>
-          {video.title && <p className="mt-1.5 line-clamp-2 text-[14.5px] leading-snug text-white/95">{video.title}</p>}
+          {video.title && (captionOpen ? (
+            <button type="button" aria-expanded onClick={() => setCaptionOpen(false)} className="mt-1.5 block max-h-[38vh] w-full overflow-y-auto overscroll-contain text-left text-[14.5px] leading-snug text-white/95 hide-scrollbar">
+              <span className="whitespace-pre-line"><TikTokCaption text={video.title} /></span>
+              <span className="ml-1.5 font-semibold text-white/60">less</span>
+            </button>
+          ) : (
+            <button type="button" aria-expanded={false} onClick={() => captionCut && setCaptionOpen(true)} className="mt-1.5 flex w-full items-end gap-1.5 text-left text-[14.5px] leading-snug text-white/95">
+              <p ref={captionRef} className="line-clamp-2 min-w-0 flex-1"><TikTokCaption text={video.title.replace(/\s*\n\s*/g, " ")} /></p>
+              {captionCut && <span className="shrink-0 font-bold text-white">more</span>}
+            </button>
+          ))}
           <div className="mt-2 flex max-w-[80%] items-center gap-1.5 overflow-hidden text-[13px] text-white/80">
             <TikTokMark className="h-3.5 w-3.5 shrink-0" />
             <span className="truncate">TikTok{handleName && handleName !== who ? ` · ${handleName}` : ""}</span>
@@ -373,10 +416,20 @@ export const TikTokReel = memo(function TikTokReel({ video, active, near = false
         </div>
       </div>
 
-      {/* SOOZ's Comment and Share. On full-screen TikToks they sit on a small dark panel over TikTok's own
-          comment and share buttons (TikTok's player always draws them), leaving TikTok's heart and like
-          count above it visible. Repost is in the Share sheet, like TikTok. */}
+      {/* SOOZ's buttons. TikTok's player always draws its own like / comment / share column and SOOZ
+          can't remove it (it's TikTok's page), so on full-screen TikToks a dark panel covers that whole
+          column — wherever TikTok puts it — and SOOZ shows TikTok's like count on its own heart. */}
+      {fill && <div className="tiktok-topband" aria-hidden />}
       <div className={cn("tiktok-sooz-rail", fill && "tiktok-sooz-rail--cover")}>
+        {fill && (
+          <RailButton
+            ariaLabel={liked ? "Unlike" : "Like"}
+            pressed={liked}
+            onClick={toggleLike}
+            label={video.likes != null ? formatCount(video.likes + (liked ? 1 : 0)) : "Like"}
+            icon={<Heart key={String(liked)} className={cn(railIconClass, liked ? "fill-[#ff2d55] text-[#ff2d55] animate-like-pop" : "fill-white/95 text-white/95")} strokeWidth={1.5} />}
+          />
+        )}
         <RailButton
           ariaLabel="Comments"
           onClick={() => setCommentsOpen(true)}
