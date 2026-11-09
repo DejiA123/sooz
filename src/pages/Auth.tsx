@@ -120,8 +120,9 @@ const Auth = () => {
         if (error) { if (error.message.includes("Invalid login credentials")) toast.error("Invalid email or password"); else toast.error(error.message); }
         else navigate("/");
       } else {
-        const { error } = await signUp(email, password, username, displayName || username);
-        if (error) { if (error.message.includes("already registered")) toast.error("This email is already registered."); else toast.error(error.message); }
+        const { error, signedIn } = await signUp(email, password, username, displayName || username);
+        if (error) { if (error.message.includes("already registered")) toast.error("This email is already registered — sign in instead."); else toast.error(error.message); }
+        else if (signedIn) { toast.success("Welcome to SOOZ! 🙌"); navigate("/"); }
         else toast.success("Account created! Check your email to verify.");
       }
     } finally { setIsLoading(false); }
