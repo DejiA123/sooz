@@ -24,6 +24,8 @@ import { ChatInfoPanel } from "./ChatInfoPanel";
 import { ForwardSheet, MediaViewer, MessageInfoSheet, PeoplePicker, PollCreator, PollVotesSheet, ReactionsSheet, Sheet } from "./ChatSheets";
 import { LocationAttachment } from "./AttachmentView";
 import { supabase } from "@/integrations/supabase/client";
+import { ReportSheet } from "@/components/safety/ReportSheet";
+import type { ReportTarget } from "@/services/api/safety";
 
 interface ChatWindowProps {
   chatId: string;
@@ -82,6 +84,7 @@ export const ChatWindow = ({ chatId, focusMessageId, onBack, onOpenChat }: ChatW
   const [selecting, setSelecting] = useState<Set<string> | null>(null);
   const [forwardMsgs, setForwardMsgs] = useState<ChatMessage[] | null>(null);
   const [infoMsg, setInfoMsg] = useState<ChatMessage | null>(null);
+  const [reportTarget, setReportTarget] = useState<ReportTarget | null>(null);
   const [reactionsMsg, setReactionsMsg] = useState<ChatMessage | null>(null);
   const [votesMsg, setVotesMsg] = useState<ChatMessage | null>(null);
   const [mediaMsg, setMediaMsg] = useState<ChatMessage | null>(null);
@@ -464,6 +467,7 @@ export const ChatWindow = ({ chatId, focusMessageId, onBack, onOpenChat }: ChatW
       case "edit": setReplyTo(null); setEditing(m); break;
       case "info": setInfoMsg(m); break;
       case "select": setSelecting(new Set([m.id])); break;
+      case "report": setReportTarget({ type: "message", id: m.id, owner: m.senderId, snapshot: `${members.find((x) => x.userId === m.senderId)?.name ?? "?"}: ${m.content ?? ""}${m.attachment && "url" in m.attachment ? `\n${m.attachment.url}` : ""}` }); break;
       case "deleteMe": hideForMe([m]); break;
       case "deleteAll": deleteAll([m]); break;
     }
@@ -794,6 +798,7 @@ export const ChatWindow = ({ chatId, focusMessageId, onBack, onOpenChat }: ChatW
           onMute={mute}
           onDisappear={(s) => changeChat({ disappear_seconds: s }, s ? `New messages will disappear after ${disappearLabel(s).toLowerCase()}` : "Disappearing messages are off")}
           onBlock={toggleBlock}
+          onReport={other ? () => setReportTarget({ type: "user", id: other.userId, owner: other.userId, snapshot: `Reported from a chat with ${other.name}` }) : undefined}
           onClear={clearChat}
           onDeleteChat={deleteChat}
           onExit={exitGroup}
@@ -850,6 +855,9 @@ export const ChatWindow = ({ chatId, focusMessageId, onBack, onOpenChat }: ChatW
           </div>
         )}
       </Sheet>
+      {reportTarget && (
+        <ReportSheet target={reportTarget} open={!!reportTarget} onOpenChange={(o) => { if (!o) setReportTarget(null); }} />
+      )}
     </div>
   );
 };

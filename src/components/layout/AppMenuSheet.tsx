@@ -1,6 +1,8 @@
 import { useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { BarChart3, Bookmark, LogOut, MessageSquareWarning, Settings, Sparkles, Video } from "lucide-react";
+import { BarChart3, Bookmark, LogOut, MessageSquareWarning, Settings, ShieldCheck, Sparkles, Video } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { openReportCount } from "@/services/api/safety";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -12,6 +14,7 @@ export const AppMenuSheet = ({ trigger }: { trigger: ReactNode }) => {
   const [open, setOpen] = useState(false);
   const close = () => setOpen(false);
   const { isAdmin } = useIsAdmin();
+  const reports = useQuery({ queryKey: ["moderation-count"], queryFn: openReportCount, enabled: isAdmin && open, staleTime: 30_000 });
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
@@ -23,14 +26,18 @@ export const AppMenuSheet = ({ trigger }: { trigger: ReactNode }) => {
         </SheetHeader>
         <div className="flex flex-col gap-1 p-6">
           {[
-            ...(isAdmin ? [{ to: "/tiktok", icon: Sparkles, label: "Christian TikTok", color: "text-amber-400" }] : []),
+            ...(isAdmin ? [
+              { to: "/tiktok", icon: Sparkles, label: "Christian TikTok", color: "text-amber-400" },
+              { to: "/moderation", icon: ShieldCheck, label: "Moderation", color: "text-emerald-400", badge: reports.data || 0 },
+            ] : []),
             { to: "/archive", icon: Video, label: "Video Archive", color: "text-violet-500" },
             { to: "/settings", icon: Settings, label: "Settings", color: "text-blue-500" },
             { to: "/analytics", icon: BarChart3, label: "Analytics", color: "text-emerald-500" },
           ].map((item) => (
             <Link key={item.to} to={item.to} onClick={close} className="group flex items-center gap-4 rounded-2xl p-4 transition-all hover:bg-secondary/40">
               <item.icon className={cn("h-5 w-5 transition-transform group-hover:scale-110", item.color)} />
-              <span className="text-[15px] font-semibold">{item.label}</span>
+              <span className="flex-1 text-[15px] font-semibold">{item.label}</span>
+              {"badge" in item && item.badge ? <span className="rounded-full bg-red-500 px-2 py-0.5 text-[12px] font-bold text-white">{item.badge}</span> : null}
             </Link>
           ))}
           <button onClick={() => { close(); toast("Saved posts coming soon!"); }} className="group flex items-center gap-4 rounded-2xl p-4 text-left transition-all hover:bg-secondary/40">

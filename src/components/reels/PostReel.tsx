@@ -18,6 +18,7 @@ import { engage, tasteOfPost, useTasteWatch } from "@/lib/taste";
 import { resetForYou } from "@/services/api/feed";
 
 // Only needed once someone taps comments/edit, so they load on demand.
+const ReportSheet = lazy(() => import("@/components/safety/ReportSheet").then((m) => ({ default: m.ReportSheet })));
 const CommentDrawer = lazy(() => import("@/components/feed/CommentDrawer").then((m) => ({ default: m.CommentDrawer })));
 const EditPostDialog = lazy(() => import("@/components/feed/EditPostDialog").then((m) => ({ default: m.EditPostDialog })));
 const ShareSheet = lazy(() => import("./ShareSheet").then((m) => ({ default: m.ShareSheet })));
@@ -117,7 +118,8 @@ export const PostReel = memo(function PostReel({ post, active, mounted, reposted
   }, [caption, expanded]);
   const [commentsOpen, setCommentsOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
-  const [deleted, setDeleted] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [deleted, setDeleted] = useState<false | string>(false);
   const [soundHint, setSoundHint] = useState(false);
   const [justFollowed, setJustFollowed] = useState(false);
   const videoRef = useRef<ReelVideoHandle>(null);
@@ -191,7 +193,7 @@ export const PostReel = memo(function PostReel({ post, active, mounted, reposted
     if (!user || user.id !== post.user_id || !confirm("Delete this post?")) return;
     const { error } = await supabase.from("posts").delete().eq("id", post.id);
     if (error) { toast.error("Couldn't delete post"); return; }
-    setDeleted(true);
+    setDeleted("Post deleted");
     resetForYou();
     queryClient.invalidateQueries({ queryKey: ["feed"] });
   };
@@ -215,7 +217,7 @@ export const PostReel = memo(function PostReel({ post, active, mounted, reposted
   });
 
   if (deleted) {
-    return <div className="flex h-full w-full items-center justify-center text-sm text-white/50">Post deleted</div>;
+    return <div className="flex h-full w-full items-center justify-center px-8 text-center text-sm text-white/50">{deleted}</div>;
   }
 
   const showFollow = !!profile && (!user || (canFollow(profile.id) && !isFollowing(profile.id)));
@@ -358,7 +360,7 @@ export const PostReel = memo(function PostReel({ post, active, mounted, reposted
                 <DropdownMenuItem onClick={remove} className="text-destructive focus:text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Delete post</DropdownMenuItem>
               </>
             ) : (
-              <DropdownMenuItem onClick={() => toast.success("Thanks — our team will review this post")}><Flag className="mr-2 h-4 w-4" /> Report</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setReportOpen(true)}><Flag className="mr-2 h-4 w-4" /> Report</DropdownMenuItem>
             )}
           </DropdownMenuContent>
         </DropdownMenu>
@@ -368,6 +370,16 @@ export const PostReel = memo(function PostReel({ post, active, mounted, reposted
         {shareOpen && (
           <Suspense fallback={null}>
             <ShareSheet item={{ kind: "post", post }} open={shareOpen} onOpenChange={setShareOpen} onShared={countShare} />
+          </Suspense>
+        )}
+        {reportOpen && (
+          <Suspense fallback={null}>
+            <ReportSheet
+              target={{ type: "post", id: post.id, owner: post.user_id, snapshot: `${profile?.username ?? "?"}: ${post.caption ?? ""}${post.media_url ? `\n${post.media_url}` : ""}` }}
+              open={reportOpen}
+              onOpenChange={setReportOpen}
+              onReported={() => { setDeleted("Thanks — you won't see this post again"); window.dispatchEvent(new CustomEvent("sooz:feed-next")); }}
+            />
           </Suspense>
         )}
         {commentsOpen && <CommentDrawer postId={post.id} postOwnerUsername={profile?.username} open={commentsOpen} onOpenChange={setCommentsOpen} />}

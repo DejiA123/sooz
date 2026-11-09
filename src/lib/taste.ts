@@ -96,8 +96,42 @@ function saveNow() {
   try { localStorage.setItem(KEY, JSON.stringify(s)); } catch { /* storage full: keep going in memory */ }
 }
 
+const changeListeners = new Set<() => void>();
 function save() {
   if (!saveTimer) saveTimer = setTimeout(saveNow, 1000);
+  changeListeners.forEach((fn) => fn());
+}
+
+// ── Saved to the account too (src/lib/tasteSync.ts), so it follows the viewer to any phone ──
+export type TasteStore = Store;
+/** Called whenever the taste changes. */
+export function onTasteChange(fn: () => void): () => void {
+  changeListeners.add(fn);
+  return () => { changeListeners.delete(fn); };
+}
+/** A copy to save on the account (only the most recent `maxSeen` videos, to keep it small). */
+export function tasteSnapshot(maxSeen = 3000): Store {
+  const s = load();
+  const seen = Object.entries(s.seen).sort((a, b) => b[1] - a[1]).slice(0, maxSeen);
+  return { ...s, seen: Object.fromEntries(seen) };
+}
+/** Brings in the account's copy: everything seen on either phone, and the newer scores win. */
+export function mergeTaste(remote: Partial<Store> | null | undefined) {
+  if (!remote || remote.v !== 1) return;
+  const s = load();
+  const remoteNewer = (remote.at ?? 0) > s.at;
+  for (const [key, at] of Object.entries(remote.seen ?? {})) s.seen[key] = Math.max(s.seen[key] ?? 0, at);
+  for (const name of ["c", "k", "t"] as const) {
+    const theirs = remote[name] ?? {};
+    for (const key of new Set([...Object.keys(s[name]), ...Object.keys(theirs)])) {
+      const mine = s[name][key];
+      const other = theirs[key];
+      s[name][key] = mine == null ? other : other == null ? mine : remoteNewer ? other : mine;
+    }
+  }
+  for (const [key, n] of Object.entries(remote.n ?? {})) s.n[key] = Math.max(s.n[key] ?? 0, n);
+  s.at = Math.max(s.at, remote.at ?? 0);
+  saveNow();
 }
 
 // ── Kinds of video (Worship, Gospel, Preaching…), per creator, from the TikTok library ──

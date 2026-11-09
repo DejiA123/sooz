@@ -6,7 +6,8 @@ import { Link as LinkIcon } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-import { Settings, Bookmark, Heart, Loader2, Camera, Play, VideoOff, MessageCircle, Repeat2 } from "lucide-react";
+import { Settings, Bookmark, Heart, Loader2, Camera, Play, VideoOff, MessageCircle, Repeat2, Flag } from "lucide-react";
+import { ReportSheet } from "@/components/safety/ReportSheet";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import EditProfileModal from "@/components/profile/EditProfileModal";
@@ -164,6 +165,7 @@ const Profile = () => {
 
   const profile = profileData;
   const isOwnProfile = user?.id === profile?.id;
+  const [reporting, setReporting] = useState(false);
 
   const handleFollow = async () => {
     if (!user || !profile) { navigate("/auth"); return; }
@@ -227,7 +229,19 @@ const Profile = () => {
               <Settings className="w-4 h-4" />
             </Link>
           )}
+          {!isOwnProfile && profile && (
+            <button type="button" aria-label={`Report ${profile.username}`} onClick={() => setReporting(true)} className="flex items-center justify-center h-9 w-9 rounded-full bg-secondary/60 backdrop-blur-md hover:bg-secondary transition-all">
+              <Flag className="w-4 h-4" />
+            </button>
+          )}
         </div>
+        {reporting && profile && (
+          <ReportSheet
+            target={{ type: "user", id: profile.id, owner: profile.id, snapshot: `@${profile.username}${profile.display_name ? ` (${profile.display_name})` : ""}${profile.bio ? `: ${profile.bio}` : ""}` }}
+            open={reporting}
+            onOpenChange={setReporting}
+          />
+        )}
 
         {/* Massive centered avatar */}
         <button onClick={() => setShowAvatarModal(true)} className="group">

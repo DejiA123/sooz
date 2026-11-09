@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { ArrowLeft, Ban, BellOff, Camera, ChevronRight, FileText, Image as ImageIcon, LogOut, Pencil, Phone, Search, ShieldCheck, Star, Timer, Trash2, UserPlus, Users, Video, XCircle } from "lucide-react";
+import { ArrowLeft, Ban, BellOff, Camera, ChevronRight, FileText, Flag, Image as ImageIcon, LogOut, Pencil, Phone, Search, ShieldCheck, Star, Timer, Trash2, UserPlus, Users, Video, XCircle } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
@@ -47,6 +47,7 @@ export interface ChatInfoPanelProps {
   onMute: (ms: number | null) => void;
   onDisappear: (seconds: number | null) => void;
   onBlock: (on: boolean) => void;
+  onReport?: () => void;
   onClear: () => void;
   onDeleteChat: () => void;
   onExit: () => void;
@@ -236,6 +237,7 @@ export const ChatInfoPanel = (p: ChatInfoPanelProps) => {
         <Card>
           {!isGroup && other && <Row icon={<Users className="h-5 w-5" />} label="View profile" onClick={undefined} right={<Link to={`/profile/${other.username}`} className="text-[14px] font-semibold text-amber-300">Open</Link>} />}
           {!isGroup && <Row icon={<Ban className="h-5 w-5" />} label={p.blocked ? `Unblock ${title}` : `Block ${title}`} danger onClick={() => p.onBlock(!p.blocked)} />}
+          {!isGroup && p.onReport && <Row icon={<Flag className="h-5 w-5" />} label={`Report ${title}`} danger onClick={p.onReport} />}
           <Row icon={<XCircle className="h-5 w-5" />} label="Clear chat" danger onClick={p.onClear} />
           {isGroup && <Row icon={<LogOut className="h-5 w-5" />} label="Exit group" danger onClick={p.onExit} />}
           <Row icon={<Trash2 className="h-5 w-5" />} label="Delete chat" danger onClick={p.onDeleteChat} />
