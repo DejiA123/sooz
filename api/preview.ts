@@ -51,8 +51,8 @@ let libCache: { at: number; lib: Library } | null = null;
 
 /** The video's creator name and caption from SOOZ's own library (no need to ask TikTok). */
 async function fromLibrary(id: string): Promise<{ name: string; caption: string } | null> {
-  if (!libCache || Date.now() - libCache.at > 10 * 60 * 1000) {
-    const text = await getText(LIBRARY, {}, 2500);
+  if (!libCache || Date.now() - libCache.at > 30 * 60 * 1000) {
+    const text = await getText(LIBRARY, {}, 5000); // a few MB with thousands of creators
     if (text) { try { libCache = { at: Date.now(), lib: JSON.parse(text) as Library }; } catch { /* keep the old copy */ } }
   }
   const v = libCache?.lib.videos.find((x) => x[0] === id);

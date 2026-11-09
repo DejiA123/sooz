@@ -1,6 +1,7 @@
 name: Refresh Christian TikToks
 
-# Every day, collect the newest public videos from SOOZ's trusted Christian TikTok creators
+# Every day, find more Christian creators (scripts/discover-christian-creators.mjs, until there are 2000)
+# and collect the newest public videos from SOOZ's Christian TikTok creators
 # (scripts/refresh-christian-tiktoks.mjs). The app reads the library file live from GitHub,
 # so new videos reach everyone without republishing. It also makes a WhatsApp link-preview card
 # for every video (tt/{id}.jpg on the "covers" branch), used by api/preview.ts.
@@ -19,7 +20,7 @@ concurrency:
 jobs:
   refresh:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 150
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -39,10 +40,16 @@ jobs:
             git -C "$RUNNER_TEMP/covers" init --quiet -b covers
             git -C "$RUNNER_TEMP/covers" remote add origin "$remote"
           fi
+      - name: Find more Christian creators (until the library has 2000)
+        run: node scripts/discover-christian-creators.mjs
+        env:
+          DISCOVERY_MINUTES: "40"
+          COVER_HINTS: ${{ runner.temp }}/cover-hints.json
       - run: node scripts/refresh-christian-tiktoks.mjs
         env:
           COVERS_DIR: ${{ runner.temp }}/covers
           SHARP_DIR: ${{ runner.temp }}/sharp
+          COVER_HINTS: ${{ runner.temp }}/cover-hints.json
       - name: Save the preview cards
         run: |
           cd "$RUNNER_TEMP/covers"
@@ -60,13 +67,13 @@ jobs:
           git push --quiet origin covers
       - name: Save the updated library
         run: |
-          if git diff --quiet -- src/data/christianTikTokLibrary.json; then
+          if git diff --quiet -- src/data/christianTikTokLibrary.json data/creator-discovery.json; then
             echo "No new videos today."
             exit 0
           fi
           git config user.name "sooz-bot"
           git config user.email "sooz-bot@users.noreply.github.com"
-          git add src/data/christianTikTokLibrary.json
+          git add src/data/christianTikTokLibrary.json data/creator-discovery.json
           git commit -m "Refresh Christian TikTok library"
           git pull --rebase --quiet origin main || true
           git push

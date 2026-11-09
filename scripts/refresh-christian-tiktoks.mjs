@@ -13,20 +13,27 @@
  * as tt/{id}.jpg. Shared SOOZ links show these (api/preview.ts), so previews never depend on
  * reaching TikTok at the moment someone shares. Needs `sharp` (SHARP_DIR, installed by the workflow).
  */
-import { existsSync, mkdirSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, unlinkSync } from "node:fs";
 import { readFile, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import path from "node:path";
 
-const FILE = new URL("../src/data/christianTikTokLibrary.json", import.meta.url);
-const PER_CREATOR = 40;
-const LIKES_PER_RUN = 350;
+const FILE = process.env.LIBRARY_FILE || new URL("../src/data/christianTikTokLibrary.json", import.meta.url);
+// Thousands of creators: each keeps only its newest few videos (The Power House's own accounts keep
+// many), so the library the app downloads stays a few MB, and each run refreshes the creators checked
+// longest ago (new ones first), so every creator is refreshed every few days.
+const PER_CREATOR = 6;
+const PER_CHURCH_CREATOR = 40;
+const CHURCH = "Our church";
+const CREATORS_PER_RUN = Number(process.env.CREATORS_PER_RUN || 700);
+const LIKES_PER_RUN = Number(process.env.LIKES_PER_RUN || 350);
+const CARDS_PER_RUN = 3000;
 const COVERS_DIR = process.env.COVERS_DIR || "";
 const COVER_LOOKUPS_PER_RUN = 300; // extra embed pages per run for older videos without a card yet
 const UA = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1";
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 /** The whole caption (SOOZ shows two lines with "more", like TikTok), keeping its line breaks. */
-const MAX_CAPTION = 600;
+const MAX_CAPTION = 300;
 function cleanCaption(text) {
   let c = String(text || "").replace(/\r/g, "").replace(/[^\S\n]+/g, " ").replace(/ *\n */g, "\n").replace(/\n{3,}/g, "\n\n").trim();
   if (c.length > MAX_CAPTION) c = `${c.slice(0, MAX_CAPTION - 1).replace(/\s+\S*$/, "")}…`;
@@ -36,6 +43,10 @@ function cleanCaption(text) {
 const lib = JSON.parse(await readFile(FILE, "utf8"));
 /** Where each video's cover picture is (TikTok's links expire after a couple of days, so cards are made the same run). */
 const coverSrc = new Map();
+// Cover links of videos the discovery step just added (scripts/discover-christian-creators.mjs).
+if (process.env.COVER_HINTS && existsSync(process.env.COVER_HINTS)) {
+  for (const [id, url] of Object.entries(JSON.parse(await readFile(process.env.COVER_HINTS, "utf8")))) coverSrc.set(id, url);
+}
 /** The cover link on a video's embed page (prefer a .jpeg copy). */
 function coverFromEmbed(html, id) {
   const at = html.indexOf(`"id":"${id}"`);
@@ -73,9 +84,19 @@ async function recentVideos(handle) {
   return null;
 }
 
-const before = JSON.stringify([lib.videos, lib.likes]);
+const before = JSON.stringify([lib.videos, lib.likes, lib.checked]);
 let added = 0;
-for (const handle of Object.keys(lib.creators)) {
+lib.checked ??= {};
+const isChurch = (h) => lib.kinds?.[h] === CHURCH;
+const keep = (h) => (isChurch(h) ? PER_CHURCH_CREATOR : PER_CREATOR);
+// Creators with no videos yet first, then the church's, then whoever was checked longest ago.
+const turn = Object.keys(lib.creators).sort((a, b) =>
+  Number(byCreator.has(a)) - Number(byCreator.has(b))
+  || Number(isChurch(b)) - Number(isChurch(a))
+  || (lib.checked[a] ?? "").localeCompare(lib.checked[b] ?? ""),
+).slice(0, CREATORS_PER_RUN);
+const todayIs = new Date().toISOString().slice(0, 10);
+for (const handle of turn) {
   const fresh = await recentVideos(handle);
   if (!fresh) { console.log(`${handle}: no answer, keeping what we have`); await sleep(2000); continue; }
   const old = byCreator.get(handle) ?? [];
@@ -85,14 +106,22 @@ for (const handle of Object.keys(lib.creators)) {
   for (const v of fresh) { const was = oldCaption.get(v[0]); if (was && was.length > v[4].length) v[4] = was; }
   const merged = [...fresh, ...old].filter((v, i, all) => all.findIndex((x) => x[0] === v[0]) === i);
   merged.sort((a, b) => (BigInt(b[0]) > BigInt(a[0]) ? 1 : -1)); // TikTok ids grow over time: newest first
-  byCreator.set(handle, merged.slice(0, PER_CREATOR));
+  byCreator.set(handle, merged.slice(0, keep(handle)));
+  lib.checked[handle] = todayIs;
   const n = fresh.filter((v) => !ids.has(v[0])).length;
   added += n;
   console.log(`${handle}: ${fresh.length} recent, ${n} new`);
-  await sleep(2500);
+  await sleep(1500);
 }
 
+// Only creators still in the list, each with its newest few.
+for (const h of [...byCreator.keys()]) {
+  if (!lib.creators[h]) byCreator.delete(h);
+  else byCreator.set(h, byCreator.get(h).slice(0, keep(h)));
+}
+for (const h of Object.keys(lib.checked)) if (!lib.creators[h]) delete lib.checked[h];
 lib.videos = [...byCreator.values()].flat();
+for (const v of lib.videos) if (v[4].length > MAX_CAPTION) v[4] = cleanCaption(v[4]); // older, longer captions too
 
 // TikTok's like count for each video (shown on SOOZ's own heart) and its full caption. Each video's
 // public embed page has both; a few hundred per day, oldest-checked first, so every count stays fresh
@@ -114,7 +143,7 @@ for (const id of due) {
   if (row) { try { const full = cleanCaption(JSON.parse(`"${t[1]}"`)); if (full) row[4] = full; } catch { /* odd text: keep ours */ } }
   const cover = coverFromEmbed(html, id);
   if (cover) coverSrc.set(id, cover);
-  await sleep(2500);
+  await sleep(1500);
 }
 for (const id of Object.keys(lib.likes)) if (!allIds.includes(id)) { delete lib.likes[id]; delete lib.likesAt[id]; }
 
@@ -138,9 +167,16 @@ if (COVERS_DIR) {
   if (sharp) {
     const dir = path.join(COVERS_DIR, "tt");
     mkdirSync(dir, { recursive: true });
-    const missing = allIds.filter((id) => !existsSync(path.join(dir, `${id}.jpg`)));
+    // Cards for videos no longer in the library are removed, so the branch doesn't keep growing.
+    const wanted = new Set(allIds);
+    let removed = 0;
+    for (const f of readdirSync(dir)) if (f.endsWith(".jpg") && !wanted.has(f.slice(0, -4))) { unlinkSync(path.join(dir, f)); removed++; }
+    if (removed) console.log(`Removed ${removed} cards of videos no longer in the library.`);
+    // Videos whose cover link we already have (from today's creator pages) first.
+    const missing = allIds.filter((id) => !existsSync(path.join(dir, `${id}.jpg`))).sort((a, b) => Number(coverSrc.has(b)) - Number(coverSrc.has(a)));
     let made = 0, lookups = 0, failed = 0;
     for (const id of missing) {
+      if (made >= CARDS_PER_RUN) break;
       let src = coverSrc.get(id);
       if (!src) {
         if (lookups >= COVER_LOOKUPS_PER_RUN) continue;
@@ -163,7 +199,7 @@ if (COVERS_DIR) {
   }
 }
 
-if (JSON.stringify([lib.videos, lib.likes]) === before) {
+if (JSON.stringify([lib.videos, lib.likes, lib.checked]) === before) {
   console.log("No changes — library left as it is.");
 } else {
   lib.updated = new Date().toISOString().slice(0, 10);
