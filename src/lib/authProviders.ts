@@ -11,6 +11,24 @@ const LOVABLE_HOSTS = [".lovable.app", ".lovableproject.com"];
 
 const usesLovableBroker = () => LOVABLE_HOSTS.some((h) => window.location.hostname.endsWith(h));
 
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "https://xhqpojnmcibkaydidnex.supabase.co";
+const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhocXBvam5tY2lia2F5ZGlkbmV4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUzMjAzNTcsImV4cCI6MjA4MDg5NjM1N30.DkKg7S_xOEyGR2R9TtjBKzqoDACzZUYkA8BcFw6qylw";
+let googleCheck: Promise<boolean> | null = null;
+
+/**
+ * Can this web address sign in with Google? Always on Lovable hosting (Lovable's broker). Elsewhere
+ * only once Google is switched on in Supabase (Authentication → Providers) — asked from Supabase's
+ * public settings, so the button appears by itself the moment it's enabled.
+ */
+export function googleAvailable(): Promise<boolean> {
+  if (usesLovableBroker()) return Promise.resolve(true);
+  googleCheck ??= fetch(`${SUPABASE_URL}/auth/v1/settings`, { headers: { apikey: SUPABASE_KEY } })
+    .then((r) => (r.ok ? r.json() : null))
+    .then((d: { external?: { google?: boolean } } | null) => (d ? !!d.external?.google : true))
+    .catch(() => true);
+  return googleCheck;
+}
+
 const randomState = () => {
   const bytes = new Uint8Array(16);
   crypto.getRandomValues(bytes);
@@ -30,6 +48,10 @@ export async function signInWithGoogle(): Promise<{ error?: string }> {
     return {};
   }
 
+  // Supabase would show a raw error page if Google isn't switched on, so check first.
+  if (!(await googleAvailable())) {
+    return { error: "Google sign-in isn't switched on for this web address yet — please use your email for now." };
+  }
   const { error } = await supabase.auth.signInWithOAuth({ provider: "google", options: { redirectTo: redirect } });
   if (error) {
     if (/not enabled|unsupported provider/i.test(error.message)) {

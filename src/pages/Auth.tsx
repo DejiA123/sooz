@@ -9,7 +9,7 @@ import { Eye, EyeOff, Loader2, ArrowLeft, KeyRound, Mail } from "lucide-react";
 import { z } from "zod";
 import { SoozLogo } from "@/components/brand/SoozLogo";
 import { cn } from "@/lib/utils";
-import { sendEmailCode, signInWithGoogle, verifyEmailCode } from "@/lib/authProviders";
+import { googleAvailable, sendEmailCode, signInWithGoogle, verifyEmailCode } from "@/lib/authProviders";
 
 /** Official multi-colour Google "G". */
 const GoogleG = () => (
@@ -43,6 +43,9 @@ const Auth = () => {
   const [code, setCode] = useState("");
   const [cooldown, setCooldown] = useState(0);
   const [googleLoading, setGoogleLoading] = useState(false);
+  // Only offer Google where it works (it's off in Supabase for non-Lovable addresses until switched on).
+  const [googleOn, setGoogleOn] = useState(true);
+  useEffect(() => { googleAvailable().then(setGoogleOn); }, []);
 
   const { signIn, signUp, user } = useAuth();
   const navigate = useNavigate();
@@ -146,6 +149,7 @@ const Auth = () => {
             </h2>
           </div>
 
+          {googleOn && (<>
           <button
             type="button"
             onClick={handleGoogle}
@@ -159,6 +163,7 @@ const Auth = () => {
           <div className="my-6 flex items-center gap-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/60">
             <span className="h-px flex-1 bg-border/50" /> or <span className="h-px flex-1 bg-border/50" />
           </div>
+          </>)}
 
           {isLogin && (
             <div role="tablist" aria-label="Sign-in method" className="mb-6 grid grid-cols-2 gap-1 rounded-full bg-secondary/60 p-1">
