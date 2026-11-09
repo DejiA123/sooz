@@ -19,7 +19,8 @@ const LIBRARY = "https://raw.githubusercontent.com/DejiA123/sooz/main/src/data/c
 const BROWSER_UA = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1";
 const ROBOT_RE = /bot|crawl|spider|preview|facebookexternalhit|facebot|whatsapp|telegram|slack|discord|linkedin|skype|embedly|pinterest|vkshare|viber|snapchat|google|bing|yandex|duckduck|applebot|iframely|redditbot|tumblr|bitly|nuzzel|mastodon|signal/i;
 
-type Preview = { title: string; description: string; image: string; video?: boolean };
+// `complete`: the preview has its real picture, so link-preview servers may keep it for hours.
+type Preview = { title: string; description: string; image: string; video?: boolean; card?: boolean; complete?: boolean };
 
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 const oneLine = (s: string) => s.replace(/\s+/g, " ").trim();
@@ -75,7 +76,7 @@ async function savedCard(id: string): Promise<string> {
 async function tiktokPreview(id: string, handle: string | null): Promise<Preview> {
   const [known, card] = await Promise.all([fromLibrary(id), savedCard(id)]);
   if (known && card) {
-    return { title: `${known.name} on SOOZ`, description: clip(oneLine(known.caption), 200) || "Watch this Christian video on SOOZ — Sound Out Of Zion.", image: card, video: true };
+    return { title: `${known.name} on SOOZ`, description: clip(oneLine(known.caption), 200) || "Watch this Christian video on SOOZ — Sound Out Of Zion.", image: card, video: true, card: true, complete: true };
   }
   // Not in the library / no card yet: ask TikTok (this may not always answer).
   const [embed, oembed] = await Promise.all([
@@ -104,6 +105,8 @@ async function tiktokPreview(id: string, handle: string | null): Promise<Preview
     description: clip(oneLine(caption), 200) || "Watch this Christian video on SOOZ — Sound Out Of Zion.",
     image: image || DEFAULT_IMAGE,
     video: true,
+    card: !!card && image === card,
+    complete: !!image,
   };
 }
 
@@ -124,6 +127,7 @@ async function postPreview(id: string): Promise<Preview | null> {
     description: clip(oneLine(post.caption || ""), 200) || `See ${name}'s post on SOOZ — Sound Out Of Zion.`,
     image,
     video: isVideo,
+    complete: true,
   };
 }
 
@@ -143,7 +147,10 @@ function page(p: Preview, shareUrl: string, appUrl: string): string {
 <meta property="og:description" content="${d}" />
 <meta property="og:image" content="${img}" />
 <meta property="og:image:secure_url" content="${img}" />
-<meta property="og:image:alt" content="${t}" />
+${p.card ? `<meta property="og:image:type" content="image/jpeg" />
+<meta property="og:image:width" content="800" />
+<meta property="og:image:height" content="420" />
+` : ""}<meta property="og:image:alt" content="${t}" />
 <meta name="twitter:card" content="summary_large_image" />
 <meta name="twitter:title" content="${t}" />
 <meta name="twitter:description" content="${d}" />
@@ -176,6 +183,7 @@ export default async function handler(request: Request): Promise<Response> {
   const preview = (tiktok ? await tiktokPreview(tiktok, handle) : post ? await postPreview(post) : null)
     ?? { title: "SOOZ — Sound Out Of Zion", description: "Worship, sermons & Christian videos — together.", image: DEFAULT_IMAGE };
   return new Response(page(preview, shareUrl, appUrl), {
-    headers: { "content-type": "text/html; charset=utf-8", "cache-control": "public, max-age=0, s-maxage=21600" },
+    // A preview still missing its picture is only kept a few minutes, so it fills in once the card is made.
+    headers: { "content-type": "text/html; charset=utf-8", "cache-control": `public, max-age=0, s-maxage=${preview.complete ? 21600 : 300}` },
   });
 }
