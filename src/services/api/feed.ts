@@ -43,15 +43,34 @@ export type Library = { creators: Record<string, string>; videos: [string, strin
 const LIVE_LIBRARY = "https://raw.githubusercontent.com/DejiA123/sooz/main/src/data/christianTikTokLibrary.json";
 const LIBRARY_KEY = "sooz-tt-library";
 
+/** This phone's copy of the library. It's a few MB with thousands of creators, so it lives in the
+ *  browser's Cache Storage (localStorage only holds ~5 MB for everything). */
+const LIBRARY_CACHE = "sooz-library";
+async function savedLibrary(): Promise<Library | null> {
+  try {
+    const hit = await (await caches.open(LIBRARY_CACHE)).match(LIVE_LIBRARY);
+    if (hit) return (await hit.json()) as Library;
+  } catch { /* no Cache Storage here */ }
+  try {
+    const old = localStorage.getItem(LIBRARY_KEY); // copies saved by earlier versions
+    if (old) return JSON.parse(old) as Library;
+  } catch { /* storage blocked */ }
+  return null;
+}
+
 async function fetchLiveLibrary(timeoutMs: number): Promise<Library | null> {
   try {
     const ctrl = new AbortController();
     const t = setTimeout(() => ctrl.abort(), timeoutMs);
     const res = await fetch(LIVE_LIBRARY, { signal: ctrl.signal, cache: "no-cache" });
+    const text = res.ok ? await res.text() : "";
     clearTimeout(t);
-    const lib = res.ok ? ((await res.json()) as Library) : null;
+    const lib = text ? (JSON.parse(text) as Library) : null;
     if (!lib || !Array.isArray(lib.videos) || !lib.videos.length || !lib.creators) return null;
-    try { localStorage.setItem(LIBRARY_KEY, JSON.stringify(lib)); } catch { /* full */ }
+    try {
+      await (await caches.open(LIBRARY_CACHE)).put(LIVE_LIBRARY, new Response(text, { headers: { "content-type": "application/json" } }));
+      localStorage.removeItem(LIBRARY_KEY);
+    } catch { /* no Cache Storage: it'll be fetched again next time */ }
     return lib;
   } catch {
     return null;
@@ -60,12 +79,14 @@ async function fetchLiveLibrary(timeoutMs: number): Promise<Library | null> {
 
 /** The newest library we can get without slowing the feed: this phone's copy (refreshed quietly for
  *  next time), else the live file, else the copy built into the app. */
-export async function loadLibrary(): Promise<Library> {
-  try {
-    const saved = localStorage.getItem(LIBRARY_KEY);
-    if (saved) { fetchLiveLibrary(10000); return JSON.parse(saved) as Library; }
-  } catch { /* storage blocked */ }
-  return (await fetchLiveLibrary(2500)) ?? ((await import("@/data/christianTikTokLibrary.json")).default as unknown as Library);
+let libraryLoad: Promise<Library> | null = null;
+export function loadLibrary(): Promise<Library> {
+  libraryLoad ??= (async () => {
+    const saved = await savedLibrary();
+    if (saved) { fetchLiveLibrary(20000); return saved; }
+    return (await fetchLiveLibrary(6000)) ?? ((await import("@/data/christianTikTokLibrary.json")).default as unknown as Library);
+  })().finally(() => setTimeout(() => { libraryLoad = null; }, 60_000));
+  return libraryLoad;
 }
 
 /** Hundreds of recent videos from trusted Christian creators (loaded on its own, so the app stays light). */

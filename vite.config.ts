@@ -34,6 +34,9 @@ export default defineConfig(({ mode }) => ({
       workbox: {
         importScripts: ["/push-sw.js"],
         globPatterns: ["**/*.{js,css,html,svg,png,ico,woff2}"],
+        // The built-in TikTok library is only a fallback (the app reads the live copy), and it changes
+        // daily: don't make every phone download it with each update.
+        globIgnores: ["**/christianTikTokLibrary-*.js"],
         maximumFileSizeToCacheInBytes: 8 * 1024 * 1024,
         navigateFallback: "/index.html",
         navigateFallbackDenylist: [/^\/~oauth/, /^\/api/],
