@@ -129,9 +129,9 @@ export const ReelsFeed = ({ items, hasMore, loadingMore, loadMore, initialIndex 
             <section key={item.key} className="reel-slide" data-kind={item.kind} aria-roledescription="slide" aria-label={`${i + 1} of ${items.length}`}>
               {distance <= RENDER_WINDOW &&
                 (item.kind === "post" ? (
-                  <PostReel post={item.post} active={isActive} mounted={distance <= 1} />
+                  <PostReel post={item.post} active={isActive} mounted={distance <= 1} repostedBy={item.repostedBy} />
                 ) : (
-                  <TikTokReel video={item.video} active={isActive} near={distance <= 1} />
+                  <TikTokReel video={item.video} active={isActive} near={distance <= 1} repostedBy={item.repostedBy} />
                 ))}
             </section>
           );

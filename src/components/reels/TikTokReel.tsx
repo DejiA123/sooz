@@ -1,15 +1,20 @@
 import { lazy, memo, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { ExternalLink, MessageCircle } from "lucide-react";
+import { ExternalLink, MessageCircle, Repeat2 } from "lucide-react";
+import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
+import { isReposted, repostCount, setReposted } from "@/services/api/reposts";
 import { cn } from "@/lib/utils";
 import { requestTikTokRefresh, tiktokPlayerUrl, type TikTokVideo } from "@/services/api/tiktok";
 import { registerTikTokPlayer, tiktokTapForwarding, type TikTokPlayerHandle } from "@/lib/tiktokPlayers";
 import { useVideoStore } from "@/store/useVideoStore";
 import { countTikTokComments } from "@/services/api/tiktokComments";
 import { formatCount, Spinner } from "./gestures";
-import { RailButton, railIconClass } from "./ReelRail";
+import { RailButton, ShareArrow, railIconClass } from "./ReelRail";
 
 // The comments sheet only downloads when someone opens it.
 const TikTokComments = lazy(() => import("./TikTokComments").then((m) => ({ default: m.TikTokComments })));
+const ShareSheet = lazy(() => import("./ShareSheet").then((m) => ({ default: m.ShareSheet })));
 
 const TIKTOK_ORIGIN = "https://www.tiktok.com";
 /** Fill the screen (cropping a little, like TikTok) only when that hides at most this much of the video. */
@@ -28,6 +33,8 @@ interface TikTokReelProps {
   active: boolean;
   /** On screen or next to it: its player loads ahead of time, so it is ready (and tap-warmed) on arrival. */
   near?: boolean;
+  /** Shown in Following when someone you follow reposted it. */
+  repostedBy?: string;
 }
 
 /**
@@ -41,7 +48,7 @@ interface TikTokReelProps {
  * A tap on the video plays / unmutes / pauses it. Nothing is ever skipped: TikTok's player always
  * shows (if TikTok can't play a video here, it says so and the viewer swipes on).
  */
-export const TikTokReel = memo(function TikTokReel({ video, active, near = false }: TikTokReelProps) {
+export const TikTokReel = memo(function TikTokReel({ video, active, near = false, repostedBy }: TikTokReelProps) {
   const mounted = near || active;
   const [loaded, setLoaded] = useState(false);
   const [ready, setReady] = useState(false);
@@ -54,6 +61,11 @@ export const TikTokReel = memo(function TikTokReel({ video, active, near = false
   const [tapThrough, setTapThrough] = useState(tiktokTapForwarding.broken);
   const [commentsOpen, setCommentsOpen] = useState(false);
   const [commentCount, setCommentCount] = useState<number | null>(null);
+  const [shareOpen, setShareOpen] = useState(false);
+  const [reposted, setRepostedState] = useState(false);
+  const [reposts, setReposts] = useState<number | null>(null);
+  const { user } = useAuth();
+  const navigate = useNavigate();
 
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
@@ -222,6 +234,28 @@ export const TikTokReel = memo(function TikTokReel({ video, active, near = false
   }, [near, active, commentCount, video.tiktok_id]);
 
   // Show TikTok's player as soon as it has loaded — it always plays (no skipping), like TikTok.
+  // Repost state and count (once the slide is on screen or next to it).
+  useEffect(() => {
+    if (!(near || active) || reposts !== null) return;
+    let alive = true;
+    repostCount({ tiktok: video }).then((n) => { if (alive && n !== null) setReposts(n); });
+    if (user) isReposted(user.id, { tiktok: video }).then((r) => { if (alive) setRepostedState(r); });
+    return () => { alive = false; };
+  }, [near, active, reposts, user, video]);
+
+  const toggleRepost = async () => {
+    if (!user) { toast("Sign in to repost"); navigate("/auth"); return; }
+    const next = !reposted;
+    setRepostedState(next);
+    setReposts((n) => Math.max(0, (n ?? 0) + (next ? 1 : -1)));
+    const saved = await setReposted(user.id, { tiktok: video }, next);
+    if (saved === null) {
+      setRepostedState(!next);
+      setReposts((n) => Math.max(0, (n ?? 0) + (next ? -1 : 1)));
+      toast("Reposts are almost ready — please try again soon");
+    } else if (saved) toast("Reposted — your followers will see it 🔁");
+  };
+
   const showPlayer = loaded || ready;
   useEffect(() => {
     if (!active || showPlayer) return;
@@ -339,6 +373,9 @@ export const TikTokReel = memo(function TikTokReel({ video, active, near = false
 
         {/* Who made it, like TikTok's caption (kept above TikTok's own play / sound bar) */}
         <div className="reel-caption reel-caption--tiktok">
+          {repostedBy && (
+            <p className="mb-1.5 flex items-center gap-1.5 text-[13px] font-semibold text-white/85"><Repeat2 className="h-4 w-4 text-amber-400" /> {repostedBy} reposted</p>
+          )}
           <a href={profileUrl} target="_blank" rel="noopener noreferrer" className="block truncate text-[16px] font-bold text-white hover:underline">
             {who}
           </a>
@@ -350,20 +387,30 @@ export const TikTokReel = memo(function TikTokReel({ video, active, near = false
         </div>
       </div>
 
-      {/* SOOZ comments: sits just above TikTok's own like / comment / share buttons */}
-      <div className="tiktok-sooz-rail">
+      {/* SOOZ's buttons. On full-screen TikToks they sit on a dark capsule right over TikTok's own
+          like / comment / share column (TikTok's player always draws it), so only SOOZ's show. */}
+      <div className={cn("tiktok-sooz-rail", fill && "tiktok-sooz-rail--cover")}>
         <RailButton
-          ariaLabel="SOOZ comments"
+          ariaLabel="Comments"
           onClick={() => setCommentsOpen(true)}
           label={commentCount ? formatCount(commentCount) : "Comment"}
-          icon={
-            <span className="relative">
-              <MessageCircle className={cn(railIconClass, "fill-white/95 text-white/95")} strokeWidth={1.5} />
-              <span className="sooz-badge absolute -bottom-1 -right-1.5" aria-hidden />
-            </span>
-          }
+          icon={<MessageCircle className={cn(railIconClass, "fill-white/95 text-white/95")} strokeWidth={1.5} />}
         />
+        <RailButton
+          ariaLabel={reposted ? "Undo repost" : "Repost"}
+          pressed={reposted}
+          onClick={toggleRepost}
+          label={reposts ? formatCount(reposts) : "Repost"}
+          icon={<Repeat2 className={cn(railIconClass, reposted ? "text-amber-400" : "text-white/95")} strokeWidth={2.2} />}
+        />
+        <RailButton ariaLabel="Share" onClick={() => setShareOpen(true)} label="Share" icon={<ShareArrow className={cn(railIconClass, "text-white/95")} />} />
       </div>
+      {shareOpen && (
+        <Suspense fallback={null}>
+          <ShareSheet item={{ kind: "tiktok", video }} open={shareOpen} onOpenChange={setShareOpen}
+            onRepostChange={(r) => { setRepostedState(r); setReposts(null); }} />
+        </Suspense>
+      )}
       {commentsOpen && (
         <Suspense fallback={null}>
           <TikTokComments tiktokId={video.tiktok_id} tiktokUrl={tiktokUrl} open={commentsOpen} onOpenChange={setCommentsOpen} onCount={setCommentCount} />

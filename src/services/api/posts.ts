@@ -135,3 +135,11 @@ export const fetchFollowingPosts = async ({ pageParam = 0, userId }: { pageParam
     const posts = await enrichPosts(data as unknown as RawPost[], userId);
     return { posts, nextPage: data.length === POSTS_PER_PAGE ? pageParam + 1 : null };
 };
+
+/** Particular posts (e.g. ones reposted by people you follow), with counts and like/save state. */
+export const fetchPostsByIds = async (ids: string[], userId?: string): Promise<FeedPost[]> => {
+    if (!ids.length) return [];
+    const { data, error } = await supabase.from("posts").select(POST_SELECT).in("id", ids);
+    if (error || !data) return [];
+    return enrichPosts(data as unknown as RawPost[], userId);
+};

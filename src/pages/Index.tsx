@@ -5,10 +5,21 @@ import { Compass, PlayCircle, RefreshCw, Users } from "lucide-react";
 import { Helmet } from "react-helmet-async";
 import { useAuth } from "@/hooks/useAuth";
 import { useLiveStatus } from "@/hooks/useLiveStatus";
-import { fetchFollowingPage, fetchForYouPage, FIRST_CURSOR, readCachedFeed, writeCachedFeed, type FeedCursor, type FeedPage } from "@/services/api/feed";
+import { fetchFollowingPage, fetchForYouPage, FIRST_CURSOR, hasTikTokToOpen, openTikTokFirst, readCachedFeed, writeCachedFeed, type FeedCursor, type FeedPage } from "@/services/api/feed";
 import { ReelsFeed } from "@/components/reels/ReelsFeed";
 import { FeedTopBar, LiveViewer, SoundToggle, StoriesPanel, type FeedTab } from "@/components/reels/FeedChrome";
 import { SuggestedAccounts } from "@/components/home/SuggestedAccounts";
+
+// A shared SOOZ link (/?tiktok=ID&by=handle) opens that TikTok first — read it before the feed loads.
+if (typeof window !== "undefined") {
+  const q = new URLSearchParams(window.location.search);
+  const id = q.get("tiktok");
+  if (id && /^\d{5,25}$/.test(id)) {
+    openTikTokFirst(id, q.get("by") ?? undefined);
+    try { sessionStorage.setItem("sooz-feed-tab", "foryou"); } catch { /* private mode */ }
+    window.history.replaceState(null, "", window.location.pathname);
+  }
+}
 
 // Remember where the viewer was in each tab while they visit other pages.
 const savedIndex: Record<FeedTab, number> = { foryou: 0, following: 0 };
@@ -84,6 +95,7 @@ export default function Index() {
     initialPageParam: FIRST_CURSOR,
     getNextPageParam: (last) => last.nextCursor ?? undefined,
     placeholderData: () => {
+      if (hasTikTokToOpen()) return undefined; // a shared TikTok goes first: don't flash the saved screen
       const cached = readCachedFeed("foryou");
       return cached ? { pages: [cached], pageParams: [FIRST_CURSOR] } : undefined;
     },
