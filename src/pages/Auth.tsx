@@ -9,7 +9,7 @@ import { Eye, EyeOff, Loader2, ArrowLeft, KeyRound, Mail } from "lucide-react";
 import { z } from "zod";
 import { SoozLogo } from "@/components/brand/SoozLogo";
 import { cn } from "@/lib/utils";
-import { googleAvailable, sendEmailCode, signInWithGoogle, verifyEmailCode } from "@/lib/authProviders";
+import { googleAvailable, sendEmailCode, signInWithGoogle, usernameTaken, verifyEmailCode } from "@/lib/authProviders";
 
 /** Official multi-colour Google "G". */
 const GoogleG = () => (
@@ -66,17 +66,29 @@ const Auth = () => {
 
   const handleSendCode = async (e?: React.FormEvent) => {
     e?.preventDefault();
+    const newErrors: typeof errors = {};
     const emailResult = emailSchema.safeParse(email.trim());
-    if (!emailResult.success) { setErrors({ email: emailResult.error.errors[0].message }); return; }
-    setErrors({});
+    if (!emailResult.success) newErrors.email = emailResult.error.errors[0].message;
+    if (!isLogin) {
+      const usernameResult = usernameSchema.safeParse(username);
+      if (!usernameResult.success) newErrors.username = usernameResult.error.errors[0].message;
+    }
+    setErrors(newErrors);
+    if (Object.keys(newErrors).length) return;
     setIsLoading(true);
-    const { error } = await sendEmailCode(email);
+    // Joining: make sure the username is free before the code goes out.
+    if (!isLogin && !codeSentTo && await usernameTaken(username)) {
+      setIsLoading(false);
+      setErrors({ username: "That username is taken — try another" });
+      return;
+    }
+    const { error } = await sendEmailCode(email, isLogin ? undefined : { username, displayName });
     setIsLoading(false);
     if (error) { toast.error(error); return; }
     setCodeSentTo(email.trim());
     setCode("");
     setCooldown(60);
-    toast.success("Check your email for your sign-in code");
+    toast.success(isLogin ? "Check your email to sign in" : "Check your email to finish joining");
   };
 
   const handleVerifyCode = async (e: React.FormEvent) => {
@@ -86,6 +98,7 @@ const Auth = () => {
     const { error } = await verifyEmailCode(codeSentTo, code);
     setIsLoading(false);
     if (error) { toast.error(error); return; }
+    if (!isLogin) toast.success("Welcome to SOOZ! 🙌");
     navigate("/");
   };
 
@@ -120,6 +133,7 @@ const Auth = () => {
         if (error) { if (error.message.includes("Invalid login credentials")) toast.error("Invalid email or password"); else toast.error(error.message); }
         else navigate("/");
       } else {
+        if (await usernameTaken(username)) { setErrors({ username: "That username is taken — try another" }); return; }
         const { error, signedIn } = await signUp(email, password, username, displayName || username);
         if (error) { if (error.message.includes("already registered")) toast.error("This email is already registered — sign in instead."); else toast.error(error.message); }
         else if (signedIn) { toast.success("Welcome to SOOZ! 🙌"); navigate("/"); }
@@ -166,35 +180,33 @@ const Auth = () => {
           </div>
           </>)}
 
-          {isLogin && (
-            <div role="tablist" aria-label="Sign-in method" className="mb-6 grid grid-cols-2 gap-1 rounded-full bg-secondary/60 p-1">
-              {([
-                ["password", "Password", KeyRound],
-                ["code", "Email code", Mail],
-              ] as const).map(([key, label, Icon]) => (
-                <button
-                  key={key}
-                  type="button"
-                  role="tab"
-                  aria-selected={method === key}
-                  onClick={() => { setMethod(key); setErrors({}); }}
-                  className={cn(
-                    "flex h-9 items-center justify-center gap-1.5 rounded-full text-[13px] font-semibold transition",
-                    method === key ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"
-                  )}
-                >
-                  <Icon className="h-3.5 w-3.5" /> {label}
-                </button>
-              ))}
-            </div>
-          )}
+          <div role="tablist" aria-label={isLogin ? "Sign-in method" : "Sign-up method"} className="mb-6 grid grid-cols-2 gap-1 rounded-full bg-secondary/60 p-1">
+            {([
+              ["password", "Password", KeyRound],
+              ["code", "Email code", Mail],
+            ] as const).map(([key, label, Icon]) => (
+              <button
+                key={key}
+                type="button"
+                role="tab"
+                aria-selected={method === key}
+                onClick={() => { setMethod(key); setErrors({}); setCodeSentTo(null); setCode(""); }}
+                className={cn(
+                  "flex h-9 items-center justify-center gap-1.5 rounded-full text-[13px] font-semibold transition",
+                  method === key ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"
+                )}
+              >
+                <Icon className="h-3.5 w-3.5" /> {label}
+              </button>
+            ))}
+          </div>
 
-          {isLogin && method === "code" ? (
+          {method === "code" ? (
             codeSentTo ? (
               <form onSubmit={handleVerifyCode} className="space-y-5">
                 <p className="text-center text-[13px] leading-relaxed text-muted-foreground">
-                  We emailed a sign-in code to <span className="font-semibold text-foreground">{codeSentTo}</span>.
-                  Enter it below, or just tap the link in that email.
+                  We emailed <span className="font-semibold text-foreground">{codeSentTo}</span>.
+                  {isLogin ? " Tap the sign-in button in that email, or type its 6-digit code here." : " Tap the button in that email, or type its 6-digit code here, to finish joining SOOZ."}
                 </p>
                 <input
                   aria-label="Sign-in code"
@@ -208,7 +220,7 @@ const Auth = () => {
                   className="selectable w-full rounded-2xl border border-border/60 bg-secondary/40 py-4 text-center font-display text-[28px] font-bold tracking-[0.45em] outline-none transition-colors placeholder:text-muted-foreground/30 focus:border-primary"
                 />
                 <Button type="submit" className="w-full h-12 rounded-full text-[15px] font-bold bg-primary text-primary-foreground hover:opacity-90 transition-opacity" disabled={isLoading || code.length < 6}>
-                  {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : "Sign In"}
+                  {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : isLogin ? "Sign In" : "Create Account"}
                 </Button>
                 <div className="flex items-center justify-between text-[12px] font-medium">
                   <button type="button" onClick={() => { setCodeSentTo(null); setCode(""); }} className="text-muted-foreground hover:text-foreground">Use a different email</button>
@@ -219,12 +231,25 @@ const Auth = () => {
               </form>
             ) : (
               <form onSubmit={handleSendCode} className="space-y-5">
+                {!isLogin && (
+                  <>
+                    <div className="space-y-1">
+                      <Label htmlFor="code-username" className="text-[12px] font-medium text-muted-foreground">Username</Label>
+                      <input id="code-username" type="text" autoComplete="username" placeholder="Choose a username" value={username} onChange={(e) => setUsername(e.target.value.toLowerCase())} className={inputClass} />
+                      {errors.username && <p className="text-destructive text-[11px]">{errors.username}</p>}
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="code-display" className="text-[12px] font-medium text-muted-foreground">Display Name <span className="opacity-50">(optional)</span></Label>
+                      <input id="code-display" type="text" autoComplete="name" placeholder="How others see you" value={displayName} onChange={(e) => setDisplayName(e.target.value)} className={inputClass} />
+                    </div>
+                  </>
+                )}
                 <div className="space-y-1">
                   <Label htmlFor="code-email" className="text-[12px] font-medium text-muted-foreground">Email</Label>
                   <input id="code-email" type="email" inputMode="email" autoComplete="email" placeholder="email@example.com" value={email} onChange={(e) => setEmail(e.target.value)} className={inputClass} />
                   {errors.email && <p className="text-destructive text-[11px]">{errors.email}</p>}
                 </div>
-                <p className="text-[12px] text-muted-foreground">No password needed — we'll email you a one-time code.</p>
+                <p className="text-[12px] text-muted-foreground">{isLogin ? "No password needed — we'll email you a one-time code." : "No password needed — we'll email you a 6-digit code to finish joining."}</p>
                 <Button type="submit" className="w-full h-12 rounded-full text-[15px] font-bold bg-primary text-primary-foreground hover:opacity-90 transition-opacity" disabled={isLoading}>
                   {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : "Send code"}
                 </Button>
