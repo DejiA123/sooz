@@ -1,9 +1,10 @@
 import { memo, useRef, useState } from "react";
-import { Ban, Check, CheckCheck, ChevronDown, Clock, Forward, Pin, Reply, RotateCw, Star, Timer } from "lucide-react";
+import { Ban, Check, CheckCheck, ChevronDown, Clock, Forward, Pin, Play, Reply, RotateCw, Star, Timer } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { bubbleTime, nameColor } from "@/lib/chat";
 import { messageSummary, type ChatMember, type ChatMessage } from "@/services/api/chat";
+import { TIKTOK_LINK_RE } from "@/services/api/reposts";
 import { ChatText } from "./ChatText";
 import { AudioAttachment, ContactAttachment, FileAttachment, ImageAttachment, LocationAttachment, PollAttachment, VideoAttachment } from "./AttachmentView";
 
@@ -216,6 +217,21 @@ export const MessageBubble = memo(function MessageBubble(p: BubbleProps) {
                   {a.type === "poll" && <PollAttachment a={a} mine={mine} votes={p.votes} meId={p.meId} members={p.members} onVote={(o) => p.onVote(msg, o)} onViewVotes={() => p.onViewVotes(msg)} />}
                 </div>
               )}
+              {(() => {
+                // A SOOZ TikTok link becomes a "Watch on SOOZ" card that opens it first in For You.
+                const t = msg.content.match(TIKTOK_LINK_RE);
+                if (!t) return null;
+                return (
+                  <button type="button" onClick={(e) => { e.stopPropagation(); window.location.assign(`/?tiktok=${t[1]}${t[2] ? `&by=${t[2]}` : ""}`); }}
+                    className={cn("mb-1 mt-0.5 flex w-full min-w-[200px] items-center gap-2.5 rounded-xl px-3 py-2.5 text-left", mine ? "bg-black/15" : "bg-white/[0.07]")}>
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-black text-white"><Play className="ml-0.5 h-4 w-4 fill-white" /></span>
+                    <span className="min-w-0">
+                      <span className="block text-[14px] font-bold leading-tight">Watch on SOOZ</span>
+                      <span className={cn("block truncate text-[12.5px]", mine ? "text-black/60" : "text-white/55")}>Christian TikTok{t[2] ? ` · @${t[2]}` : ""}</span>
+                    </span>
+                  </button>
+                );
+              })()}
               {msg.content ? (
                 <span className="block whitespace-pre-wrap break-words px-0.5">
                   <ChatText text={msg.content} highlight={p.highlight} mine={mine} />

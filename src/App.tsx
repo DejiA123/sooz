@@ -60,6 +60,23 @@ import { startUpdateChecks } from "@/lib/appUpdate";
 import { queryClient } from "@/lib/react-query";
 
 
+/** /t/{id}?by=handle → open that TikTok first in For You (a full load, so the feed picks it up). */
+const SharedTikTokRedirect = () => {
+  const { id } = useParams();
+  useEffect(() => {
+    const by = new URLSearchParams(window.location.search).get("by");
+    window.location.replace(`/?tiktok=${encodeURIComponent(id || "")}${by ? `&by=${encodeURIComponent(by)}` : ""}`);
+  }, [id]);
+  return null;
+};
+/** /p/{id} → the post. */
+const SharedPostRedirect = () => {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  useEffect(() => { navigate(`/post/${id}`, { replace: true }); }, [id, navigate]);
+  return null;
+};
+
 const App = () => {
   // Initialize theme
   if (typeof window !== "undefined") {
@@ -130,6 +147,9 @@ const App = () => {
                     <Route path="/profile/:username" element={<Suspense fallback={null}><Profile /></Suspense>} />
                     <Route path="/post/:id" element={<Suspense fallback={null}><PostDetails /></Suspense>} />
                     <Route path="/share/:id" element={<Suspense fallback={null}><PostDetails /></Suspense>} />
+                    {/* Share links (sooz.vercel.app serves link previews for these; elsewhere they just open) */}
+                    <Route path="/t/:id" element={<SharedTikTokRedirect />} />
+                    <Route path="/p/:id" element={<SharedPostRedirect />} />
                     <Route path="/settings" element={<Suspense fallback={null}><Settings /></Suspense>} />
                   </Route>
 

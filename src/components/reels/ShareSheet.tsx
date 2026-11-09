@@ -8,6 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
+import { postShareUrl } from "@/lib/shareLink";
 import { isReposted, setReposted, soozTikTokLink, type RepostTarget } from "@/services/api/reposts";
 import type { TikTokVideo } from "@/services/api/tiktok";
 import type { FeedPost } from "@/services/api/posts";
@@ -61,7 +62,7 @@ export const ShareSheet = ({ item, open, onOpenChange, onShared, onRepostChange 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, user]);
 
-  const link = item.kind === "tiktok" ? soozTikTokLink(item.video) : `${window.location.origin}/post/${item.post.id}`;
+  const link = item.kind === "tiktok" ? soozTikTokLink(item.video) : postShareUrl(item.post.id);
   const who = item.kind === "tiktok" ? item.video.author_name || (item.video.author_handle ? `@${item.video.author_handle}` : "Christian TikTok") : item.post.profiles?.display_name || item.post.profiles?.username || "SOOZ";
   const caption = (item.kind === "tiktok" ? item.video.title : item.post.caption) || "";
   const text = `${item.kind === "tiktok" ? "🎬" : "✨"} ${who}${caption ? `: ${caption.slice(0, 100)}` : ""}`;

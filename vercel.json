@@ -5,7 +5,15 @@
             "destination": "https://xhqpojnmcibkaydidnex.supabase.co/functions/v1/share-preview?id=:id"
         },
         {
-            "source": "/(.*)",
+            "source": "/t/:id",
+            "destination": "/api/preview?tiktok=:id"
+        },
+        {
+            "source": "/p/:id",
+            "destination": "/api/preview?post=:id"
+        },
+        {
+            "source": "/((?!api/).*)",
             "destination": "/index.html"
         }
     ]
