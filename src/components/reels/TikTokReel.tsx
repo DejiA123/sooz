@@ -365,6 +365,8 @@ export const TikTokReel = memo(function TikTokReel({ video, active, near = false
               />
             )}
           </div>
+          {/* Covers TikTok's name strip only on phones where it can't be tucked under the status bar. */}
+          {fill && <div className="tiktok-topband" style={{ ["--ar" as string]: String(ratio) }} aria-hidden />}
 
           {/* Tap layer over the video (not over TikTok's own buttons along the bottom and right):
               taps here are SOOZ's, so swipes always move the feed and every touch warms up the
@@ -385,7 +387,7 @@ export const TikTokReel = memo(function TikTokReel({ video, active, near = false
           )}
         </div>
 
-        <div className="reel-scrim-top" aria-hidden />
+        {!fill && <div className="reel-scrim-top" aria-hidden />}
         <div className="tiktok-scrim" aria-hidden />
 
         {captionOpen && <div className="absolute inset-0 z-[1] bg-black/50 animate-fade-in" onClick={() => setCaptionOpen(false)} aria-hidden />}
@@ -420,7 +422,6 @@ export const TikTokReel = memo(function TikTokReel({ video, active, near = false
           comment / share column and SOOZ can't remove it (it's TikTok's page), so on full-screen TikToks
           the dock covers that whole column — wherever TikTok puts it — and SOOZ's heart shows TikTok's
           like count. */}
-      {fill && <div className="tiktok-topband" aria-hidden />}
       <div className={cn("tiktok-sooz-rail reel-dock", fill && "tiktok-sooz-rail--cover")}>
         <RailButton
           ariaLabel={liked ? "Unlike" : "Like"}
