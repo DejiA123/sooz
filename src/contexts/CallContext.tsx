@@ -12,6 +12,10 @@ import { toast } from "sonner";
  * their own channel `user:{id}`. For every pair, the person with the smaller user id makes the offer,
  * so two people never offer to each other at once. Connections that drop are restarted, invites are
  * re-sent until answered, and unanswered calls stop ringing after 45 seconds.
+ *
+ * Anyone in a call can add more people (like WhatsApp): they're invited into the same room, everyone
+ * in the call sees them "Ringing…" (an "add" room message), and a one-to-one call becomes a group
+ * call for everyone, so it carries on when any one person hangs up.
  */
 
 export type CallState = "IDLE" | "OUTGOING" | "INCOMING" | "ACTIVE";
@@ -37,6 +41,8 @@ export interface CallInfo {
   members: string[];
   /** When the first person connected (for the call timer). */
   connectedAt?: number;
+  /** Became a group call by adding people (shown by the names of the people in it). */
+  adhoc?: boolean;
 }
 
 export interface IncomingCall {
@@ -46,13 +52,20 @@ export interface IncomingCall {
   isVideo: boolean;
   title: string;
   members: string[];
+  /** Being added to a call that's already going. */
+  added?: boolean;
 }
+
+export type CallPerson = { id: string; name: string; avatar: string | null };
 
 interface CallContextType {
   callState: CallState;
   call: CallInfo | null;
   incoming: IncomingCall | null;
   peers: CallPeer[];
+  /** People added to the call whose phones are still ringing. */
+  ringing: CallPerson[];
+  maxPeople: number;
   localStream: MediaStream | null;
   isMuted: boolean;
   isCameraOff: boolean;
@@ -64,6 +77,8 @@ interface CallContextType {
   toggleMute: () => void;
   toggleCamera: () => void;
   flipCamera: () => void;
+  /** Add people to the call I'm in (rings them; the call becomes a group call). */
+  addToCall: (people: CallPerson[]) => void;
 }
 
 const CallContext = createContext<CallContextType | undefined>(undefined);
@@ -122,7 +137,7 @@ interface PeerEntry {
 }
 
 type RoomSignal = {
-  kind: "join" | "hello" | "offer" | "answer" | "ice" | "leave" | "media";
+  kind: "join" | "hello" | "offer" | "answer" | "ice" | "leave" | "media" | "add" | "unring";
   from: string;
   to?: string;
   name?: string;
@@ -131,6 +146,9 @@ type RoomSignal = {
   candidate?: RTCIceCandidateInit;
   cameraOff?: boolean;
   micOff?: boolean;
+  /** "add": the people just added; "unring": people who stopped ringing. */
+  people?: Who[];
+  reason?: "declined" | "busy" | "timeout";
 };
 
 type UserSignal = {
@@ -144,6 +162,16 @@ type UserSignal = {
   title?: string;
   members?: string[];
   missed?: boolean;
+  added?: boolean;
+};
+
+/** "Ruth", "Ruth & Ben", "Ruth, Ben & 2 others". */
+const listNames = (names: string[]) => {
+  const first = names.map((n) => n.split(" ")[0]);
+  if (first.length <= 1) return first[0] || "";
+  if (first.length === 2) return `${first[0]} & ${first[1]}`;
+  if (first.length === 3) return `${first[0]}, ${first[1]} & ${first[2]}`;
+  return `${first[0]}, ${first[1]} & ${first.length - 2} others`;
 };
 
 export const CallProvider = ({ children }: { children: React.ReactNode }) => {
@@ -152,6 +180,7 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
   const [call, setCall] = useState<CallInfo | null>(null);
   const [incoming, setIncoming] = useState<IncomingCall | null>(null);
   const [peers, setPeers] = useState<CallPeer[]>([]);
+  const [ringing, setRinging] = useState<CallPerson[]>([]);
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [isMuted, setIsMuted] = useState(false);
   const [isCameraOff, setIsCameraOff] = useState(false);
@@ -166,6 +195,8 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
   const pendingIce = useRef(new Map<string, RTCIceCandidateInit[]>());
   const names = useRef(new Map<string, Who>());
   const joined = useRef(new Set<string>()); // people who answered this call
+  const ringingRef = useRef(new Map<string, { who: Who; timer: ReturnType<typeof setTimeout> }>()); // added, not answered yet
+  const invitedByMe = useRef(new Set<string>());
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
   const facing = useRef<"user" | "environment">("user");
   const wakeLock = useRef<{ release: () => Promise<void> } | null>(null);
@@ -189,6 +220,27 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
         connection: e.pc.connectionState,
       };
     }));
+  };
+
+  const publishRinging = () => setRinging([...ringingRef.current.values()].map((r) => r.who));
+  /** Someone added to the call is being rung (on every phone in the call, until they answer or 45s). */
+  const startRinging = (who: Who) => {
+    if (ringingRef.current.has(who.id) || peersRef.current.has(who.id) || who.id === me.current?.id) return;
+    const timer = setTimeout(() => {
+      if (!ringingRef.current.has(who.id)) return;
+      ringingRef.current.delete(who.id);
+      publishRinging();
+      if (invitedByMe.current.has(who.id)) toast(`${who.name} didn't answer`);
+    }, RING_MS);
+    ringingRef.current.set(who.id, { who, timer });
+    publishRinging();
+  };
+  const stopRinging = (id: string) => {
+    const r = ringingRef.current.get(id);
+    if (!r) return;
+    clearTimeout(r.timer);
+    ringingRef.current.delete(id);
+    publishRinging();
   };
 
   // My name and photo, for invites and the other people's screens.
@@ -273,7 +325,7 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
       await e.pc.setLocalDescription(offer);
       await gathered(e.pc);
       if (peersRef.current.get(id) !== e) return;
-      await roomSend({ kind: "offer", to: id, sdp: e.pc.localDescription!.toJSON() });
+      await roomSend({ kind: "offer", to: id, sdp: e.pc.localDescription!.toJSON(), name: me.current?.name, avatar: me.current?.avatar });
     } catch (err) {
       console.error("offer failed", err);
     }
@@ -338,6 +390,12 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
     if (!me.current || !s?.from || s.from === me.current.id) return;
     if (s.to && s.to !== me.current.id) return;
     if (s.name) names.current.set(s.from, { id: s.from, name: s.name, avatar: s.avatar ?? null });
+    if (s.kind === "join" || s.kind === "hello" || s.kind === "offer") {
+      stopRinging(s.from);
+      // Someone new is in the call (even if the "add" message got lost): it's a group call now.
+      const c = callRef.current;
+      if (c && !c.members.includes(s.from)) updateCall({ ...c, isGroup: true, adhoc: c.isGroup ? c.adhoc : true, members: [...c.members, s.from] });
+    }
 
     if (s.kind === "join" || s.kind === "hello") {
       joined.current.add(s.from);
@@ -358,7 +416,7 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
         const answer = await e.pc.createAnswer();
         await e.pc.setLocalDescription(answer);
         await gathered(e.pc);
-        await roomSend({ kind: "answer", to: s.from, sdp: e.pc.localDescription!.toJSON() });
+        await roomSend({ kind: "answer", to: s.from, sdp: e.pc.localDescription!.toJSON(), name: me.current.name, avatar: me.current.avatar });
         roomSend({ kind: "media", cameraOff: isCameraOffNow(), micOff: isMutedNow() });
       } catch (err) {
         console.error("answer failed", err);
@@ -379,12 +437,32 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
     } else if (s.kind === "media") {
       const e = peersRef.current.get(s.from);
       if (e) { e.cameraOff = !!s.cameraOff; e.micOff = !!s.micOff; publish(); }
+    } else if (s.kind === "add" && s.people?.length) {
+      const c = callRef.current;
+      if (!c) return;
+      const added = s.people.filter((p) => p.id !== me.current.id);
+      added.forEach((p) => { names.current.set(p.id, p); startRinging(p); });
+      updateCall({ ...c, isGroup: true, adhoc: c.isGroup ? c.adhoc : true, members: [...new Set([...c.members, ...added.map((p) => p.id)])] });
+      if (added.length) toast(`${(names.current.get(s.from)?.name || "Someone").split(" ")[0]} added ${listNames(added.map((p) => p.name))}`);
+    } else if (s.kind === "unring" && s.people) {
+      s.people.forEach((p) => {
+        if (!ringingRef.current.has(p.id)) return;
+        stopRinging(p.id);
+        if (s.reason === "declined") toast(`${p.name} declined`);
+        else if (s.reason === "busy") toast(`${p.name} is on another call`);
+      });
     } else if (s.kind === "leave") {
       closePeer(s.from);
       const c = callRef.current;
       if (c && !c.isGroup) { toast("Call ended"); finish(); }
       else if (c && peersRef.current.size === 0) {
-        later(() => { if (peersRef.current.size === 0 && stateRef.current !== "IDLE") { toast("Everyone has left the call"); finish(); } }, 30_000);
+        // Alone: wait for anyone still ringing. A call that grew from one-to-one ends right away (like
+        // WhatsApp); a group chat's call waits a little, since other members may still answer.
+        const wait = ringingRef.current.size ? RING_MS : c.adhoc ? 2_000 : 30_000;
+        later(() => {
+          if (peersRef.current.size === 0 && ringingRef.current.size === 0 && stateRef.current !== "IDLE") { toast(c.adhoc ? "Call ended" : "Everyone has left the call"); finish(); }
+          else if (peersRef.current.size === 0 && ringingRef.current.size > 0) later(() => { if (peersRef.current.size === 0 && stateRef.current !== "IDLE") { toast("Call ended"); finish(); } }, RING_MS);
+        }, wait);
       }
     }
   };
@@ -410,6 +488,15 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
 
   /** Leave the call and put everything back to rest. */
   const finish = () => {
+    // Leaving with nobody else in the call: stop ringing the people I added.
+    const c = callRef.current;
+    if (c && peersRef.current.size === 0) {
+      [...ringingRef.current.keys()].filter((id) => invitedByMe.current.has(id)).forEach((id) => sendToUser(id, { kind: "cancel", callId: c.id, missed: true }));
+    }
+    ringingRef.current.forEach((r) => clearTimeout(r.timer));
+    ringingRef.current.clear();
+    invitedByMe.current.clear();
+    setRinging([]);
     clearTimers();
     if (roomRef.current) {
       const ch = roomRef.current;
@@ -504,6 +591,7 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
       id: inc.callId, isGroup: inc.isGroup, isVideo: inc.isVideo,
       title: inc.isGroup ? inc.title : inc.from.name, avatar: inc.isGroup ? null : inc.from.avatar,
       members: inc.members.filter((m) => m !== me.current!.id),
+      adhoc: !!inc.added,
     });
     setState("ACTIVE");
     const stream = await getMedia(inc.isVideo, inc.isGroup);
@@ -520,7 +608,7 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
   const rejectCall = () => {
     const inc = incomingRef.current;
     if (inc) {
-      if (!inc.isGroup) sendToUser(inc.from.id, { kind: "decline", callId: inc.callId });
+      if (!inc.isGroup || inc.added) sendToUser(inc.from.id, { kind: "decline", callId: inc.callId });
       logMissed(inc.from.id);
     }
     clearTimers();
@@ -538,13 +626,14 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
     if (!me.current || !s?.callId) return;
     if (s.kind === "invite") {
       if (incomingRef.current?.callId === s.callId || callRef.current?.id === s.callId) return; // repeat invite
-      if (stateRef.current !== "IDLE") { if (!s.isGroup) sendToUser(s.from, { kind: "busy", callId: s.callId }); return; }
+      if (stateRef.current !== "IDLE") { if (!s.isGroup || s.added) sendToUser(s.from, { kind: "busy", callId: s.callId }); return; }
       updateIncoming({
         callId: s.callId,
         from: { id: s.from, name: s.name || "Someone", avatar: s.avatar ?? null },
         isGroup: !!s.isGroup, isVideo: s.isVideo !== false,
         title: s.title || s.name || "Call",
         members: s.members ?? [s.from, me.current.id],
+        added: !!s.added,
       });
       setState("INCOMING");
       clearTimers();
@@ -560,11 +649,47 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
       }
     } else if (s.kind === "decline" || s.kind === "busy") {
       const c = callRef.current;
+      // Someone I added said no: tell everyone in the call.
+      const r = ringingRef.current.get(s.from);
+      if (c?.id === s.callId && r) {
+        stopRinging(s.from);
+        toast(s.kind === "busy" ? `${r.who.name} is on another call` : `${r.who.name} declined`);
+        roomSend({ kind: "unring", people: [r.who], reason: s.kind === "busy" ? "busy" : "declined" });
+        return;
+      }
       if (c?.id === s.callId && !c.isGroup && stateRef.current === "OUTGOING") {
         toast(s.kind === "busy" ? `${c.title} is on another call` : `${c.title} declined the call`);
         finish();
       }
     }
+  };
+
+  // ---- Adding people to the call (like WhatsApp) -------------------------------------------
+  const addToCall = (people: CallPerson[]) => {
+    const c = callRef.current;
+    if (!c || !me.current || stateRef.current !== "ACTIVE") return;
+    const room = MAX_GROUP - 1 - peersRef.current.size - ringingRef.current.size;
+    const fresh = people.filter((p) => p.id !== me.current!.id && !peersRef.current.has(p.id) && !ringingRef.current.has(p.id)).slice(0, Math.max(0, room));
+    if (!fresh.length) { if (room <= 0) toast(`A call can have up to ${MAX_GROUP} people`); return; }
+    fresh.forEach((p) => { names.current.set(p.id, p); invitedByMe.current.add(p.id); startRinging(p); });
+    const members = [...new Set([...c.members, ...fresh.map((p) => p.id)])];
+    const next: CallInfo = { ...c, isGroup: true, adhoc: c.isGroup ? c.adhoc : true, members };
+    updateCall(next);
+    // Everyone in the call: show them ringing (and turn a one-to-one call into a group call).
+    roomSend({ kind: "add", people: fresh, name: me.current.name, avatar: me.current.avatar });
+    const inCall = [me.current.name, ...[...peersRef.current.keys()].map((id) => names.current.get(id)?.name || "")].filter(Boolean);
+    const title = next.adhoc ? listNames(inCall) : c.title;
+    const invite = () => fresh.filter((p) => ringingRef.current.has(p.id)).forEach((p) => sendToUser(p.id, {
+      kind: "invite", callId: c.id, isGroup: true, isVideo: c.isVideo, added: true,
+      name: me.current!.name, avatar: me.current!.avatar, title, members: [me.current!.id, ...members],
+    }));
+    invite();
+    // Wake their phones too, in case SOOZ isn't open.
+    fresh.forEach((p) => supabase.functions.invoke("push-notifications", {
+      body: { type: "chat_message", toUserId: p.id, title: me.current!.name, body: `${me.current!.name} is adding you to a ${c.isVideo ? "video" : "voice"} call`, url: "/chat" },
+    }).catch(() => {}));
+    // Re-send while they haven't answered (a lost message must not lose the invite).
+    [4000, 9000, 16000].forEach((ms) => later(() => { if (callRef.current?.id === c.id) invite(); }, ms));
   };
 
   // ---- In-call controls -------------------------------------------------------------------
@@ -625,8 +750,8 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
 
   return (
     <CallContext.Provider value={{
-      callState, call, incoming, peers, localStream, isMuted, isCameraOff,
-      startCall, startGroupCall, acceptCall, rejectCall, endCall, toggleMute, toggleCamera, flipCamera,
+      callState, call, incoming, peers, ringing, maxPeople: MAX_GROUP, localStream, isMuted, isCameraOff,
+      startCall, startGroupCall, acceptCall, rejectCall, endCall, toggleMute, toggleCamera, flipCamera, addToCall,
     }}>
       {children}
     </CallContext.Provider>

@@ -52,13 +52,22 @@ if (typeof window !== "undefined") {
 import { AuthListener } from "./components/AuthListener";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { NotificationManager } from "./components/NotificationManager";
-import { CallProvider } from "@/contexts/CallContext";
+import { CallProvider, useCall } from "@/contexts/CallContext";
 import { CallOverlay } from "@/components/video/CallOverlay";
 import { UpdatePrompt } from "@/components/layout/UpdatePrompt";
 import { startUpdateChecks } from "@/lib/appUpdate";
 
 import { queryClient } from "@/lib/react-query";
 
+
+/** Pop-up messages. During a call they show at the top (like a phone's banner), so they never
+ *  cover the call's buttons (End, Mute…) at the bottom. */
+const AppToasts = () => {
+  const { callState } = useCall();
+  return callState === "IDLE"
+    ? <Sonner />
+    : <Sonner position="top-center" mobileOffset={{ top: "calc(env(safe-area-inset-top, 0px) + 8px)" }} />;
+};
 
 /** /t/{id}?by=handle → open that TikTok first in For You (a full load, so the feed picks it up). */
 const SharedTikTokRedirect = () => {
@@ -116,7 +125,7 @@ const App = () => {
             <UpdatePrompt />
             <TooltipProvider>
               <Toaster />
-              <Sonner />
+              <AppToasts />
               <BrowserRouter>
 <OfflineBanner />
                 <AuthListener />
