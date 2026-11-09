@@ -2,8 +2,7 @@ import { lazy, memo, Suspense, useCallback, useEffect, useLayoutEffect, useRef, 
 import { ExternalLink, MessageCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { requestTikTokRefresh, tiktokPlayerUrl, type TikTokVideo } from "@/services/api/tiktok";
-import { isDeadTikTok, markDeadTikTok } from "@/services/api/tiktokMeta";
-import { registerTikTokPlayer, tiktokProtocol, tiktokTapForwarding, type TikTokPlayerHandle } from "@/lib/tiktokPlayers";
+import { registerTikTokPlayer, tiktokTapForwarding, type TikTokPlayerHandle } from "@/lib/tiktokPlayers";
 import { useVideoStore } from "@/store/useVideoStore";
 import { countTikTokComments } from "@/services/api/tiktokComments";
 import { formatCount, Spinner } from "./gestures";
@@ -15,9 +14,6 @@ const TikTokComments = lazy(() => import("./TikTokComments").then((m) => ({ defa
 const TIKTOK_ORIGIN = "https://www.tiktok.com";
 /** Fill the screen (cropping a little, like TikTok) only when that hides at most this much of the video. */
 const MAX_FILL_CROP = 0.2;
-/** TikTok's player hasn't answered this long while *on screen*: it can't play this video here.
- *  (Players waiting off screen are never judged — iPhone holds them back, so they look silent.) */
-const DEAD_AFTER_MS = 9000;
 const clampRatio = (r: number) => Math.min(2, Math.max(0.45, r));
 
 /** Small TikTok-style note mark for attribution. */
@@ -42,15 +38,13 @@ interface TikTokReelProps {
  *
  * Players load one slide ahead. Videos start muted by themselves; in Low Power Mode every touch in
  * SOOZ "warms up" the waiting players (see `tiktokPlayers.ts`) so they still start by themselves.
- * A tap on the video plays / unmutes / pauses it. Videos TikTok can't play here ("Video currently
- * unavailable") are skipped and remembered.
+ * A tap on the video plays / unmutes / pauses it. Nothing is ever skipped: TikTok's player always
+ * shows (if TikTok can't play a video here, it says so and the viewer swipes on).
  */
 export const TikTokReel = memo(function TikTokReel({ video, active, near = false }: TikTokReelProps) {
-  const [dead, setDead] = useState(() => isDeadTikTok(video.tiktok_id));
-  const mounted = (near || active) && !dead;
+  const mounted = near || active;
   const [loaded, setLoaded] = useState(false);
   const [ready, setReady] = useState(false);
-  const [reveal, setReveal] = useState(false);
   const [slow, setSlow] = useState(false);
   const [thumbFailed, setThumbFailed] = useState(false);
   const [thumbRatio, setThumbRatio] = useState<number | null>(null);
@@ -106,15 +100,10 @@ export const TikTokReel = memo(function TikTokReel({ video, active, near = false
     send("play");
   }, [send]);
 
-  const markDead = useCallback((days: number) => {
-    markDeadTikTok(video.tiktok_id, days);
-    setDead(true);
-  }, [video.tiktok_id]);
-
   // Player removed (scrolled far away): start fresh next time.
   useEffect(() => {
     if (mounted) return;
-    setLoaded(false); setReady(false); setReveal(false); setSlow(false);
+    setLoaded(false); setReady(false); setSlow(false);
     setIsPlaying(false); setBlockedHint(false); setMuted(true);
     playing.current = false; lastState.current = -1; ourPause.current = false;
   }, [mounted]);
@@ -147,7 +136,6 @@ export const TikTokReel = memo(function TikTokReel({ video, active, near = false
       if (typeof data === "string") { try { data = JSON.parse(data); } catch { return; } }
       if (!data || typeof data !== "object" || typeof data.type !== "string") return;
       if (data.type === "onPlayerReady") {
-        tiktokProtocol.works = true;
         if (handle.current) handle.current.ready = true;
         setReady(true);
         kick();
@@ -192,13 +180,11 @@ export const TikTokReel = memo(function TikTokReel({ video, active, near = false
           setGlobalMuted(m);
           if (!m) setSoundUnlocked(true);
         }
-      } else if (data.type === "onError") {
-        markDead(7);
       }
     };
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
-  }, [mounted, kick, send, markDead, setGlobalMuted, setSoundUnlocked]);
+  }, [mounted, kick, send, setGlobalMuted, setSoundUnlocked]);
 
   // On screen: play. Scrolled away: pause (and go quiet) — the player stays loaded next door.
   useEffect(() => {
@@ -212,11 +198,6 @@ export const TikTokReel = memo(function TikTokReel({ video, active, near = false
     setIsPlaying(false);
     setBlockedHint(false);
   }, [active, kick, send]);
-
-  // TikTok can't play it here: move on to the next video.
-  useEffect(() => {
-    if (active && dead) window.dispatchEvent(new CustomEvent("sooz:feed-skip"));
-  }, [active, dead]);
 
   // Keep nudging for a few seconds after it loads, until TikTok reports it is playing.
   useEffect(() => {
@@ -232,16 +213,6 @@ export const TikTokReel = memo(function TikTokReel({ video, active, near = false
     return () => clearTimeout(t);
   }, [active, ready]);
 
-  // No answer from TikTok's player: the video is unavailable here (or TikTok changed its player,
-  // in which case just show it as it is).
-  useEffect(() => {
-    if (!active || !loaded || ready) return;
-    const t = setTimeout(() => {
-      if (tiktokProtocol.works && navigator.onLine !== false) markDead(1); else setReveal(true);
-    }, DEAD_AFTER_MS);
-    return () => clearTimeout(t);
-  }, [active, loaded, ready, markDead]);
-
   // SOOZ comment count for the button (fetched when the slide is on screen or next to it).
   useEffect(() => {
     if (!(near || active) || commentCount !== null) return;
@@ -250,7 +221,8 @@ export const TikTokReel = memo(function TikTokReel({ video, active, near = false
     return () => { alive = false; };
   }, [near, active, commentCount, video.tiktok_id]);
 
-  const showPlayer = ready || reveal;
+  // Show TikTok's player as soon as it has loaded — it always plays (no skipping), like TikTok.
+  const showPlayer = loaded || ready;
   useEffect(() => {
     if (!active || showPlayer) return;
     const t = setTimeout(() => setSlow(true), 14000);
@@ -320,8 +292,8 @@ export const TikTokReel = memo(function TikTokReel({ video, active, near = false
                     <p className="text-[15px] font-bold text-white/85">{who}</p>
                   </>
                 )}
-                {active && !dead && !slow && <Spinner className="relative mt-4" />}
-                {active && !dead && slow && (
+                {active && !slow && <Spinner className="relative mt-4" />}
+                {active && slow && (
                   <a href={tiktokUrl} target="_blank" rel="noopener noreferrer" className="relative mt-4 flex items-center gap-2 rounded-full bg-white px-5 py-2.5 text-sm font-bold text-black">
                     <ExternalLink className="h-4 w-4" /> Watch on TikTok
                   </a>
