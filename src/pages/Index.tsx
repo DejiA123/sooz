@@ -9,6 +9,7 @@ import { fetchFollowingPage, fetchForYouPage, FIRST_CURSOR, hasTikTokToOpen, ope
 import { ReelsFeed } from "@/components/reels/ReelsFeed";
 import { FeedTopBar, LiveViewer, SoundToggle, StoriesPanel, type FeedTab } from "@/components/reels/FeedChrome";
 import { SuggestedAccounts } from "@/components/home/SuggestedAccounts";
+import { queryClient } from "@/lib/react-query";
 
 // A shared SOOZ link (/?tiktok=ID&by=handle) opens that TikTok first — read it before the feed loads.
 if (typeof window !== "undefined") {
@@ -16,6 +17,8 @@ if (typeof window !== "undefined") {
   const id = q.get("tiktok");
   if (id && /^\d{5,25}$/.test(id)) {
     openTikTokFirst(id, q.get("by") ?? undefined);
+    // A first page built before the link was read (e.g. arriving through /t/{id}) would hide it.
+    queryClient.removeQueries({ queryKey: ["feed", "foryou"] });
     try { sessionStorage.setItem("sooz-feed-tab", "foryou"); } catch { /* private mode */ }
     window.history.replaceState(null, "", window.location.pathname);
   }
