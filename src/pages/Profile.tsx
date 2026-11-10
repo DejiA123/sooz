@@ -6,7 +6,7 @@ import { Link as LinkIcon } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-import { Settings, Bookmark, Heart, Loader2, Camera, Play, VideoOff, MessageCircle, Repeat2, Flag } from "lucide-react";
+import { Settings, Bookmark, Heart, Loader2, Camera, Play, VideoOff, MessageCircle, Repeat2, Flag, History } from "lucide-react";
 import { ReportSheet } from "@/components/safety/ReportSheet";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -14,7 +14,7 @@ import EditProfileModal from "@/components/profile/EditProfileModal";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { LazyVideo } from "@/components/feed/LazyVideo";
 import { ReelsViewer } from "@/components/reels/ReelsViewer";
-import { TikTokMark } from "@/components/reels/TikTokReel";
+import { TextTile, TikTokTile } from "@/components/reels/GridTiles";
 import { fetchProfileTab, type ProfileTab } from "@/services/api/profileTabs";
 import { openDirectChat } from "@/services/api/chat";
 import type { FeedItem } from "@/services/api/feed";
@@ -81,32 +81,12 @@ interface Profile {
 }
 
 /** A reposted TikTok in the grid (TikTok gives no picture, so its caption makes the tile). */
-const TikTokTile = ({ video }: { video: TikTokVideo }) => {
-  const handle = video.author_handle || "";
-  let hue = 32;
-  for (const c of handle) hue = (hue * 31 + c.charCodeAt(0)) % 360;
-  return (
-    <div className="absolute inset-0 flex flex-col p-3" style={{ background: `linear-gradient(155deg, hsl(${hue} 42% 26%), hsl(${(hue + 40) % 360} 48% 9%))` }}>
-      <span className="flex items-center gap-1 text-[11px] font-semibold text-white/75"><TikTokMark className="h-3.5 w-3.5" /> TikTok</span>
-      <p className="mt-2 line-clamp-6 text-[13.5px] font-semibold leading-snug text-white">{video.title || "Christian TikTok"}</p>
-      <span className="mt-auto truncate pt-2 text-[12px] font-medium text-white/70">{video.author_name || (handle ? `@${handle}` : "")}</span>
-    </div>
-  );
-};
-
-/** A SOOZ post with words only. */
-const TextTile = ({ text }: { text: string }) => (
-  <div className="absolute inset-0 flex items-center justify-center bg-[radial-gradient(120%_90%_at_20%_0%,rgba(245,158,11,0.28),transparent_60%),linear-gradient(160deg,#1c1710,#0b0b0e)] p-4">
-    <p className="line-clamp-6 text-center font-display text-[15px] font-semibold leading-snug text-white/95">{text || "…"}</p>
-  </div>
-);
-
 const TAB_LABEL: Record<ProfileTab, string> = { posts: "Posts", reposts: "Reposts", saved: "Saved", liked: "Liked" };
 const EMPTY: Record<ProfileTab, { icon: typeof Camera; title: string; mine: string; theirs: string }> = {
   posts: { icon: Camera, title: "No posts yet", mine: "Share moments with your community.", theirs: "Their posts will show up here." },
   reposts: { icon: Repeat2, title: "No reposts yet", mine: "Videos you repost from the Share button show up here.", theirs: "Videos they repost will show up here." },
   saved: { icon: Bookmark, title: "Nothing saved yet", mine: "Tap Save on a post to keep it here.", theirs: "" },
-  liked: { icon: Heart, title: "No liked posts yet", mine: "Posts you like show up here.", theirs: "" },
+  liked: { icon: Heart, title: "Nothing liked yet", mine: "Videos and posts you heart show up here.", theirs: "" },
 };
 
 const Profile = () => {
@@ -225,9 +205,14 @@ const Profile = () => {
         {/* Settings icon */}
         <div className="absolute top-[calc(1rem+env(safe-area-inset-top,0px))] right-4 z-10">
           {isOwnProfile && (
-            <Link to="/settings" className="flex items-center justify-center h-9 w-9 rounded-full bg-secondary/60 backdrop-blur-md hover:bg-secondary transition-all">
-              <Settings className="w-4 h-4" />
-            </Link>
+            <div className="flex gap-2">
+              <Link to="/history" aria-label="Watch history" className="flex items-center justify-center h-9 w-9 rounded-full bg-secondary/60 backdrop-blur-md hover:bg-secondary transition-all">
+                <History className="w-4 h-4" />
+              </Link>
+              <Link to="/settings" aria-label="Settings" className="flex items-center justify-center h-9 w-9 rounded-full bg-secondary/60 backdrop-blur-md hover:bg-secondary transition-all">
+                <Settings className="w-4 h-4" />
+              </Link>
+            </div>
           )}
           {!isOwnProfile && profile && (
             <button type="button" aria-label={`Report ${profile.username}`} onClick={() => setReporting(true)} className="flex items-center justify-center h-9 w-9 rounded-full bg-secondary/60 backdrop-blur-md hover:bg-secondary transition-all">

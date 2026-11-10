@@ -1,5 +1,5 @@
 import { lazy, memo, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { engage, tasteOfVideo, useTasteWatch } from "@/lib/taste";
+import { engage, isTikTokLiked, setTikTokLiked, tasteOfVideo, useTasteWatch } from "@/lib/taste";
 import { ExternalLink, Heart, MessageCircle, Repeat2 } from "lucide-react";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
@@ -13,9 +13,6 @@ import { countTikTokComments } from "@/services/api/tiktokComments";
 import { formatCount, Spinner } from "./gestures";
 import { RailButton, ShareArrow, railIconClass } from "./ReelRail";
 
-/** Hearts given on this phone (SOOZ's heart shows TikTok's like count, +1 once you've liked it). */
-const LIKED_KEY = "sooz-tt-liked";
-const readLiked = (): Set<string> => { try { return new Set(JSON.parse(localStorage.getItem(LIKED_KEY) || "[]")); } catch { return new Set(); } };
 
 // The comments sheet only downloads when someone opens it.
 const TikTokComments = lazy(() => import("./TikTokComments").then((m) => ({ default: m.TikTokComments })));
@@ -72,7 +69,9 @@ export const TikTokReel = memo(function TikTokReel({ video, active, near = false
   const [commentsOpen, setCommentsOpen] = useState(false);
   const [commentCount, setCommentCount] = useState<number | null>(null);
   const [shareOpen, setShareOpen] = useState(false);
-  const [liked, setLiked] = useState(() => readLiked().has(video.tiktok_id));
+  // SOOZ's heart shows TikTok's like count, +1 once you've liked it; hearts are kept on the account
+  // (src/lib/taste.ts) and listed in the profile's Liked tab.
+  const [liked, setLiked] = useState(() => isTikTokLiked(video.tiktok_id));
   // What this viewer enjoys (For You learns from it): how it's watched, likes, comments, shares…
   const watch = useTasteWatch(tasteOfVideo(video), active);
   const learn = (action: Parameters<typeof engage>[1]) => engage(tasteOfVideo(video), action);
@@ -80,9 +79,7 @@ export const TikTokReel = memo(function TikTokReel({ video, active, near = false
     const next = !liked;
     setLiked(next);
     learn(next ? "like" : "unlike");
-    const all = readLiked();
-    if (next) all.add(video.tiktok_id); else all.delete(video.tiktok_id);
-    try { localStorage.setItem(LIKED_KEY, JSON.stringify([...all].slice(-2000))); } catch { /* storage full */ }
+    setTikTokLiked(video.tiktok_id, next, video.author_handle?.toLowerCase() ?? null);
   };
   const [reposted, setRepostedState] = useState(false);
   // Long captions show two lines with "more"; a tap opens the whole caption (and dims the video).
