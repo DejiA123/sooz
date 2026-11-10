@@ -36,6 +36,10 @@ type Store = {
   t: Record<string, number>;
   /** How many of each creator's videos have been shown (for discovering new creators). */
   n: Record<string, number>;
+  /** TikToks hearted in SOOZ: id → [minutes, handle]; negative minutes = un-hearted then (so it syncs). */
+  lk?: Record<string, [number, string | null]>;
+  /** Watch history cleared up to this time (minutes); the feed still remembers what was seen. */
+  hc?: number;
 };
 
 const KEY = "sooz-taste-v1";
@@ -44,7 +48,7 @@ const MAX_SEEN = 8000;
 /** Scores keep this much of their strength per day. */
 const DAILY_FADE = 0.985;
 
-const empty = (): Store => ({ v: 1, at: Date.now(), seen: {}, c: {}, k: {}, t: {}, n: {} });
+const empty = (): Store => ({ v: 1, at: Date.now(), seen: {}, c: {}, k: {}, t: {}, n: {}, lk: {} });
 let store: Store | null = null;
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -69,6 +73,14 @@ function load(): Store {
     }
     s.at = Date.now();
   }
+  s.lk ??= {};
+  try { // hearts from before they were kept here
+    const old = localStorage.getItem("sooz-tt-liked");
+    if (old && !Object.keys(s.lk).length) {
+      const at = Math.round((Date.now() - EPOCH) / 60_000);
+      (JSON.parse(old) as string[]).forEach((id, i, all) => { s.lk![id] = [at - (all.length - i), null]; });
+    }
+  } catch { /* unreadable: start fresh */ }
   store = s;
   if (typeof window !== "undefined") {
     const flush = () => { if (document.visibilityState === "hidden") saveNow(); };
@@ -93,6 +105,7 @@ function saveNow() {
   trim(s.c, 600, Math.abs);
   trim(s.t, 400, Math.abs);
   trim(s.n, 1500, (v) => v);
+  if (s.lk) trim(s.lk as unknown as Record<string, number>, 3000, (v) => Math.abs((v as unknown as [number])[0]));
   try { localStorage.setItem(KEY, JSON.stringify(s)); } catch { /* storage full: keep going in memory */ }
 }
 
@@ -130,6 +143,12 @@ export function mergeTaste(remote: Partial<Store> | null | undefined) {
     }
   }
   for (const [key, n] of Object.entries(remote.n ?? {})) s.n[key] = Math.max(s.n[key] ?? 0, n);
+  s.lk ??= {};
+  for (const [id, entry] of Object.entries(remote.lk ?? {})) {
+    const mine = s.lk[id];
+    if (!mine || Math.abs(entry[0]) > Math.abs(mine[0])) s.lk[id] = [entry[0], entry[1] ?? mine?.[1] ?? null];
+  }
+  s.hc = Math.max(s.hc ?? 0, remote.hc ?? 0);
   s.at = Math.max(s.at, remote.at ?? 0);
   saveNow();
 }
@@ -198,6 +217,40 @@ export function notInterested(item: TasteItem) {
   markSeen(item);
   learn(item, -6);
   saveNow();
+}
+
+// ── Hearted TikToks (shown in the profile's Liked tab) and watch history ──
+export function isTikTokLiked(id: string): boolean {
+  const e = load().lk?.[id];
+  return !!e && e[0] > 0;
+}
+export function setTikTokLiked(id: string, on: boolean, handle: string | null) {
+  const s = load();
+  s.lk ??= {};
+  s.lk[id] = [on ? now() : -now(), handle ?? s.lk[id]?.[1] ?? null];
+  save();
+}
+/** Hearted TikToks, newest first. */
+export function likedTikToks(): { id: string; handle: string | null; at: number }[] {
+  return Object.entries(load().lk ?? {})
+    .filter(([, e]) => e[0] > 0)
+    .map(([id, e]) => ({ id, handle: e[1], at: EPOCH + e[0] * 60_000 }))
+    .sort((a, b) => b.at - a.at);
+}
+/** Everything watched (newest first), since the history was last cleared. */
+export function watchHistory(limit = 500): { kind: TasteKind; id: string; at: number }[] {
+  const s = load();
+  const from = s.hc ?? 0;
+  return Object.entries(s.seen)
+    .filter(([, m]) => m > from)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, limit)
+    .map(([key, m]) => ({ kind: key.startsWith("t:") ? "tiktok" as const : "post" as const, id: key.slice(2), at: EPOCH + m * 60_000 }));
+}
+/** Clears the watch history (the feed still won't repeat what was seen). */
+export function clearWatchHistory() {
+  load().hc = now();
+  save();
 }
 
 /** How much this viewer is likely to enjoy it, from what they've watched (about -4.6 … +4.6). */

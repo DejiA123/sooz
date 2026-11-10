@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { BarChart3, Bookmark, LogOut, MessageSquareWarning, Settings, ShieldCheck, Sparkles, Video } from "lucide-react";
+import { BarChart3, Bookmark, History, LogOut, MessageSquareWarning, Settings, ShieldCheck, Sparkles, Video } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { openReportCount } from "@/services/api/safety";
 import { toast } from "sonner";
@@ -30,6 +30,7 @@ export const AppMenuSheet = ({ trigger }: { trigger: ReactNode }) => {
               { to: "/tiktok", icon: Sparkles, label: "Christian TikTok", color: "text-amber-400" },
               { to: "/moderation", icon: ShieldCheck, label: "Moderation", color: "text-emerald-400", badge: reports.data || 0 },
             ] : []),
+            { to: "/history", icon: History, label: "Watch history", color: "text-amber-400" },
             { to: "/archive", icon: Video, label: "Video Archive", color: "text-violet-500" },
             { to: "/settings", icon: Settings, label: "Settings", color: "text-blue-500" },
             { to: "/analytics", icon: BarChart3, label: "Analytics", color: "text-emerald-500" },
