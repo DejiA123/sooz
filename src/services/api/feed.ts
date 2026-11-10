@@ -54,8 +54,16 @@ export const tiktokItem = (video: TikTokVideo, cycle = 0): FeedItem => ({ kind: 
 
 // ── A shared link (/?tiktok=ID&by=handle) opens that TikTok first in For You ──
 let openFirst: { id: string; handle?: string } | null = null;
-export function openTikTokFirst(id: string, handle?: string) { openFirst = { id, handle }; }
-export const hasTikTokToOpen = () => openFirst !== null;
+export function openTikTokFirst(id: string, handle?: string) { openFirst = { id, handle }; session = null; }
+// Read the link as soon as the app starts (this module loads with the app's layout), before the
+// background prefetch builds For You's first page — otherwise a signed-in viewer could land on
+// something else.
+if (typeof window !== "undefined") {
+  const q = new URLSearchParams(window.location.search);
+  const id = q.get("tiktok");
+  if (id && /^\d{5,25}$/.test(id)) openFirst = { id, handle: q.get("by") ?? undefined };
+}
+export const hasTikTokToOpen = () => openFirst !== null || !!session?.link;
 
 export type Library = { creators: Record<string, string>; videos: [string, string, number, number, string][]; kinds?: Record<string, string>; updated?: string; likes?: Record<string, number> };
 /** Refreshed every day on GitHub (scripts/refresh-christian-tiktoks.mjs), read live — no republishing needed. */
@@ -199,7 +207,10 @@ const luck = () => -Math.log(-Math.log(Math.random() * 0.999998 + 0.000001));
 
 type Session = {
   user: string | null;
-  pages: Map<number, FeedPage>;
+  /** Pages (as promises, so two simultaneous requests for a page share one answer). */
+  pages: Map<number, Promise<FeedPage>>;
+  /** A shared link to open first (kept until the first page is built). */
+  link: { id: string; handle?: string } | null;
   /** TikTok id → times dealt in this session (repeats get their own keys). */
   times: Map<string, number>;
   /** Dealt in the current round (cleared only if every single video has been shown). */
@@ -216,10 +227,10 @@ type Session = {
   allow: ContentFilter | null;
 };
 let session: Session | null = null;
-const newSession = (user: string | null): Session => {
+const newSession = (user: string | null, link: Session["link"] = null): Session => {
   tiktokPool = null;
   return {
-    user, pages: new Map(), times: new Map(), dealt: new Set(), dealtPosts: new Set(), recent: [], recentKinds: [],
+    user, link, pages: new Map(), times: new Map(), dealt: new Set(), dealtPosts: new Set(), recent: [], recentKinds: [],
     sinceChurch: 0, slot: 0, posts: [], postFrom: 0, postsMore: true, postsLoaded: false, allow: null,
   };
 };
@@ -329,22 +340,32 @@ function weave(posts: FeedItem[], tiktoks: FeedItem[]): FeedItem[] {
 }
 
 /** "For You": SOOZ posts and Christian TikToks picked for this viewer, never what they've already seen. */
-export async function fetchForYouPage({ pageParam = FIRST_CURSOR, userId }: { pageParam?: FeedCursor; userId?: string }): Promise<FeedPage> {
+export function fetchForYouPage({ pageParam = FIRST_CURSOR, userId }: { pageParam?: FeedCursor; userId?: string }): Promise<FeedPage> {
   const uid = userId ?? null;
-  if (!session || session.user !== uid || (pageParam.page === 0 && openFirst)) session = newSession(uid);
+  if (!session || session.user !== uid || (pageParam.page === 0 && openFirst)) {
+    session = newSession(uid, openFirst);
+    openFirst = null;
+  }
   const sess = session;
-  // The same page asked for again (coming back to Home) gives the same videos, so nothing jumps.
-  const already = sess.pages.get(pageParam.page);
-  if (already) return already;
+  // The same page asked for again (coming back to Home, or two requests at once) gives the same
+  // videos, so nothing jumps.
+  let page = sess.pages.get(pageParam.page);
+  if (!page) {
+    page = buildForYouPage(sess, pageParam);
+    sess.pages.set(pageParam.page, page);
+    page.catch(() => { if (sess.pages.get(pageParam.page) === page) sess.pages.delete(pageParam.page); });
+  }
+  return page;
+}
 
+async function buildForYouPage(sess: Session, pageParam: FeedCursor): Promise<FeedPage> {
   sess.allow = await contentFilter();
   const [ttPool] = await Promise.all([getTikTokPool(), sess.postsLoaded ? null : dealPosts(sess, 0).catch(() => { sess.postsLoaded = true; sess.postsMore = false; })]);
   const first: FeedItem[] = [];
 
-  if (pageParam.page === 0 && openFirst) {
+  if (pageParam.page === 0 && sess.link) {
     // A shared link: that TikTok first.
-    const { id, handle } = openFirst;
-    openFirst = null;
+    const { id, handle } = sess.link;
     const video: TikTokVideo = ttPool.find((v) => v.tiktok_id === id) ?? {
       id: `link-${id}`, tiktok_id: id, url: `https://www.tiktok.com/@${handle || "_"}/video/${id}`,
       author_name: null, author_handle: handle ?? null, author_url: handle ? `https://www.tiktok.com/@${handle}` : null,
@@ -372,7 +393,7 @@ export async function fetchForYouPage({ pageParam = FIRST_CURSOR, userId }: { pa
       ? { postOffset: 0, tiktokOffset: 0, page: pageParam.page + 1 }
       : null,
   };
-  sess.pages.set(pageParam.page, page);
+  if (pageParam.page === 0) sess.link = null;
   return page;
 }
 
