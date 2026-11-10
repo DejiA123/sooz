@@ -21,7 +21,6 @@ const Discover = lazy(() => import("./pages/Discover"));
 const Activity = lazy(() => import("./pages/Activity"));
 const Chat = lazy(() => import("./pages/Chat"));
 const PostDetails = lazy(() => import("./pages/PostDetails"));
-const SuggestedPeople = lazy(() => import("./pages/SuggestedPeople"));
 const Notifications = lazy(() => import("./pages/Notifications"));
 const About = lazy(() => import("./pages/About"));
 const Help = lazy(() => import("./pages/Help"));
@@ -38,6 +37,7 @@ const VideoArchive = lazy(() => import("./pages/VideoArchive"));
 const ChristianTikTok = lazy(() => import("./pages/ChristianTikTok"));
 const Moderation = lazy(() => import("./pages/Moderation"));
 const WatchHistory = lazy(() => import("./pages/WatchHistory"));
+const AddFriends = lazy(() => import("./pages/AddFriends"));
 
 // Warm up the main tabs in the background so switching between them is instant.
 // Skipped on data-saver / 2G so the first video gets all the bandwidth.
@@ -147,7 +147,7 @@ const App = () => {
                     <Route path="/" element={<Suspense fallback={null}><Index /></Suspense>} />
                     <Route path="/discover" element={<Suspense fallback={null}><Discover /></Suspense>} />
                     <Route path="/activity" element={<Suspense fallback={null}><Activity /></Suspense>} />
-                    <Route path="/suggested-people" element={<Suspense fallback={null}><SuggestedPeople /></Suspense>} />
+                    <Route path="/suggested-people" element={<Suspense fallback={null}><AddFriends /></Suspense>} />
                     <Route path="/about" element={<Suspense fallback={null}><About /></Suspense>} />
                     <Route path="/help" element={<Suspense fallback={null}><Help /></Suspense>} />
                     <Route path="/privacy" element={<Suspense fallback={null}><Privacy /></Suspense>} />
@@ -158,6 +158,7 @@ const App = () => {
                     <Route path="/tiktok" element={<Suspense fallback={null}><ChristianTikTok /></Suspense>} />
                     <Route path="/moderation" element={<Suspense fallback={null}><Moderation /></Suspense>} />
                     <Route path="/history" element={<Suspense fallback={null}><WatchHistory /></Suspense>} />
+                    <Route path="/friends" element={<Suspense fallback={null}><AddFriends /></Suspense>} />
                     <Route element={<ProtectedRoute />}>
                       <Route path="/chat" element={<Suspense fallback={null}><Chat /></Suspense>} />
                     </Route>

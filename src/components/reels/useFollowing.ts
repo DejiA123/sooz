@@ -32,9 +32,22 @@ export function useFollowing() {
     queryClient.invalidateQueries({ queryKey: ["stories"] });
   }, [user, key, queryClient]);
 
+  const unfollow = useCallback(async (targetId: string) => {
+    if (!user) return;
+    queryClient.setQueryData<string[]>(key, (prev = []) => prev.filter((id) => id !== targetId));
+    const { error } = await supabase.from("follows").delete().eq("follower_id", user.id).eq("following_id", targetId);
+    if (error) {
+      queryClient.setQueryData<string[]>(key, (prev = []) => [...new Set([...prev, targetId])]);
+      toast.error("Couldn't unfollow right now");
+      return;
+    }
+    queryClient.invalidateQueries({ queryKey: ["feed", "following"] });
+  }, [user, key, queryClient]);
+
   return {
     isFollowing: (id: string) => ids.has(id),
     canFollow: (id: string) => !!user && user.id !== id,
     follow,
+    unfollow,
   };
 }
