@@ -191,6 +191,27 @@ function add(handle, res, vids) {
   knownSet = known();
 }
 
+// Creators the admin trusted on the Christian TikTok page (table tiktok_trusted_creators, read through
+// the public trusted_creator_handles() function): added whatever earlier verdict they had.
+const SUPABASE_URL = "https://xhqpojnmcibkaydidnex.supabase.co";
+const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhocXBvam5tY2lia2F5ZGlkbmV4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUzMjAzNTcsImV4cCI6MjA4MDg5NjM1N30.DkKg7S_xOEyGR2R9TtjBKzqoDACzZUYkA8BcFw6qylw"; // public key, as in the app
+try {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/trusted_creator_handles`, {
+    method: "POST", body: "{}", signal: AbortSignal.timeout(20000),
+    headers: { apikey: SUPABASE_ANON, authorization: `Bearer ${SUPABASE_ANON}`, "content-type": "application/json" },
+  });
+  const rows = res.ok ? await res.json() : [];
+  let fresh = 0;
+  for (const { handle } of rows) {
+    const h = norm(String(handle || ""));
+    if (!valid(h) || knownSet.has(h)) continue;
+    if (!state.approved.includes(h)) state.approved.push(h);
+    if (state.checked[h] && state.checked[h] !== "ok") delete state.checked[h]; // the owner vouched for them
+    fresh++;
+  }
+  console.log(`Trusted creators from the app: ${rows.length} (${fresh} not in the library yet).`);
+} catch (e) { console.log("Couldn't read trusted creators:", e.message); }
+
 for (const s of [...state.seeds, ...state.approved]) enqueue(s, true);
 // The library's own creators are sources: who they mention — looked at again every two weeks, as new
 // videos bring new names.
@@ -205,8 +226,10 @@ const save = () => {
   if (COVER_HINTS) writeFileSync(COVER_HINTS, JSON.stringify(coverHints));
 };
 async function worker() {
-  while (state.queue.length && Date.now() < until && Object.keys(lib.creators).length < TARGET) {
+  while (state.queue.length && Date.now() < until) {
     let h = state.queue.shift();
+    // Past the target, only accounts the owner asked for are still added.
+    if (Object.keys(lib.creators).length >= TARGET && !state.approved.includes(h)) { if (!state.queue.some((x) => state.approved.includes(x))) break; continue; }
     if (h.startsWith("=")) {
       h = h.slice(1);
       if (!due(h)) continue;

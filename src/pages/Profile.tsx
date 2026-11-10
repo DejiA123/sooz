@@ -6,7 +6,7 @@ import { Link as LinkIcon } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-import { Settings, Bookmark, Heart, Loader2, Camera, Play, VideoOff, MessageCircle, Repeat2, Flag, History } from "lucide-react";
+import { Settings, Bookmark, Heart, Loader2, Camera, Play, VideoOff, MessageCircle, Repeat2, Flag, History, UserPlus } from "lucide-react";
 import { ReportSheet } from "@/components/safety/ReportSheet";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -271,7 +271,10 @@ const Profile = () => {
         {/* Action button */}
         <div className="mt-5">
           {isOwnProfile ? (
-            <Button onClick={() => setShowEditModal(true)} variant="secondary" className="h-10 px-8 rounded-full font-bold">Edit Profile</Button>
+            <div className="flex gap-2">
+              <Button onClick={() => setShowEditModal(true)} variant="secondary" className="h-10 px-6 rounded-full font-bold">Edit Profile</Button>
+              <Button asChild className="h-10 rounded-full bg-amber-400 px-5 font-bold text-black hover:bg-amber-300"><Link to="/friends"><UserPlus className="mr-1.5 h-4 w-4" /> Add friends</Link></Button>
+            </div>
           ) : (
             <div className="flex gap-2">
               <Button onClick={handleFollow} className={cn("h-10 px-8 rounded-full font-bold transition-all active:scale-95", profileData?.isFollowing ? "bg-secondary text-foreground hover:bg-secondary/80" : "bg-primary text-primary-foreground hover:opacity-90")}>

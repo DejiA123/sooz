@@ -9,9 +9,26 @@ import { bubbleTime } from "@/lib/chat";
 import { fetchChatList, isChatVisible, messageSummary, searchPeople, type Attachment, type ChatMember, type ChatMessage, type ChatSummary, type PersonResult } from "@/services/api/chat";
 
 /** Bottom sheet used by every chat sheet. */
-export const Sheet = ({ open, onClose, title, children, tall }: { open: boolean; onClose: () => void; title: string; children: ReactNode; tall?: boolean }) => (
-  <Drawer open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
-    <DrawerContent overlayClassName="z-[85]" className={cn("z-[85] rounded-t-[20px] border-white/10 bg-[#121317] pb-[max(env(safe-area-inset-bottom),12px)] text-white", tall && "h-[88dvh]")}>
+/** The visible height above the on-screen keyboard (iPhone shrinks the visual viewport, not the layout). */
+function useVisibleHeight(on: boolean) {
+  const [h, setH] = useState<number | null>(null);
+  useEffect(() => {
+    const vv = typeof window !== "undefined" ? window.visualViewport : null;
+    if (!on || !vv) return;
+    const update = () => setH(vv.height);
+    update();
+    vv.addEventListener("resize", update);
+    return () => vv.removeEventListener("resize", update);
+  }, [on]);
+  return h;
+}
+
+export const Sheet = ({ open, onClose, title, children, tall }: { open: boolean; onClose: () => void; title: string; children: ReactNode; tall?: boolean }) => {
+  // Tall sheets shrink to fit above the keyboard instead of being pushed up off the screen.
+  const visible = useVisibleHeight(open && !!tall);
+  return (
+  <Drawer open={open} onOpenChange={(o) => { if (!o) onClose(); }} repositionInputs={!tall}>
+    <DrawerContent overlayClassName="z-[85]" style={tall && visible ? { height: `min(88dvh, ${Math.round(visible - 16)}px)` } : undefined} className={cn("z-[85] rounded-t-[20px] border-white/10 bg-[#121317] pb-[max(env(safe-area-inset-bottom),12px)] text-white", tall && "h-[88dvh]")}>
       <div className="relative flex items-center justify-center px-4 pb-2 pt-1">
         <DrawerTitle className="text-[16px] font-bold">{title}</DrawerTitle>
         <button type="button" aria-label="Close" onClick={onClose} className="absolute right-3 top-0 flex h-9 w-9 items-center justify-center rounded-full text-white/70 active:bg-white/10"><X className="h-5 w-5" /></button>
@@ -19,7 +36,8 @@ export const Sheet = ({ open, onClose, title, children, tall }: { open: boolean;
       {children}
     </DrawerContent>
   </Drawer>
-);
+  );
+};
 
 const PersonRow = ({ name, sub, avatar, group, right, onClick }: { name: string; sub?: ReactNode; avatar: string | null; group?: boolean; right?: ReactNode; onClick?: () => void }) => (
   <button type="button" onClick={onClick} className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left active:bg-white/[0.06]">
@@ -278,7 +296,7 @@ export const PeoplePicker = ({ open, title, meId, multiple, exclude, actionLabel
       <div className="px-4 pb-2">
         <div className="relative">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/40" />
-          <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search name or @username" className="h-10 w-full rounded-full bg-white/[0.08] pl-9 pr-3 text-[16px] outline-none placeholder:text-white/40" />
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search name or @username" className="h-10 w-full rounded-full bg-white/[0.08] pl-9 pr-3 text-[16px] outline-none placeholder:text-white/40" />
         </div>
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto px-1">
