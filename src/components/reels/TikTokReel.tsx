@@ -1,6 +1,6 @@
 import { lazy, memo, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { engage, isTikTokLiked, setTikTokLiked, tasteOfVideo, useTasteWatch } from "@/lib/taste";
-import { ExternalLink, Heart, MessageCircle, Repeat2 } from "lucide-react";
+import { engage, isTikTokLiked, isTikTokSaved, setTikTokLiked, setTikTokSaved, tasteOfVideo, useTasteWatch } from "@/lib/taste";
+import { Bookmark, ExternalLink, Heart, MessageCircle, Repeat2 } from "lucide-react";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
@@ -82,6 +82,17 @@ export const TikTokReel = memo(function TikTokReel({ video, active, near = false
     learn(next ? "like" : "unlike");
     setTikTokLiked(video.tiktok_id, next, video.author_handle?.toLowerCase() ?? null);
     refreshProfiles(); // the Liked tab
+  };
+  // Save (bookmark), like TikTok: kept on the account and shown in the profile's Saved tab.
+  const [saved, setSaved] = useState(() => isTikTokSaved(video.tiktok_id));
+  const toggleSave = () => {
+    const next = !saved;
+    setSaved(next);
+    learn(next ? "save" : "unsave");
+    setTikTokSaved(video.tiktok_id, next, video.author_handle?.toLowerCase() ?? null);
+    refreshProfiles(); // the Saved tab
+    if (next) toast("Saved to your profile", { action: { label: "View", onClick: () => navigate("/profile/me?tab=saved") } });
+    else toast("Removed from Saved");
   };
   const [reposted, setRepostedState] = useState(false);
   // Long captions show two lines with "more"; a tap opens the whole caption (and dims the video).
@@ -466,6 +477,13 @@ export const TikTokReel = memo(function TikTokReel({ video, active, near = false
           onClick={() => { setCommentsOpen(true); learn("openComments"); }}
           label={commentCount ? formatCount(commentCount) : "Comment"}
           icon={<MessageCircle className={cn(railIconClass, "fill-white/95 text-white/95")} strokeWidth={1.5} />}
+        />
+        <RailButton
+          ariaLabel={saved ? "Remove from Saved" : "Save"}
+          pressed={saved}
+          onClick={toggleSave}
+          label={saved ? "Saved" : "Save"}
+          icon={<Bookmark key={String(saved)} className={cn(railIconClass, saved ? "fill-amber-400 text-amber-400 animate-like-pop" : "fill-white/95 text-white/95")} strokeWidth={1.5} />}
         />
         <RailButton
           ariaLabel="Share"

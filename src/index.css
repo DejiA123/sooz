@@ -453,10 +453,16 @@ input, textarea { -webkit-user-select: text; user-select: text; }
 .reel-dock .reel-rail-label { font-size: 11.5px; font-weight: 600; text-shadow: none; color: rgba(255, 255, 255, 0.9); }
 .reel-dock-avatar { width: 44px; height: 44px; }
 .reel-rail.reel-dock { gap: 10px; padding-top: 16px; padding-bottom: 14px; }
-.tiktok-sooz-rail--cover { min-height: 234px; justify-content: space-evenly; }
+.tiktok-sooz-rail--cover { min-height: 300px; justify-content: space-evenly; }
+/* …reaching down far enough to hide TikTok's own share count too (it sits lower while TikTok's play bar is hidden). */
+.reel-dock.tiktok-sooz-rail--cover { bottom: calc(var(--bottom-nav-height) + 12px); }
 /* Landscape / square TikToks: the dock sits on the video's right edge (top / height set from the player
    box), covering TikTok's own column there. */
-.tiktok-sooz-rail--onvideo { bottom: auto; justify-content: space-evenly; gap: 2px; padding-top: 8px; padding-bottom: 8px; border-radius: 18px 0 0 18px; }
+.tiktok-sooz-rail--onvideo { bottom: auto; justify-content: space-evenly; gap: 0; padding-top: 6px; padding-bottom: 6px; border-radius: 18px 0 0 18px; }
+/* A 16:9 video is only ~220px tall on a phone: slightly smaller buttons so all four fit on it. */
+.tiktok-sooz-rail--onvideo .reel-rail-icon { width: 34px; height: 34px; }
+.tiktok-sooz-rail--onvideo .reel-rail-icon svg { width: 24px; height: 24px; }
+.tiktok-sooz-rail--onvideo .reel-rail-label { font-size: 10.5px; }
 /* Only where TikTok's name strip can't be tucked away (a short status bar on a tall screen, or a wide
    video): a plain bar in the status bar's colour behind the For You tabs covers it, with a clean edge.
    Its height is 0 whenever the strip is already hidden. */
@@ -540,6 +546,7 @@ body.reels-viewer-open .mobile-bottom-nav .glass-tabbar {
   .tiktok-scrim { bottom: 0; }
   .reel-caption--tiktok { bottom: 60px; right: 84px; }
   .tiktok-sooz-rail, .tiktok-sooz-rail--cover { right: auto; left: calc(100% + 16px); bottom: 6px; min-height: 0; }
+  .reel-dock.tiktok-sooz-rail--cover { bottom: 6px; }
   .reel-dock { background: none; width: auto; padding: 0; border: 0; border-radius: 0; box-shadow: none; }
   .tiktok-topband { display: none; }
 }
