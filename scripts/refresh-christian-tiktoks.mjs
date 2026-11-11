@@ -17,6 +17,7 @@ import { existsSync, mkdirSync, readdirSync, unlinkSync } from "node:fs";
 import { readFile, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import path from "node:path";
+import { fetchVideoInfo } from "./tiktok-video.mjs";
 
 const FILE = process.env.LIBRARY_FILE || new URL("../src/data/christianTikTokLibrary.json", import.meta.url);
 // Thousands of creators: each keeps only its newest few videos (The Power House's own accounts keep
@@ -50,14 +51,6 @@ const coverSrc = new Map();
 // Cover links of videos the discovery step just added (scripts/discover-christian-creators.mjs).
 if (process.env.COVER_HINTS && existsSync(process.env.COVER_HINTS)) {
   for (const [id, url] of Object.entries(JSON.parse(await readFile(process.env.COVER_HINTS, "utf8")))) coverSrc.set(id, url);
-}
-/** The cover link on a video's embed page (prefer a .jpeg copy). */
-function coverFromEmbed(html, id) {
-  const at = html.indexOf(`"id":"${id}"`);
-  const item = at >= 0 ? html.slice(at, at + 30000) : "";
-  const list = item.match(/"covers":\[([^\]]*)\]/)?.[1] ?? "";
-  const urls = [...list.matchAll(/"((?:[^"\\]|\\.)*)"/g)].map((m) => { try { return JSON.parse(`"${m[1]}"`); } catch { return ""; } }).filter(Boolean);
-  return urls.find((u) => /\.jpe?g\?/i.test(u)) || urls[0] || "";
 }
 const byCreator = new Map();
 for (const v of lib.videos) {
@@ -128,12 +121,17 @@ lib.videos = [...byCreator.values()].flat();
 for (const v of lib.videos) if (v[4].length > MAX_CAPTION) v[4] = cleanCaption(v[4]); // older, longer captions too
 
 // TikTok's like count for each video (shown on SOOZ's own heart) and its full caption. Each video's
-// public embed page has both. Every video, every day: ones never counted first, then the newest (their
-// counts move fastest), then the longest unchecked; a few at a time, all pausing if TikTok says slow down.
+// public page has both (scripts/tiktok-video.mjs). Every video, every day: ones never counted first, then
+// the newest (their counts move fastest), then the longest unchecked; a few at a time, all pausing if
+// TikTok says slow down.
 lib.likes ??= {};
 lib.likesAt ??= {};
 const today = new Date().toISOString().slice(0, 10);
-const starterIds = [...(await readFile(new URL("../src/data/christianTikTokStarter.ts", import.meta.url), "utf8")).matchAll(/\/video\/(\d+)/g)].map((m) => m[1]);
+const starterText = await readFile(new URL("../src/data/christianTikTokStarter.ts", import.meta.url), "utf8");
+const starterIds = [...starterText.matchAll(/\/video\/(\d+)/g)].map((m) => m[1]);
+/** Whose video each one is (its page address needs the creator's name). */
+const handleOf = new Map([...starterText.matchAll(/@([A-Za-z0-9._]+)\/video\/(\d+)/g)].map((m) => [m[2], m[1]]));
+for (const v of lib.videos) handleOf.set(v[0], v[1]);
 const allIds = [...new Set([...lib.videos.map((v) => v[0]), ...starterIds])];
 const newestFirst = (a, b) => (BigInt(b) > BigInt(a) ? 1 : BigInt(b) < BigInt(a) ? -1 : 0);
 const due = [
@@ -141,26 +139,32 @@ const due = [
   ...allIds.filter((id) => lib.likes[id] !== undefined && lib.likesAt[id] !== today).sort(newestFirst),
 ].slice(0, LIKES_PER_RUN);
 const likesUntil = Date.now() + LIKES_MINUTES * 60_000;
-let pauseUntil = 0, counted = 0, nextLike = 0;
+let pauseUntil = 0, counted = 0, nextLike = 0, slowDowns = 0, noAnswer = 0;
+const retried = new Set();
 async function likesWorker() {
   while (nextLike < due.length && Date.now() < likesUntil) {
     const id = due[nextLike++];
     if (Date.now() < pauseUntil) await sleep(pauseUntil - Date.now());
-    const res = await fetch(`https://www.tiktok.com/embed/v2/${id}`, { headers: { "user-agent": UA }, signal: AbortSignal.timeout(20000) }).catch(() => null);
-    const html = res?.ok ? await res.text().catch(() => "") : "";
-    if (/ratelimit/.test(html) && html.length < 200) { pauseUntil = Date.now() + 30000; due.push(id); await sleep(30000); continue; }
-    const m = html.match(new RegExp(`"id":"${id}"[\\s\\S]{0,4000}?"diggCount":(\\d+)`)) || html.match(/"diggCount":(\d+)/);
-    if (m) { lib.likes[id] = Number(m[1]); lib.likesAt[id] = today; counted++; }
-    const t = html.match(new RegExp(`"id":"${id}","text":"((?:[^"\\\\]|\\\\.)*)"`));
-    const row = t && lib.videos.find((v) => v[0] === id);
-    if (row) { try { const full = cleanCaption(JSON.parse(`"${t[1]}"`)); if (full) row[4] = full; } catch { /* odd text: keep ours */ } }
-    const cover = coverFromEmbed(html, id);
-    if (cover) coverSrc.set(id, cover);
+    const info = await fetchVideoInfo(id, handleOf.get(id), UA);
+    if (info.status === "slow") {
+      // TikTok asked us to slow down: everyone waits (longer each time), and this video gets one more go.
+      slowDowns++;
+      const wait = Math.min(30000 * slowDowns, 180000);
+      pauseUntil = Date.now() + wait;
+      if (!retried.has(id)) { retried.add(id); due.push(id); }
+      await sleep(wait);
+      continue;
+    }
+    if (info.status !== "ok") { noAnswer++; await sleep(700); continue; }
+    if (info.likes !== undefined) { lib.likes[id] = info.likes; lib.likesAt[id] = today; counted++; }
+    const row = lib.videos.find((v) => v[0] === id);
+    if (row && info.caption) { const full = cleanCaption(info.caption); if (full) row[4] = full; }
+    if (info.cover) coverSrc.set(id, info.cover);
     await sleep(700);
   }
 }
 await Promise.all(Array.from({ length: LIKES_WORKERS }, likesWorker));
-console.log(`Like counts: ${counted} updated today; ${allIds.filter((id) => lib.likes[id] !== undefined).length} of ${allIds.length} videos have one.`);
+console.log(`Like counts: ${counted} updated today; ${allIds.filter((id) => lib.likes[id] !== undefined).length} of ${allIds.length} videos have one (${noAnswer} gave no answer, TikTok said "slow down" ${slowDowns} times).`);
 for (const id of Object.keys(lib.likes)) if (!allIds.includes(id)) { delete lib.likes[id]; delete lib.likesAt[id]; }
 
 // ---- Link-preview cards (tt/{id}.jpg on the covers branch) ----
@@ -197,10 +201,9 @@ if (COVERS_DIR) {
       if (!src) {
         if (lookups >= COVER_LOOKUPS_PER_RUN) continue;
         lookups++;
-        const res = await fetch(`https://www.tiktok.com/embed/v2/${id}`, { headers: { "user-agent": UA } }).catch(() => null);
-        const html = res?.ok ? await res.text() : "";
-        if (/ratelimit/.test(html) && html.length < 200) { await sleep(20000); continue; }
-        src = coverFromEmbed(html, id);
+        const info = await fetchVideoInfo(id, handleOf.get(id), UA);
+        if (info.status === "slow") { await sleep(20000); continue; }
+        src = info.cover;
         await sleep(1500);
       }
       if (!src) { failed++; continue; }
