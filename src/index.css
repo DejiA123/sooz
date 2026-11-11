@@ -454,6 +454,9 @@ input, textarea { -webkit-user-select: text; user-select: text; }
 .reel-dock-avatar { width: 44px; height: 44px; }
 .reel-rail.reel-dock { gap: 10px; padding-top: 16px; padding-bottom: 14px; }
 .tiktok-sooz-rail--cover { min-height: 234px; justify-content: space-evenly; }
+/* Landscape / square TikToks: the dock sits on the video's right edge (top / height set from the player
+   box), covering TikTok's own column there. */
+.tiktok-sooz-rail--onvideo { bottom: auto; justify-content: space-evenly; gap: 2px; padding-top: 8px; padding-bottom: 8px; border-radius: 18px 0 0 18px; }
 /* Only where TikTok's name strip can't be tucked away (a short status bar on a tall screen, or a wide
    video): a plain bar in the status bar's colour behind the For You tabs covers it, with a clean edge.
    Its height is 0 whenever the strip is already hidden. */

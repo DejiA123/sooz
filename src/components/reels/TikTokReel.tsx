@@ -132,6 +132,25 @@ export const TikTokReel = memo(function TikTokReel({ video, active, near = false
     return () => ro.disconnect();
   }, []);
 
+  // Where the player box sits (landscape / square videos): SOOZ's dock moves up onto its right edge to
+  // cover TikTok's own like / comment / share column there, as it does on full-screen TikToks. Phones only.
+  const playerRef = useRef<HTMLDivElement>(null);
+  const [playerBox, setPlayerBox] = useState<{ top: number; height: number } | null>(null);
+  useLayoutEffect(() => {
+    const p = playerRef.current, st = stageRef.current;
+    if (!p || !st) return;
+    const measure = () => {
+      if (window.matchMedia("(min-width: 768px)").matches || !p.offsetHeight) { setPlayerBox(null); return; }
+      const next = { top: p.offsetTop, height: p.offsetHeight };
+      setPlayerBox((prev) => (prev && prev.top === next.top && prev.height === next.height ? prev : next));
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(st);
+    ro.observe(p);
+    return () => ro.disconnect();
+  }, []);
+
   // Commands for TikTok's embed player, in the exact shape Mux's tiktok-video-element sends them.
   const send = useCallback((type: string, value?: unknown) => {
     const w = iframeRef.current?.contentWindow;
@@ -330,7 +349,7 @@ export const TikTokReel = memo(function TikTokReel({ video, active, near = false
     <div className="reel-frame">
       <div className="reel-media bg-black">
         <div ref={stageRef} className="tiktok-stage">
-          <div className={cn("tiktok-player", fill && "tiktok-player--fill")} style={{ ["--ar" as string]: String(ratio) }}>
+          <div ref={playerRef} className={cn("tiktok-player", fill && "tiktok-player--fill")} style={{ ["--ar" as string]: String(ratio) }}>
             {/* Until TikTok's player is ready */}
             {!(mounted && showPlayer) && (
               <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black px-8 text-center text-white">
@@ -431,7 +450,10 @@ export const TikTokReel = memo(function TikTokReel({ video, active, near = false
           comment / share column and SOOZ can't remove it (it's TikTok's page), so on full-screen TikToks
           the dock covers that whole column — wherever TikTok puts it — and SOOZ's heart shows TikTok's
           like count. */}
-      <div className={cn("tiktok-sooz-rail reel-dock", fill && "tiktok-sooz-rail--cover")}>
+      <div
+        className={cn("tiktok-sooz-rail reel-dock", fill && "tiktok-sooz-rail--cover", !fill && playerBox && "tiktok-sooz-rail--onvideo")}
+        style={!fill && playerBox ? { top: playerBox.top, minHeight: playerBox.height } : undefined}
+      >
         <RailButton
           ariaLabel={liked ? "Unlike" : "Like"}
           pressed={liked}
