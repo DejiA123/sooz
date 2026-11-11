@@ -16,6 +16,7 @@
  * cover links for the refresh's preview cards.
  */
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { fetchVideoInfo } from "./tiktok-video.mjs";
 
 const FILE = process.env.LIBRARY_FILE || new URL("../src/data/christianTikTokLibrary.json", import.meta.url);
 const STATE = process.env.DISCOVERY_STATE || new URL("../data/creator-discovery.json", import.meta.url);
@@ -118,14 +119,12 @@ async function embed(handle) {
   return null;
 }
 
-/** The real usernames of accounts mentioned in a creator's videos (from each video's embed page). */
+/** The real usernames of accounts mentioned in a creator's videos (from each video's public page). */
 async function harvest(handle, vids) {
   for (const v of vids.filter((x) => String(x.desc || "").includes("@")).slice(0, 12)) {
-    try {
-      const res = await fetch(`https://www.tiktok.com/embed/v2/${v.id}`, { headers: { "user-agent": UA }, signal: AbortSignal.timeout(20000) });
-      const html = await res.text();
-      for (const m of html.matchAll(/"UserUniqueId":"([^"]+)"/g)) enqueue(m[1]);
-    } catch { /* skip */ }
+    const info = await fetchVideoInfo(String(v.id), handle, UA);
+    if (info.status === "slow") { await sleep(20000); continue; }
+    for (const u of info.mentions ?? []) enqueue(u);
     await sleep(700);
   }
 }
@@ -223,6 +222,7 @@ for (const h of Object.keys(lib.creators)) if (due(h)) state.queue.push(`=${h}`)
 // names written in its caption straight away, and the exact accounts it tags (its embed page) once.
 state.harvestedVideos ??= {};
 const libIds = new Set(lib.videos.map((v) => v[0]));
+const videoHandle = new Map(lib.videos.map((v) => [v[0], v[1]]));
 for (const id of Object.keys(state.harvestedVideos)) if (!libIds.has(id)) delete state.harvestedVideos[id];
 for (const v of lib.videos) for (const m of String(v[4] || "").matchAll(/(?<![A-Za-z0-9._])@([A-Za-z0-9._]{2,24})/g)) enqueue(m[1]); // not e-mail addresses
 const VIDEO_LOOKUPS = Number(process.env.VIDEO_LOOKUPS || 600);
@@ -242,12 +242,10 @@ async function worker() {
     if (h.startsWith("#")) {
       const id = h.slice(1);
       if (state.harvestedVideos[id]) continue;
-      try {
-        const res = await fetch(`https://www.tiktok.com/embed/v2/${id}`, { headers: { "user-agent": UA }, signal: AbortSignal.timeout(20000) });
-        const html = await res.text();
-        for (const m of html.matchAll(/"UserUniqueId":"([^"]+)"/g)) enqueue(m[1]);
-        if (html.includes(`"id":"${id}"`)) state.harvestedVideos[id] = 1; // a real page (not a "slow down" one)
-      } catch { /* try again another day */ }
+      const info = await fetchVideoInfo(id, videoHandle.get(id), UA);
+      if (info.status === "slow") { await sleep(20000); continue; } // try again another day
+      for (const u of info.mentions ?? []) enqueue(u);
+      if (info.status === "ok" || info.status === "gone") state.harvestedVideos[id] = 1;
       await sleep(700);
       continue;
     }
