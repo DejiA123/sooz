@@ -11,7 +11,7 @@ export const MODES: Record<"post" | "story", CameraMode[]> = {
   post: ["60s", "15s", "photo", "text"],
   story: ["30s", "photo"],
 };
-export const DEFAULT_MODE: Record<"post" | "story", CameraMode> = { post: "15s", story: "photo" };
+export const DEFAULT_MODE: Record<"post" | "story", CameraMode> = { post: "photo", story: "photo" }; // PHOTO first (hold the button for a video)
 
 const LABEL: Record<CameraMode, string> = { "60s": "60s", "30s": "30s", "15s": "15s", photo: "PHOTO", text: "TEXT" };
 const LIMIT: Partial<Record<CameraMode, number>> = { "60s": 60, "30s": 30, "15s": 15 };
