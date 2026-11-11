@@ -114,6 +114,14 @@ export const ReelsFeed = ({ items, hasMore, loadingMore, loadMore, initialIndex 
     return () => document.removeEventListener("visibilitychange", onVis);
   }, []);
 
+  // …and while Create (the camera) covers the feed.
+  const [covered, setCovered] = useState(() => typeof document !== "undefined" && document.body.classList.contains("sooz-feed-covered"));
+  useEffect(() => {
+    const onCover = (e: Event) => setCovered(!!(e as CustomEvent<boolean>).detail);
+    window.addEventListener("sooz:feed-cover", onCover);
+    return () => window.removeEventListener("sooz:feed-cover", onCover);
+  }, []);
+
   return (
     <div className="relative h-full w-full">
       <div
@@ -124,7 +132,7 @@ export const ReelsFeed = ({ items, hasMore, loadingMore, loadMore, initialIndex 
       >
         {items.map((item, i) => {
           const distance = Math.abs(i - active);
-          const isActive = i === active && pageVisible;
+          const isActive = i === active && pageVisible && !covered;
           return (
             <section key={item.key} className="reel-slide" data-kind={item.kind} aria-roledescription="slide" aria-label={`${i + 1} of ${items.length}`}>
               {distance <= RENDER_WINDOW &&

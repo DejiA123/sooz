@@ -11,8 +11,8 @@ export const NotificationManager = () => {
         // Only ask if user is logged in, not subscribed, and permission is default
         if (user && !isSubscribed && 'Notification' in window && Notification.permission === 'default') {
             const timer = setTimeout(() => {
-                toast("Enable notifications?", {
-                    description: "Get notified when people post new videos.",
+                toast("Turn on notifications?", {
+                    description: "So you never miss a message or a call.",
                     action: {
                         label: "Allow",
                         onClick: () => {

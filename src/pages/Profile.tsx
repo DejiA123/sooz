@@ -15,6 +15,7 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/compone
 import { LazyVideo } from "@/components/feed/LazyVideo";
 import { ReelsViewer } from "@/components/reels/ReelsViewer";
 import { TextTile, TikTokTile } from "@/components/reels/GridTiles";
+import { TileOptions } from "@/components/profile/TileOptions";
 import { fetchProfileTab, type ProfileTab } from "@/services/api/profileTabs";
 import { openDirectChat } from "@/services/api/chat";
 import type { FeedItem } from "@/services/api/feed";
@@ -142,6 +143,27 @@ const Profile = () => {
     if ((location.state as { soozViewer?: boolean } | null)?.soozViewer) navigate(-1);
     else setSearchParams((p) => { p.delete("watch"); return p; }, { replace: true });
   };
+
+  // Long-press a tile for its options (like TikTok); the finger lifting afterwards isn't a tap.
+  const [optionsFor, setOptionsFor] = useState<number | null>(null);
+  const press = useRef<{ x: number; y: number; timer: number } | null>(null);
+  const longFired = useRef(false);
+  const tilePress = (index: number) => ({
+    onPointerDown: (e: React.PointerEvent) => {
+      if (e.pointerType === "mouse" && e.button !== 0) return;
+      longFired.current = false;
+      const timer = window.setTimeout(() => { press.current = null; longFired.current = true; navigator.vibrate?.(12); setOptionsFor(index); }, 480);
+      press.current = { x: e.clientX, y: e.clientY, timer };
+    },
+    onPointerMove: (e: React.PointerEvent) => {
+      const s = press.current;
+      if (s && Math.hypot(e.clientX - s.x, e.clientY - s.y) > 10) { clearTimeout(s.timer); press.current = null; }
+    },
+    onPointerUp: () => { if (press.current) { clearTimeout(press.current.timer); press.current = null; } },
+    onPointerCancel: () => { if (press.current) { clearTimeout(press.current.timer); press.current = null; } },
+    onContextMenu: (e: React.MouseEvent) => { e.preventDefault(); if (!longFired.current) { if (press.current) { clearTimeout(press.current.timer); press.current = null; } longFired.current = true; setOptionsFor(index); } },
+    onClick: () => { if (longFired.current) { longFired.current = false; return; } openViewer(index); },
+  });
 
   const profile = profileData;
   const isOwnProfile = user?.id === profile?.id;
@@ -332,10 +354,10 @@ const Profile = () => {
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ delay: Math.min(index, 12) * 0.03 }}
                   className={cn(
-                    "group relative block w-full cursor-pointer overflow-hidden rounded-xl bg-secondary/30 text-left",
+                    "profile-tile group relative block w-full cursor-pointer select-none overflow-hidden rounded-xl bg-secondary/30 text-left",
                     index % 3 === 0 ? "aspect-[3/4]" : "aspect-square"
                   )}
-                  onClick={() => openViewer(index)}
+                  {...tilePress(index)}
                   aria-label={item.kind === "tiktok" ? `TikTok by ${item.video.author_name || item.video.author_handle || "a creator"}` : post?.caption || "Post"}
                 >
                   {item.kind === "tiktok" ? (
@@ -387,6 +409,16 @@ const Profile = () => {
           startIndex={watching}
           title={activeTab === "posts" ? undefined : TAB_LABEL[activeTab]}
           onClose={closeViewer}
+        />
+      )}
+
+      {optionsFor !== null && items[optionsFor] && (
+        <TileOptions
+          key={items[optionsFor].key}
+          item={items[optionsFor]}
+          tab={activeTab}
+          onClose={() => setOptionsFor(null)}
+          onWatch={() => openViewer(optionsFor)}
         />
       )}
 

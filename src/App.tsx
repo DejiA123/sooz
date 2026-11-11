@@ -1,7 +1,7 @@
 // v2.1.4 - Sync Check After Reconnect
 import OfflineBanner from "@/components/OfflineBanner";
 import { registerServiceWorker } from "@/lib/registerSW";
-import { useEffect, Suspense, lazy } from "react";
+import { useEffect, useState, Suspense, lazy } from "react";
 import { HelmetProvider } from 'react-helmet-async';
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner, toast } from "@/components/ui/sonner";
@@ -66,13 +66,19 @@ import { startUpdateChecks } from "@/lib/appUpdate";
 import { queryClient } from "@/lib/react-query";
 
 
-/** Pop-up messages. During a call they show at the top (like a phone's banner), so they never
- *  cover the call's buttons (End, Mute…) at the bottom. */
+/** Pop-up messages. During a call, and while Create (the camera) is open, they show at the top
+ *  (like a phone's banner), so they never cover the buttons at the bottom (End, Mute, Post…). */
 const AppToasts = () => {
   const { callState } = useCall();
-  return callState === "IDLE"
+  const [creating, setCreating] = useState(false);
+  useEffect(() => {
+    const on = (e: Event) => setCreating(!!(e as CustomEvent<boolean>).detail);
+    window.addEventListener("sooz:feed-cover", on);
+    return () => window.removeEventListener("sooz:feed-cover", on);
+  }, []);
+  return callState === "IDLE" && !creating
     ? <Sonner />
-    : <Sonner position="top-center" mobileOffset={{ top: "calc(env(safe-area-inset-top, 0px) + 8px)" }} />;
+    : <Sonner position="top-center" mobileOffset={{ top: `calc(env(safe-area-inset-top, 0px) + ${creating ? 64 : 8}px)` }} />; // below Create's close / back row
 };
 
 /** /t/{id}?by=handle → open that TikTok first in For You (a full load, so the feed picks it up). */
@@ -98,10 +104,7 @@ const App = () => {
     applyDarkMode();
 
     // Normalize theme to the sacred gold accent
-    const colorTheme = localStorage.getItem("sooz-theme");
-    if (!colorTheme || colorTheme === "blue") {
-      localStorage.setItem("sooz-theme", "gold");
-    }
+    localStorage.setItem("sooz-theme", "gold"); // the accent colour choice was removed: SOOZ is gold
     document.documentElement.style.setProperty("--primary", "38 92% 50%");
 
     registerServiceWorker();

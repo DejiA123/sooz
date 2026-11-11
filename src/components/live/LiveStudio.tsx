@@ -11,6 +11,8 @@ import { LIVE_PREFIX, type LiveClip, type LiveManifest } from "@/lib/liveStream"
 interface LiveStudioProps {
   onStreamStarted?: (playbackUrl: string) => void;
   onStreamEnded?: () => void;
+  /** Called with true while live (starting, on air or ending), false otherwise. */
+  onLiveChange?: (live: boolean) => void;
 }
 
 /** Length of each clip. Shorter = less delay for viewers, longer = fewer uploads. */
@@ -37,7 +39,7 @@ const clock = (s: number) => {
 };
 
 /** Go live from this phone's camera to everyone on SOOZ (see `src/lib/liveStream.ts`). */
-export const LiveStudio = ({ onStreamStarted, onStreamEnded }: LiveStudioProps) => {
+export const LiveStudio = ({ onStreamStarted, onStreamEnded, onLiveChange }: LiveStudioProps) => {
   const { user } = useAuth();
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [cameraError, setCameraError] = useState(false);
@@ -270,6 +272,7 @@ export const LiveStudio = ({ onStreamStarted, onStreamEnded }: LiveStudioProps) 
   }, []);
 
   const isLive = phase !== "idle";
+  useEffect(() => { onLiveChange?.(isLive); }, [isLive, onLiveChange]);
 
   return (
     <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2">

@@ -1,68 +1,15 @@
-import { useState, useEffect } from "react";
-import { Check, ArrowLeft, LogOut, Bell, Palette } from "lucide-react";
+import { ArrowLeft, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
 import { useNavigate } from "react-router-dom";
-import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
-import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { FamilySafeSetting } from "@/components/safety/FamilySafeSetting";
-
-const THEMES = [
-  { id: "gold", primary: "38 92% 50%", color: "hsl(38, 92%, 50%)" },
-  { id: "blue", primary: "240 100% 27%", color: "hsl(240, 100%, 27%)" },
-  { id: "rose", primary: "340 75% 55%", color: "hsl(340, 75%, 55%)" },
-  { id: "emerald", primary: "142 71% 45%", color: "hsl(142, 71%, 45%)" },
-  { id: "violet", primary: "263 70% 58%", color: "hsl(263, 70%, 58%)" },
-];
 
 export default function Settings() {
   const navigate = useNavigate();
-  const [currentTheme, setCurrentTheme] = useState("gold");
-  const { isSubscribed, subscribeToPush, unsubscribeFromPush } = usePushNotifications();
-
-  useEffect(() => {
-    const theme = localStorage.getItem("sooz-theme") || "gold";
-    setCurrentTheme(theme);
-    applyTheme(theme);
-  }, []);
-
-  const applyTheme = (themeId: string) => {
-    const theme = THEMES.find(t => t.id === themeId);
-    if (theme) { document.documentElement.style.setProperty("--primary", theme.primary); localStorage.setItem("sooz-theme", themeId); setCurrentTheme(themeId); }
-  };
-
   const handleLogout = async () => {
     try { await supabase.auth.signOut(); } catch (error) { console.error(error); }
     finally { Object.keys(localStorage).forEach((key) => { if (key.startsWith("sb-")) localStorage.removeItem(key); }); window.location.href = "/auth"; }
   };
-
-  const sections = [
-    {
-      icon: Palette,
-      iconColor: "text-violet-500",
-      title: "Accent Color",
-      content: (
-        <div className="flex items-center gap-2.5 mt-3">
-          {THEMES.map((theme) => (
-            <button key={theme.id} onClick={() => applyTheme(theme.id)}
-              className={cn("w-10 h-10 rounded-full transition-all duration-200 relative flex items-center justify-center", currentTheme === theme.id ? "ring-2 ring-offset-2 ring-offset-background ring-foreground scale-110" : "hover:scale-105")}
-              style={{ backgroundColor: theme.color }}>
-              {currentTheme === theme.id && <Check className="w-4 h-4 text-white" />}
-            </button>
-          ))}
-        </div>
-      ),
-    },
-    {
-      icon: Bell,
-      iconColor: "text-amber-500",
-      title: "Push Notifications",
-      subtitle: "Messages and calls",
-      trailing: <Switch checked={isSubscribed} onCheckedChange={() => isSubscribed ? unsubscribeFromPush() : subscribeToPush()} />,
-    },
-  ];
 
   return (
     <div className="min-h-screen bg-background pb-[calc(var(--bottom-nav-height)+6rem)]">
@@ -75,26 +22,8 @@ export default function Settings() {
         </div>
 
         <div className="space-y-3">
-          {sections.map((section, i) => (
-            <div key={i} className="bg-card rounded-2xl border border-border/20 p-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className={cn("w-9 h-9 rounded-xl flex items-center justify-center bg-secondary", section.iconColor)}>
-                    <section.icon className="w-4.5 h-4.5" />
-                  </div>
-                  <div>
-                    <p className="text-[14px] font-semibold">{section.title}</p>
-                    {section.subtitle && <p className="text-[12px] text-muted-foreground">{section.subtitle}</p>}
-                  </div>
-                </div>
-                {section.trailing}
-              </div>
-              {section.content}
-            </div>
-          ))}
-
           {/* Safety */}
-          <p className="px-1 pt-4 text-[12px] font-bold uppercase tracking-wider text-muted-foreground">Safety</p>
+          <p className="px-1 text-[12px] font-bold uppercase tracking-wider text-muted-foreground">Safety</p>
           <FamilySafeSetting />
 
           {/* Logout */}

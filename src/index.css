@@ -496,6 +496,13 @@ input, textarea { -webkit-user-select: text; user-select: text; }
 .reels-viewer-back { position: absolute; z-index: 41; left: 12px; top: calc(env(safe-area-inset-top, 0px) + 8px); }
 .reels-viewer .feed-sound-toggle { top: calc(env(safe-area-inset-top, 0px) + 10px); }
 body.reels-viewer-open .mobile-bottom-nav { z-index: 61; }
+/* Sheets, menus and dialogs opened from the full-screen viewer (comments, share, ⋯, report…) are
+   portals on <body> at z-50: lift them above the viewer (z-60) and its bottom bar (61), or they
+   open unseen behind it and the buttons seem to do nothing. */
+body.reels-viewer-open > [data-state],
+body.reels-viewer-open > [vaul-drawer],
+body.reels-viewer-open > [vaul-overlay],
+body.reels-viewer-open > [data-radix-popper-content-wrapper] { z-index: 70 !important; }
 body.reels-viewer-open .mobile-bottom-nav .glass-tabbar {
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.015)), rgba(12, 12, 16, 0.5);
 }
@@ -548,3 +555,6 @@ body.reels-viewer-open .mobile-bottom-nav .glass-tabbar {
   .fixed.top-0 { top: 0 !important; }
   .pwa-fixed-top { top: calc(3.5rem + env(safe-area-inset-top, 0px)) !important; }
 }
+
+/* Profile tiles open options on long-press: no iPhone image callout / text selection on the way. */
+.profile-tile, .profile-tile img, .profile-tile video { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; -webkit-user-drag: none; }
