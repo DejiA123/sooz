@@ -14,6 +14,7 @@ import { ReportSheet } from "@/components/safety/ReportSheet";
 import { isReposted, setReposted, soozTikTokLink, type RepostTarget } from "@/services/api/reposts";
 import type { TikTokVideo } from "@/services/api/tiktok";
 import type { FeedPost } from "@/services/api/posts";
+import { refreshProfiles } from "@/lib/profileRefresh";
 
 export type ShareItem = { kind: "post"; post: FeedPost } | { kind: "tiktok"; video: TikTokVideo };
 
@@ -97,6 +98,7 @@ export const ShareSheet = ({ item, open, onOpenChange, onShared, onRepostChange 
     const saved = await setReposted(user!.id, target, next);
     if (saved === null) { setRepostedState(!next); toast("Reposts are almost ready — please try again soon"); return; }
     onRepostChange?.(saved);
+    refreshProfiles(); // the Reposts tab
     if (saved) engage(tasteItem, "repost");
     toast(saved ? "Reposted — your followers will see it 🔁" : "Repost removed");
   };

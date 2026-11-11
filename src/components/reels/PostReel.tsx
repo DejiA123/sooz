@@ -16,6 +16,7 @@ import { formatCount, useHeartBursts, useTapGesture } from "./gestures";
 import { useFollowing } from "./useFollowing";
 import { engage, tasteOfPost, useTasteWatch } from "@/lib/taste";
 import { resetForYou } from "@/services/api/feed";
+import { refreshProfiles } from "@/lib/profileRefresh";
 
 // Only needed once someone taps comments/edit, so they load on demand.
 const ReportSheet = lazy(() => import("@/components/safety/ReportSheet").then((m) => ({ default: m.ReportSheet })));
@@ -162,7 +163,7 @@ export const PostReel = memo(function PostReel({ post, active, mounted, reposted
       setLiked(!next);
       setLikes((c) => Math.max(0, c + (next ? -1 : 1)));
       toast.error("Couldn't update like");
-    }
+    } else refreshProfiles();
     busy.current.like = false;
   };
 
@@ -175,7 +176,7 @@ export const PostReel = memo(function PostReel({ post, active, mounted, reposted
       ? await supabase.from("bookmarks").insert({ user_id: user!.id, post_id: post.id })
       : await supabase.from("bookmarks").delete().eq("user_id", user!.id).eq("post_id", post.id);
     if (error && !(next && error.code === "23505")) { setSaved(!next); toast.error("Couldn't update saved posts"); }
-    else toast.success(next ? "Saved" : "Removed from saved");
+    else { toast.success(next ? "Saved" : "Removed from saved"); refreshProfiles(); }
     busy.current.save = false;
   };
 
@@ -196,6 +197,7 @@ export const PostReel = memo(function PostReel({ post, active, mounted, reposted
     setDeleted("Post deleted");
     resetForYou();
     queryClient.invalidateQueries({ queryKey: ["feed"] });
+    refreshProfiles();
   };
 
   // First tap turns sound on (browsers start videos muted); after that, taps pause/play.
@@ -383,7 +385,7 @@ export const PostReel = memo(function PostReel({ post, active, mounted, reposted
           </Suspense>
         )}
         {commentsOpen && <CommentDrawer postId={post.id} postOwnerUsername={profile?.username} open={commentsOpen} onOpenChange={setCommentsOpen} />}
-        {editOpen && <EditPostDialog post={{ id: post.id, caption }} open={editOpen} onOpenChange={setEditOpen} onUpdate={setCaption} />}
+        {editOpen && <EditPostDialog post={{ id: post.id, caption }} open={editOpen} onOpenChange={setEditOpen} onUpdate={(c) => { setCaption(c); refreshProfiles(); }} />}
       </Suspense>
     </div>
   );

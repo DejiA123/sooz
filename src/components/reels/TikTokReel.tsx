@@ -12,6 +12,7 @@ import { useVideoStore } from "@/store/useVideoStore";
 import { countTikTokComments } from "@/services/api/tiktokComments";
 import { formatCount, Spinner } from "./gestures";
 import { RailButton, ShareArrow, railIconClass } from "./ReelRail";
+import { refreshProfiles } from "@/lib/profileRefresh";
 
 
 // The comments sheet only downloads when someone opens it.
@@ -80,6 +81,7 @@ export const TikTokReel = memo(function TikTokReel({ video, active, near = false
     setLiked(next);
     learn(next ? "like" : "unlike");
     setTikTokLiked(video.tiktok_id, next, video.author_handle?.toLowerCase() ?? null);
+    refreshProfiles(); // the Liked tab
   };
   const [reposted, setRepostedState] = useState(false);
   // Long captions show two lines with "more"; a tap opens the whole caption (and dims the video).

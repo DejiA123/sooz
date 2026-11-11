@@ -30,6 +30,7 @@ export function useFollowing() {
     }
     queryClient.invalidateQueries({ queryKey: ["feed", "following"] });
     queryClient.invalidateQueries({ queryKey: ["stories"] });
+    queryClient.invalidateQueries({ queryKey: ["profile"] }); // follower / following counts
   }, [user, key, queryClient]);
 
   const unfollow = useCallback(async (targetId: string) => {
@@ -42,6 +43,7 @@ export function useFollowing() {
       return;
     }
     queryClient.invalidateQueries({ queryKey: ["feed", "following"] });
+    queryClient.invalidateQueries({ queryKey: ["profile"] });
   }, [user, key, queryClient]);
 
   return {
