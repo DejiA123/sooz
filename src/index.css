@@ -423,6 +423,12 @@ input, textarea { -webkit-user-select: text; user-select: text; }
 }
 /* The caption sits above TikTok's own play / progress / sound bar so it never covers it. */
 .reel-caption--tiktok { bottom: calc(var(--bottom-nav-height) + 58px); right: 84px; }
+/* …and above SOOZ's tap layer (.tiktok-tap, z 5), so "more", the name and the open caption always get
+   the tap (iPhone doesn't always stack the tap layer below them otherwise). Only the words take taps:
+   the empty space around them still plays / pauses. */
+.reel-caption--tiktok { z-index: 6; pointer-events: none; }
+.reel-caption--tiktok a, .reel-caption--tiktok button, .reel-caption--tiktok [role="button"] { pointer-events: auto; }
+.tiktok-caption-dim { z-index: 6; }
 /* SOOZ's tap layer over a full-screen TikTok: everywhere except TikTok's control bar (bottom) and
    its like / comment / share column (lower right), which stay TikTok's. */
 .tiktok-tap { position: absolute; z-index: 5; -webkit-tap-highlight-color: transparent; }

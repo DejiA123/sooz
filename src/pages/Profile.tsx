@@ -96,7 +96,10 @@ const Profile = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  const [activeTab, setActiveTab] = useState<ProfileTab>("posts");
+  const [activeTab, setActiveTab] = useState<ProfileTab>(() => {
+    const t = new URLSearchParams(window.location.search).get("tab"); // e.g. the menu's "Saved"
+    return t === "saved" || t === "liked" || t === "reposts" ? t : "posts";
+  });
   // The full-screen player (?watch=N) — in the address, so the phone's back gesture closes it.
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();

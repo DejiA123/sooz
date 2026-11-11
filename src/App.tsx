@@ -36,6 +36,7 @@ const AnalyticsDashboard = lazy(() => import("./pages/AnalyticsDashboard"));
 const VideoArchive = lazy(() => import("./pages/VideoArchive"));
 const ChristianTikTok = lazy(() => import("./pages/ChristianTikTok"));
 const Moderation = lazy(() => import("./pages/Moderation"));
+const FeedbackInbox = lazy(() => import("./pages/FeedbackInbox"));
 const WatchHistory = lazy(() => import("./pages/WatchHistory"));
 const AddFriends = lazy(() => import("./pages/AddFriends"));
 
@@ -160,6 +161,7 @@ const App = () => {
                     <Route path="/archive" element={<Suspense fallback={null}><VideoArchive /></Suspense>} />
                     <Route path="/tiktok" element={<Suspense fallback={null}><ChristianTikTok /></Suspense>} />
                     <Route path="/moderation" element={<Suspense fallback={null}><Moderation /></Suspense>} />
+                    <Route path="/feedback" element={<Suspense fallback={null}><FeedbackInbox /></Suspense>} />
                     <Route path="/history" element={<Suspense fallback={null}><WatchHistory /></Suspense>} />
                     <Route path="/friends" element={<Suspense fallback={null}><AddFriends /></Suspense>} />
                     <Route element={<ProtectedRoute />}>
