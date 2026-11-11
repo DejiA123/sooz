@@ -64,7 +64,10 @@ export const CameraCapture = ({ target, mode, onModeChange, text, onTextChange, 
   const [dragging, setDragging] = useState(false);
 
   const isVideo = mode in LIMIT;
-  const limitMs = (LIMIT[mode] ?? 15) * 1000;
+  // In PHOTO mode a press-and-hold records a video too (like TikTok): up to 60s for a post, 30s for a story.
+  const [holdVideo, setHoldVideo] = useState(false);
+  const holdTimer = useRef<number | undefined>(undefined);
+  const limitMs = (holdVideo ? (target === "story" ? 30 : 60) : LIMIT[mode] ?? 15) * 1000;
   const busy = recording || countdown > 0;
   useEffect(() => { onBusyChange?.(busy); }, [busy, onBusyChange]);
 
@@ -96,6 +99,7 @@ export const CameraCapture = ({ target, mode, onModeChange, text, onTextChange, 
     return () => {
       alive.current = false;
       discard.current = true;
+      clearTimeout(holdTimer.current);
       try { if (recRef.current && recRef.current.state !== "inactive") recRef.current.stop(); } catch { /* already stopped */ }
       stopTracks();
     };
@@ -156,6 +160,7 @@ export const CameraCapture = ({ target, mode, onModeChange, text, onTextChange, 
     rec.onstop = () => {
       recRef.current = null;
       setRecording(false);
+      setHoldVideo(false);
       if (discard.current || !alive.current) return;
       const mime = (rec.mimeType || type || "video/webm").split(";")[0];
       const blob = new Blob(chunks.current, { type: mime });
@@ -200,22 +205,49 @@ export const CameraCapture = ({ target, mode, onModeChange, text, onTextChange, 
   };
 
   // ---- Shutter: tap for a photo; tap to start / stop a video, or hold to record while held ----
+  // (PHOTO mode: a tap takes the photo when the finger lifts; holding starts a video, lifting stops it.)
   const onShutterDown = (e: React.PointerEvent<HTMLButtonElement>) => {
-    if (!isVideo || status !== "ready" || countdown) return;
+    if (status !== "ready" || countdown || mode === "text") return;
     e.currentTarget.setPointerCapture?.(e.pointerId);
+    if (mode === "photo") {
+      if (recRef.current) { stopRec(); return; }
+      pressAt.current = Date.now();
+      clearTimeout(holdTimer.current);
+      holdTimer.current = window.setTimeout(() => {
+        holdTimer.current = undefined;
+        if (!pressAt.current) return;
+        setHoldVideo(true);
+        navigator.vibrate?.(15);
+        startRec();
+      }, HOLD_MS);
+      return;
+    }
     if (recRef.current) { pressAt.current = 0; stopRec(); return; }
     if (timer) { pressAt.current = 0; countThen(startRec); return; }
     pressAt.current = Date.now();
     startRec();
   };
-  const onShutterUp = () => {
+  const onShutterUp = (e?: React.PointerEvent) => {
+    if (mode === "photo") {
+      const wasPress = pressAt.current;
+      pressAt.current = 0;
+      if (holdTimer.current !== undefined) {
+        // Let go before it became a hold: a photo (after the timer, if one is set).
+        clearTimeout(holdTimer.current);
+        holdTimer.current = undefined;
+        if (wasPress && e?.type === "pointerup") { if (timer) countThen(takePhoto); else takePhoto(); }
+        return;
+      }
+      if (recRef.current) stopRec();
+      return;
+    }
     if (isVideo && recRef.current && pressAt.current && Date.now() - pressAt.current > HOLD_MS) stopRec();
     pressAt.current = 0;
   };
   const onShutterClick = (e: React.MouseEvent) => {
     if (mode === "text") { if (text.trim()) onText(); return; }
     if (status !== "ready" || countdown) return;
-    if (mode === "photo") { if (timer) countThen(takePhoto); else takePhoto(); return; }
+    if (mode === "photo") { if (e.detail === 0) { if (timer) countThen(takePhoto); else takePhoto(); } return; } // fingers / mouse: see onShutterUp
     if (e.detail === 0) { if (recRef.current) stopRec(); else if (timer) countThen(startRec); else startRec(); } // keyboard
   };
 
@@ -229,7 +261,7 @@ export const CameraCapture = ({ target, mode, onModeChange, text, onTextChange, 
   };
 
   const modes = MODES[target];
-  const progress = isVideo ? elapsed / limitMs : 0;
+  const progress = recording ? elapsed / limitMs : 0;
   const R = 44;
   const C = 2 * Math.PI * R;
 
@@ -314,7 +346,7 @@ export const CameraCapture = ({ target, mode, onModeChange, text, onTextChange, 
       )}
 
       {/* Bottom: modes, shutter, upload */}
-      <div className="absolute inset-x-0 bottom-[calc(env(safe-area-inset-bottom,0px)+48px)] z-20 bg-gradient-to-t from-black/50 via-black/20 to-transparent pb-3 pt-10">
+      <div className="absolute inset-x-0 bottom-0 z-20 bg-gradient-to-t from-black/55 via-black/25 to-transparent pb-[calc(env(safe-area-inset-bottom,0px)+60px)] pt-10">
         {!recording && (
           <div className="mb-4 flex items-center justify-center gap-5" role="tablist" aria-label="Camera mode">
             {modes.map((m) => (
@@ -349,7 +381,7 @@ export const CameraCapture = ({ target, mode, onModeChange, text, onTextChange, 
           ) : (
             <button
               type="button"
-              aria-label={mode === "photo" ? "Take photo" : recording ? "Stop recording" : "Record video"}
+              aria-label={recording ? "Stop recording" : mode === "photo" ? "Take photo" : "Record video"}
               onPointerDown={onShutterDown}
               onPointerUp={onShutterUp}
               onPointerCancel={onShutterUp}
@@ -365,8 +397,8 @@ export const CameraCapture = ({ target, mode, onModeChange, text, onTextChange, 
               <span
                 className={cn(
                   "block transition-all duration-200",
-                  mode === "photo" ? "h-[70px] w-[70px] rounded-full bg-white"
-                    : recording ? "h-8 w-8 rounded-lg bg-[#ff2d55]" : "h-[70px] w-[70px] rounded-full bg-[#ff2d55]",
+                  recording ? "h-8 w-8 rounded-lg bg-[#ff2d55]"
+                    : mode === "photo" ? "h-[70px] w-[70px] rounded-full bg-white" : "h-[70px] w-[70px] rounded-full bg-[#ff2d55]",
                 )}
               />
             </button>
@@ -380,7 +412,9 @@ export const CameraCapture = ({ target, mode, onModeChange, text, onTextChange, 
             )}
           </div>
         </div>
-        {isVideo && !recording && status === "ready" && <p className="mt-2 text-center text-[12px] text-white/70 drop-shadow">Tap to record · hold to record while pressed</p>}
+        {!recording && status === "ready" && mode !== "text" && (
+          <p className="mt-2 text-center text-[12px] text-white/70 drop-shadow">{mode === "photo" ? "Tap for photo · hold for video" : "Tap to record · hold to record while pressed"}</p>
+        )}
       </div>
 
       <input
