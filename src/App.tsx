@@ -65,6 +65,7 @@ import { UpdatePrompt } from "@/components/layout/UpdatePrompt";
 import { startUpdateChecks } from "@/lib/appUpdate";
 
 import { queryClient } from "@/lib/react-query";
+import { startNoShakeUndo } from "@/lib/noShakeUndo";
 
 
 /** Pop-up messages. During a call, and while Create (the camera) is open, they show at the top
@@ -110,6 +111,7 @@ const App = () => {
 
     registerServiceWorker();
     startUpdateChecks();
+    startNoShakeUndo(); // no iPhone "Undo Typing" pop-up once they've finished typing
 
     // Request Notification Permission logic updated to use hook
     // We need to move this INSIDE a component that is inside AuthProvider

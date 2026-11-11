@@ -129,15 +129,30 @@ const Profile = () => {
       return { ...data, website: (data as any).website || null, followersCount: followersObj.count || 0, followingCount: followingObj.count || 0, isFollowing: !!followStatus.data };
     },
     enabled: !!username && (username !== "me" || !!user),
-    staleTime: 1000 * 60 * 5,
+    // Live: fresh whenever the profile is opened or the app comes back, and every 20s while it's on screen.
+    staleTime: 5_000,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
+    refetchInterval: 20_000,
   });
 
   const { data: items = [], isLoading: isPostsLoading } = useQuery({
     queryKey: ['profile-tab', profileData?.id, activeTab, user?.id],
     queryFn: () => fetchProfileTab(profileData!.id, activeTab, user?.id),
     enabled: !!profileData?.id,
-    staleTime: 1000 * 30,
+    staleTime: 5_000,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
+    refetchInterval: 20_000,
   });
+
+  // The full-screen player keeps the list it opened with, so live refreshes of the grid behind it
+  // (a like, a delete, a new post) never move the video someone is watching.
+  const [viewerItems, setViewerItems] = useState<FeedItem[] | null>(null);
+  useEffect(() => {
+    if (watching === null) { setViewerItems(null); return; }
+    setViewerItems((v) => (v && v.length ? v : items.length ? items : null));
+  }, [watching, items]);
 
   const openViewer = (index: number) => {
     setSearchParams((p) => { p.set("watch", String(index)); return p; }, { state: { soozViewer: true } });
@@ -405,10 +420,10 @@ const Profile = () => {
         )}
       </div>
 
-      {watching !== null && items.length > 0 && (
+      {watching !== null && viewerItems && viewerItems.length > 0 && (
         <ReelsViewer
           key={activeTab}
-          items={items}
+          items={viewerItems}
           startIndex={watching}
           title={activeTab === "posts" ? undefined : TAB_LABEL[activeTab]}
           onClose={closeViewer}
