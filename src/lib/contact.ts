@@ -1,5 +1,5 @@
 /**
- * SOOZ's public contact address (Help, Terms and About pages). One place to change it.
- * The code is public: only ever a shared support address here, never a personal one.
+ * SOOZ's public contact address (Help, Terms and About pages), chosen by the owner. One place to
+ * change it. It is shown to everyone and the code is public, so only an address meant to be public.
  */
-export const CONTACT_EMAIL = "support@sooz.app";
+export const CONTACT_EMAIL = "churchspace7@gmail.com";
