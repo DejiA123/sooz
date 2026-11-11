@@ -1,9 +1,10 @@
 import { useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { BarChart3, Bookmark, History, LogOut, MessageSquareWarning, Settings, ShieldCheck, Sparkles, UserPlus, Video } from "lucide-react";
+import { BarChart3, Bookmark, History, Inbox, LogOut, Settings, ShieldCheck, Sparkles, ThumbsUp, UserPlus, Video } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { openReportCount } from "@/services/api/safety";
-import { toast } from "sonner";
+import { openFeedbackCount } from "@/services/api/feedback";
+import { FeedbackSheet } from "@/components/feedback/FeedbackSheet";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useIsAdmin } from "@/lib/admin";
@@ -15,8 +16,11 @@ export const AppMenuSheet = ({ trigger }: { trigger: ReactNode }) => {
   const close = () => setOpen(false);
   const { isAdmin } = useIsAdmin();
   const reports = useQuery({ queryKey: ["moderation-count"], queryFn: openReportCount, enabled: isAdmin && open, staleTime: 30_000 });
+  const feedback = useQuery({ queryKey: ["feedback-count"], queryFn: openFeedbackCount, enabled: isAdmin && open, staleTime: 30_000 });
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
 
   return (
+    <>
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>{trigger}</SheetTrigger>
       <SheetContent side="right" className="w-[85%] max-w-sm border-l border-border/10 bg-background/95 p-0 backdrop-blur-2xl">
@@ -29,6 +33,7 @@ export const AppMenuSheet = ({ trigger }: { trigger: ReactNode }) => {
             ...(isAdmin ? [
               { to: "/tiktok", icon: Sparkles, label: "Christian TikTok", color: "text-amber-400" },
               { to: "/moderation", icon: ShieldCheck, label: "Moderation", color: "text-emerald-400", badge: reports.data || 0 },
+              { to: "/feedback", icon: Inbox, label: "Feedback", color: "text-sky-400", badge: feedback.data || 0 },
             ] : []),
             { to: "/friends", icon: UserPlus, label: "Add friends", color: "text-emerald-400" },
             { to: "/history", icon: History, label: "Watch history", color: "text-amber-400" },
@@ -42,13 +47,13 @@ export const AppMenuSheet = ({ trigger }: { trigger: ReactNode }) => {
               {"badge" in item && item.badge ? <span className="rounded-full bg-red-500 px-2 py-0.5 text-[12px] font-bold text-white">{item.badge}</span> : null}
             </Link>
           ))}
-          <button onClick={() => { close(); toast("Saved posts coming soon!"); }} className="group flex items-center gap-4 rounded-2xl p-4 text-left transition-all hover:bg-secondary/40">
+          <Link to="/profile/me?tab=saved" onClick={close} className="group flex items-center gap-4 rounded-2xl p-4 text-left transition-all hover:bg-secondary/40">
             <Bookmark className="h-5 w-5 text-amber-500 transition-transform group-hover:scale-110" />
-            <span className="text-[15px] font-semibold">Saved Items</span>
-          </button>
-          <button onClick={() => { close(); toast("Report submitted!"); }} className="group flex items-center gap-4 rounded-2xl p-4 text-left transition-all hover:bg-secondary/40">
-            <MessageSquareWarning className="h-5 w-5 text-orange-500 transition-transform group-hover:scale-110" />
-            <span className="text-[15px] font-semibold">Report Problem</span>
+            <span className="text-[15px] font-semibold">Saved</span>
+          </Link>
+          <button onClick={() => { close(); setFeedbackOpen(true); }} className="group flex items-center gap-4 rounded-2xl p-4 text-left transition-all hover:bg-secondary/40">
+            <ThumbsUp className="h-5 w-5 text-sky-400 transition-transform group-hover:scale-110" />
+            <span className="text-[15px] font-semibold">Send feedback</span>
           </button>
           <div className="mx-2 my-4 h-px bg-border/20" />
           <button
@@ -61,5 +66,7 @@ export const AppMenuSheet = ({ trigger }: { trigger: ReactNode }) => {
         </div>
       </SheetContent>
     </Sheet>
+    <FeedbackSheet open={feedbackOpen} onOpenChange={setFeedbackOpen} />
+    </>
   );
 };

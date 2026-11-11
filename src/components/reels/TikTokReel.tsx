@@ -397,14 +397,14 @@ export const TikTokReel = memo(function TikTokReel({ video, active, near = false
         {!fill && <div className="reel-scrim-top" aria-hidden />}
         <div className="tiktok-scrim" aria-hidden />
 
-        {captionOpen && <div className="absolute inset-0 z-[1] bg-black/50 animate-fade-in" onClick={() => setCaptionOpen(false)} aria-hidden />}
+        {captionOpen && <div className="tiktok-caption-dim absolute inset-0 bg-black/50 animate-fade-in" onClick={() => setCaptionOpen(false)} aria-hidden />}
 
         {/* Who made it, like TikTok's caption (kept above TikTok's own play / sound bar) */}
         <div className="reel-caption reel-caption--tiktok">
           {repostedBy && (
             <p className="mb-1.5 flex items-center gap-1.5 text-[13px] font-semibold text-white/85"><Repeat2 className="h-4 w-4 text-amber-400" /> {repostedBy} reposted</p>
           )}
-          <a href={profileUrl} target="_blank" rel="noopener noreferrer" onClick={() => learn("profile")} className="block truncate text-[16px] font-bold text-white hover:underline">
+          <a href={profileUrl} target="_blank" rel="noopener noreferrer" onClick={() => learn("profile")} className="inline-block max-w-full truncate align-top text-[16px] font-bold text-white hover:underline">
             {who}
           </a>
           {video.title && (captionOpen ? (
@@ -413,9 +413,9 @@ export const TikTokReel = memo(function TikTokReel({ video, active, near = false
               <span className="ml-1.5 font-semibold text-white/60">less</span>
             </button>
           ) : (
-            <button type="button" aria-expanded={false} onClick={() => { if (captionCut) { setCaptionOpen(true); learn("more"); } }} className="mt-1.5 flex w-full items-end gap-1.5 text-left text-[14.5px] leading-snug text-white/95">
+            <button type="button" aria-expanded={false} onClick={() => { if (captionCut) { setCaptionOpen(true); learn("more"); } }} className="-my-1 mt-0.5 flex w-full items-end gap-1.5 py-1.5 text-left text-[14.5px] leading-snug text-white/95">
               <p ref={captionRef} className="line-clamp-2 min-w-0 flex-1"><TikTokCaption text={video.title.replace(/\s*\n\s*/g, " ")} /></p>
-              {captionCut && <span className="shrink-0 font-bold text-white">more</span>}
+              {captionCut && <span className="-mr-2 shrink-0 px-2 py-1 font-bold text-white">more</span>}
             </button>
           ))}
           <div className="mt-2 flex max-w-[80%] items-center gap-1.5 overflow-hidden text-[13px] text-white/80">
