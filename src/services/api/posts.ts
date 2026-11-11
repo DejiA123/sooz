@@ -150,3 +150,17 @@ export const fetchPostsByIds = async (ids: string[], userId?: string): Promise<F
     if (error || !data) return [];
     return enrichPosts(data as unknown as RawPost[], userId);
 };
+
+/** SOOZ posts whose caption matches the search (newest first), ready for the full-screen player. */
+export const searchPosts = async (query: string, userId?: string, limit = 30): Promise<FeedPost[]> => {
+    const q = query.trim().replace(/[%_\\]/g, (c) => `\\${c}`);
+    if (q.length < 2) return [];
+    const { data, error } = await supabase
+        .from("posts")
+        .select(POST_SELECT)
+        .ilike("caption", `%${q}%`)
+        .order("created_at", { ascending: false })
+        .limit(limit);
+    if (error) throw error;
+    return enrichPosts((data || []) as unknown as RawPost[], userId);
+};

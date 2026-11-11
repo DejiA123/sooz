@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { Heart } from "lucide-react";
+import { formatCount } from "./gestures";
 import type { TikTokVideo } from "@/services/api/tiktok";
 import { TikTokMark } from "./TikTokReel";
 
@@ -6,7 +8,7 @@ import { TikTokMark } from "./TikTokReel";
 const CARDS = "https://raw.githubusercontent.com/DejiA123/sooz/covers/tt";
 
 /** A Christian TikTok in a grid: its cover (from SOOZ's preview cards), else its caption. */
-export const TikTokTile = ({ video }: { video: TikTokVideo }) => {
+export const TikTokTile = ({ video, showLikes = false }: { video: TikTokVideo; showLikes?: boolean }) => {
   const [noCover, setNoCover] = useState(false);
   const handle = video.author_handle || "";
   let hue = 32;
@@ -28,11 +30,17 @@ export const TikTokTile = ({ video }: { video: TikTokVideo }) => {
         <div className="absolute inset-0 flex flex-col p-3">
           <span className="flex items-center gap-1 text-[11px] font-semibold text-white/75"><TikTokMark className="h-3.5 w-3.5" /> TikTok</span>
           <p className="mt-2 line-clamp-6 text-[13.5px] font-semibold leading-snug text-white">{video.title || "Christian TikTok"}</p>
-          <span className="mt-auto truncate pt-2 text-[12px] font-medium text-white/70">{video.author_name || (handle ? `@${handle}` : "")}</span>
+          <span className="mt-auto flex items-center gap-2 pt-2 text-[12px] font-medium text-white/70">
+            <span className="min-w-0 flex-1 truncate">{video.author_name || (handle ? `@${handle}` : "")}</span>
+            {showLikes && !!video.likes && <span className="flex shrink-0 items-center gap-1 font-semibold text-white"><Heart className="h-3 w-3 fill-white" />{formatCount(video.likes)}</span>}
+          </span>
         </div>
       ) : (
         <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 to-transparent px-2.5 pb-2 pt-6">
-          <span className="block truncate text-[12px] font-semibold text-white/90">{video.author_name || (handle ? `@${handle}` : "")}</span>
+          <span className="flex items-center gap-2 text-[12px] font-semibold text-white/90">
+            <span className="min-w-0 flex-1 truncate">{video.author_name || (handle ? `@${handle}` : "")}</span>
+            {showLikes && !!video.likes && <span className="flex shrink-0 items-center gap-1 text-white"><Heart className="h-3 w-3 fill-white" />{formatCount(video.likes)}</span>}
+          </span>
         </div>
       )}
     </div>
