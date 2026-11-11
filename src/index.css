@@ -416,6 +416,30 @@ input, textarea { -webkit-user-select: text; user-select: text; }
   --h: calc(var(--w) / var(--ar));
 }
 .tiktok-player--fill { top: auto; bottom: 0; }
+/* ── Floating buttons (src/lib/reelUi.ts) ──────────────────────────────
+   TikTok's player frame is taller than the player box by --tt-hide above and below, and the box cuts
+   the extra off. TikTok keeps the video centred at full size in its frame, and pins its own furniture
+   to the frame's edges: name strip and logo within ~12px + 6% of the frame's height of the top; play
+   bar and like / comment / share column within 156px + 12.8% of the frame's height + 3% of its width
+   of the bottom (their sizes are set in TikTok's stylesheet from the frame's size alone, so this holds
+   on every screen; measured on TikTok's player at 35 frame sizes). --tt-hide is that, solved for a
+   frame of video height + 2 × --tt-hide, plus room to spare in case TikTok moves things (its column
+   ends up ≥ 55px out of sight on every screen from 320px phones to 2560px desktops, ~85px on phones)
+   — so only the video is ever seen, whole. */
+.tiktok-player--float { --tt-hide: calc(260px + var(--h) * 0.2 + var(--w) * 0.06); }
+.tiktok-player--float > .tiktok-iframe {
+  top: calc(-1 * var(--tt-hide)); bottom: auto; height: calc(100% + 2 * var(--tt-hide));
+  /* 1px wider each side: the video is a hair larger than the box, so rounding can never leave a sliver
+     of TikTok's blurred backdrop along an edge. */
+  left: -1px; right: auto; width: calc(100% + 2px);
+}
+/* Portrait videos fill the screen like the TikTok app: scaled to cover it and centred, so the little
+   that doesn't fit comes off both sides (or top and bottom) equally. Nothing of TikTok's to tuck away. */
+.tiktok-player--cover {
+  --w: max(100cqw, calc(100cqh * var(--ar)));
+  --h: calc(var(--w) / var(--ar));
+  top: calc((100cqh - var(--h)) / 2);
+}
 .tiktok-scrim {
   position: absolute; left: 0; right: 0; z-index: 1; pointer-events: none;
   bottom: var(--bottom-nav-height); height: 34%;
@@ -429,6 +453,8 @@ input, textarea { -webkit-user-select: text; user-select: text; }
 .reel-caption--tiktok { z-index: 6; pointer-events: none; }
 .reel-caption--tiktok a, .reel-caption--tiktok button, .reel-caption--tiktok [role="button"] { pointer-events: auto; }
 .tiktok-caption-dim { z-index: 6; }
+/* Floating look: no TikTok play bar to stay clear of, so the caption sits where SOOZ posts have theirs. */
+.reel-caption--float { bottom: calc(var(--bottom-nav-height) + 16px); right: 76px; }
 /* SOOZ's tap layer over a full-screen TikTok: everywhere except TikTok's control bar (bottom) and
    its like / comment / share column (lower right), which stay TikTok's. */
 .tiktok-tap { position: absolute; z-index: 5; -webkit-tap-highlight-color: transparent; }
@@ -486,6 +512,22 @@ input, textarea { -webkit-user-select: text; user-select: text; }
 .tt-comment-bar { padding-bottom: max(env(safe-area-inset-bottom, 0px), 10px); }
 .tiktok-tap--main { left: 0; top: 0; right: 76px; bottom: 64px; }
 .tiktok-tap--side { right: 0; top: 0; width: 76px; bottom: 45%; }
+.tiktok-tap--full { inset: 0; }
+/* Floating look, phones: every slide's buttons float over the video like the TikTok app — white icons
+   with a soft shadow, no panel. (.reel-dock--keep = a TikTok slide showing the side panel as a fallback.) */
+@media (max-width: 767.98px) {
+  html[data-reel-ui="float"] .reel-dock:not(.reel-dock--keep) {
+    right: 6px; width: auto; gap: 12px; padding: 0;
+    bottom: calc(var(--bottom-nav-height) + 22px);
+    border: 0; border-radius: 0; background: none; box-shadow: none;
+  }
+  html[data-reel-ui="float"] .reel-dock:not(.reel-dock--keep) .reel-rail-icon { width: 46px; height: 44px; }
+  html[data-reel-ui="float"] .reel-dock:not(.reel-dock--keep) .reel-rail-icon svg { width: 34px; height: 34px; }
+  html[data-reel-ui="float"] .reel-dock:not(.reel-dock--keep) button.reel-rail-icon { height: 36px; }
+  html[data-reel-ui="float"] .reel-dock:not(.reel-dock--keep) button.reel-rail-icon svg { width: 28px; height: 28px; }
+  html[data-reel-ui="float"] .reel-dock:not(.reel-dock--keep) .reel-rail-label { font-size: 12.5px; color: #fff; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.55); }
+  html[data-reel-ui="float"] .reel-dock:not(.reel-dock--keep) .reel-dock-avatar { width: 48px; height: 48px; }
+}
 /* "New update" card: just above the tab bar (bottom of the screen on desktop). */
 .update-prompt { bottom: calc(var(--bottom-nav-height) + 10px); }
 @media (min-width: 768px) { .update-prompt { bottom: 24px; } }
@@ -545,6 +587,7 @@ body.reels-viewer-open .mobile-bottom-nav .glass-tabbar {
   .tiktok-player--fill { --w: min(max(100cqw, calc(100cqh * var(--ar))), calc(100cqw + 24px)); }
   .tiktok-scrim { bottom: 0; }
   .reel-caption--tiktok { bottom: 60px; right: 84px; }
+  .reel-caption--float { bottom: 24px; right: 16px; }
   .tiktok-sooz-rail, .tiktok-sooz-rail--cover { right: auto; left: calc(100% + 16px); bottom: 6px; min-height: 0; }
   .reel-dock.tiktok-sooz-rail--cover { bottom: 6px; }
   .reel-dock { background: none; width: auto; padding: 0; border: 0; border-radius: 0; box-shadow: none; }

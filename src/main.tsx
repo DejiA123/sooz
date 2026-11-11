@@ -3,9 +3,11 @@ import App from "./App.tsx";
 import "./index.css";
 import { startVideoPool } from "./lib/videoPool";
 import { startTikTokGestures } from "./lib/tiktokPlayers";
+import { applyReelUi } from "./lib/reelUi";
 
 startVideoPool();
 startTikTokGestures();
+applyReelUi();
 
 createRoot(document.getElementById("root")!).render(<App />);
 

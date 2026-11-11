@@ -5,10 +5,51 @@ import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { FamilySafeSetting } from "@/components/safety/FamilySafeSetting";
+import { useIsAdmin } from "@/lib/admin";
+import { REEL_UI_DEFAULT, setReelUi, useReelUi, type ReelUi } from "@/lib/reelUi";
+import { cn } from "@/lib/utils";
+
+/** Admin only: try the two looks of the feed's buttons on this phone (everyone else gets REEL_UI_DEFAULT). */
+const VideoButtonsSetting = () => {
+  const ui = useReelUi();
+  const options: { value: ReelUi; label: string; hint: string }[] = [
+    { value: "float", label: "Floating", hint: "Over the video, like TikTok" },
+    { value: "dock", label: "Side panel", hint: "The earlier look" },
+  ];
+  return (
+    <>
+      <p className="px-1 pt-4 text-[12px] font-bold uppercase tracking-wider text-muted-foreground">Video buttons · admin</p>
+      <div className="rounded-2xl border border-border/20 bg-card p-4">
+        <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Video buttons">
+          {options.map((o) => (
+            <button
+              key={o.value}
+              type="button"
+              role="radio"
+              aria-checked={ui === o.value}
+              onClick={() => setReelUi(o.value)}
+              className={cn(
+                "rounded-xl border px-3 py-2.5 text-left transition-colors",
+                ui === o.value ? "border-primary bg-primary/10" : "border-border/30 bg-secondary/40 active:bg-secondary"
+              )}
+            >
+              <span className="block text-[14px] font-semibold">{o.label}</span>
+              <span className="block text-[12px] text-muted-foreground">{o.hint}</span>
+            </button>
+          ))}
+        </div>
+        <p className="mt-2.5 text-[12px] leading-snug text-muted-foreground">
+          Only changes this phone. Everyone else sees {REEL_UI_DEFAULT === "float" ? "Floating" : "Side panel"}.
+        </p>
+      </div>
+    </>
+  );
+};
 
 export default function Settings() {
   const navigate = useNavigate();
   const [feedbackOpen, setFeedbackOpen] = useState(false);
+  const { isAdmin } = useIsAdmin();
   const handleLogout = async () => {
     try { await supabase.auth.signOut(); } catch (error) { console.error(error); }
     finally { Object.keys(localStorage).forEach((key) => { if (key.startsWith("sb-")) localStorage.removeItem(key); }); window.location.href = "/auth"; }
@@ -28,6 +69,8 @@ export default function Settings() {
           {/* Safety */}
           <p className="px-1 text-[12px] font-bold uppercase tracking-wider text-muted-foreground">Safety</p>
           <FamilySafeSetting />
+
+          {isAdmin && <VideoButtonsSetting />}
 
           {/* Feedback */}
           <p className="px-1 pt-4 text-[12px] font-bold uppercase tracking-wider text-muted-foreground">Help us improve</p>

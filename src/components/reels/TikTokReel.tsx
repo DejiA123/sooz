@@ -1,13 +1,14 @@
 import { lazy, memo, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { engage, isTikTokLiked, isTikTokSaved, setTikTokLiked, setTikTokSaved, tasteOfVideo, useTasteWatch } from "@/lib/taste";
-import { Bookmark, ExternalLink, Heart, MessageCircle, Repeat2 } from "lucide-react";
+import { Bookmark, ExternalLink, Heart, MessageCircle, Play, Repeat2 } from "lucide-react";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { isReposted } from "@/services/api/reposts";
 import { cn } from "@/lib/utils";
 import { requestTikTokRefresh, tiktokPlayerUrl, type TikTokVideo } from "@/services/api/tiktok";
-import { registerTikTokPlayer, tiktokTapForwarding, type TikTokPlayerHandle } from "@/lib/tiktokPlayers";
+import { playerAnswered, registerTikTokPlayer, tapForwarded, tiktokTapForwarding, type TikTokPlayerHandle } from "@/lib/tiktokPlayers";
+import { useReelUi } from "@/lib/reelUi";
 import { useVideoStore } from "@/store/useVideoStore";
 import { countTikTokComments } from "@/services/api/tiktokComments";
 import { formatCount, Spinner } from "./gestures";
@@ -36,6 +37,88 @@ const TikTokCaption = ({ text }: { text: string }) => (
   <>{text.split(/([#@][\p{L}\p{N}_.]+)/u).map((part, i) => (i % 2 ? <strong key={i} className="font-semibold text-white">{part}</strong> : part))}</>
 );
 
+const mmss = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
+
+/**
+ * SOOZ's progress line for a TikTok in the floating look (TikTok's own bar is out of sight), the same
+ * line as on SOOZ videos: drag along it to scrub. TikTok reports the time about twice a second, so the
+ * line glides between reports.
+ */
+const TikTokProgress = ({ clock, playing, onSeek }: {
+  clock: React.MutableRefObject<{ t: number; d: number; at: number }>;
+  playing: React.MutableRefObject<boolean>;
+  onSeek: (seconds: number, done: boolean) => void;
+}) => {
+  const fillRef = useRef<HTMLDivElement>(null);
+  const [seeking, setSeeking] = useState<number | null>(null); // seconds under the finger
+  const seekingRef = useRef(false);
+  const sentAt = useRef(0);
+  const [known, setKnown] = useState(false);
+  const knownRef = useRef(false);
+
+  useEffect(() => {
+    let raf = 0;
+    const tick = () => {
+      const { t, d, at } = clock.current;
+      if (d > 0) {
+        if (!seekingRef.current && fillRef.current) {
+          const now = playing.current ? t + Math.min((performance.now() - at) / 1000, 1.5) : t;
+          fillRef.current.style.transform = `scaleX(${Math.min(Math.max(now / d, 0), 1)})`;
+        }
+        if (!knownRef.current) { knownRef.current = true; setKnown(true); }
+      }
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [clock, playing]);
+
+  const scrub = (clientX: number, el: HTMLElement, done: boolean) => {
+    const d = clock.current.d;
+    if (!(d > 0)) return;
+    const rect = el.getBoundingClientRect();
+    const ratio = Math.min(Math.max((clientX - rect.left) / rect.width, 0), 1);
+    if (fillRef.current) fillRef.current.style.transform = `scaleX(${ratio})`;
+    // Never quite the very end: that would finish the video and start it again.
+    const seconds = Math.min(ratio * d, Math.max(d - 0.25, 0));
+    setSeeking(done ? null : seconds);
+    if (done || Date.now() - sentAt.current > 120) { sentAt.current = Date.now(); onSeek(seconds, done); }
+  };
+  const end = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!seekingRef.current) return;
+    seekingRef.current = false;
+    scrub(e.clientX, e.currentTarget, true);
+  };
+
+  return (
+    <>
+      {seeking !== null && (
+        <div className="pointer-events-none absolute inset-x-0 bottom-[calc(var(--bottom-nav-height)+150px)] z-30 flex justify-center md:bottom-40">
+          <span className="rounded-full bg-black/55 px-4 py-1.5 text-[17px] font-bold tabular-nums text-white backdrop-blur">
+            {mmss(seeking)} <span className="font-semibold text-white/60">/ {mmss(clock.current.d)}</span>
+          </span>
+        </div>
+      )}
+      <div
+        className="reel-progress group absolute inset-x-0 z-20 flex h-6 cursor-pointer touch-pan-y items-end px-0"
+        onClick={(e) => e.stopPropagation()}
+        onPointerDown={(e) => { e.stopPropagation(); seekingRef.current = true; e.currentTarget.setPointerCapture(e.pointerId); scrub(e.clientX, e.currentTarget, false); }}
+        onPointerMove={(e) => { if (seekingRef.current) scrub(e.clientX, e.currentTarget, false); }}
+        onPointerUp={end}
+        onPointerCancel={end}
+        role="slider"
+        aria-label="Video progress"
+        aria-valuemin={0}
+        aria-valuemax={100}
+      >
+        <div className={cn("relative w-full overflow-hidden rounded-full bg-white/20 transition-[height] duration-150", seeking !== null ? "h-1.5" : "h-[3px] group-hover:h-1.5")}>
+          <div ref={fillRef} className={cn("absolute inset-0 origin-left rounded-full", known ? "bg-white/90" : "bg-white/0")} style={{ transform: "scaleX(0)" }} />
+        </div>
+      </div>
+    </>
+  );
+};
+
 interface TikTokReelProps {
   video: TikTokVideo;
   active: boolean;
@@ -47,9 +130,17 @@ interface TikTokReelProps {
 
 /**
  * A Christian TikTok in the feed, played by TikTok's own embed player and filling the screen like
- * the TikTok app (TikTok's player draws its own like / comment / share buttons). Portrait videos
- * are zoomed to fill; square and landscape videos sit whole on black. The player box always has the
- * video's exact shape, so TikTok never pads it with a blurred copy.
+ * the TikTok app. Portrait videos are zoomed to fill; square and landscape videos sit whole on black.
+ * The player box always has the video's exact shape, so TikTok never pads it with a blurred copy.
+ *
+ * Two looks (`src/lib/reelUi.ts`):
+ * - floating buttons (like the TikTok app): TikTok's player frame is taller than the box, the extra
+ *   out of sight above and below. TikTok keeps the video centred at full size and pins its own name
+ *   strip, logo, play bar and like / comment / share column to the frame's top and bottom edges — so
+ *   only the video is seen. SOOZ draws the pause icon and progress line, and starts the video itself
+ *   (TikTok only starts a player by itself when most of its frame is on screen).
+ * - side panel (the earlier look, and the fallback whenever TikTok's player doesn't answer SOOZ's
+ *   commands): TikTok's controls stay on screen and a solid dock covers its button column.
  *
  * Players load one slide ahead. Videos start muted by themselves; in Low Power Mode every touch in
  * SOOZ "warms up" the waiting players (see `tiktokPlayers.ts`) so they still start by themselves.
@@ -67,6 +158,12 @@ export const TikTokReel = memo(function TikTokReel({ video, active, near = false
   const [muted, setMuted] = useState(true);
   const [blockedHint, setBlockedHint] = useState(false);
   const [tapThrough, setTapThrough] = useState(tiktokTapForwarding.broken);
+  // Floating buttons need TikTok's player to obey SOOZ; a slide where it doesn't uses the side panel.
+  const float = useReelUi() === "float" && !tapThrough;
+  // SOOZ's own pause icon and progress line (floating look): where the video is, by TikTok's reports.
+  const [pausedIcon, setPausedIcon] = useState(false);
+  const clock = useRef({ t: 0, d: 0, at: 0 });
+  const scrubbing = useRef(false);
   const [commentsOpen, setCommentsOpen] = useState(false);
   const [commentCount, setCommentCount] = useState<number | null>(null);
   const [shareOpen, setShareOpen] = useState(false);
@@ -180,8 +277,10 @@ export const TikTokReel = memo(function TikTokReel({ video, active, near = false
   useEffect(() => {
     if (mounted) return;
     setLoaded(false); setReady(false); setSlow(false);
-    setIsPlaying(false); setBlockedHint(false); setMuted(true);
+    setIsPlaying(false); setBlockedHint(false); setMuted(true); setPausedIcon(false);
+    setTapThrough(tiktokTapForwarding.broken); // another chance at the floating look next time
     playing.current = false; lastState.current = -1; ourPause.current = false;
+    clock.current = { t: 0, d: 0, at: 0 };
   }, [mounted]);
 
   // Join the Low Power Mode warm-up: during any touch in SOOZ, start this player.
@@ -212,6 +311,7 @@ export const TikTokReel = memo(function TikTokReel({ video, active, near = false
       if (typeof data === "string") { try { data = JSON.parse(data); } catch { return; } }
       if (!data || typeof data !== "object" || typeof data.type !== "string") return;
       if (data.type === "onPlayerReady") {
+        playerAnswered(true);
         if (handle.current) handle.current.ready = true;
         setReady(true);
         kick();
@@ -228,6 +328,8 @@ export const TikTokReel = memo(function TikTokReel({ video, active, near = false
             watch.played();
             setIsPlaying(true);
             setBlockedHint(false);
+            setPausedIcon(false);
+            clock.current.at = performance.now();
             // Sound is on for the feed: bring it back (allowed once a tap has started this player).
             if (soundWanted() && mutedRef.current && handle.current?.blessed) { autoUnmuteAt.current = Date.now(); send("unMute"); }
           }
@@ -247,11 +349,21 @@ export const TikTokReel = memo(function TikTokReel({ video, active, near = false
           else if (activeRef.current) userPaused.current = true; // they paused it — leave it
         } else if (state === 0 && activeRef.current) {
           watch.ended(); // watched to the end
+          userPaused.current = false; // TikTok reports "paused" just before "ended": that wasn't the viewer
           send("play"); // loop
         }
       } else if (data.type === "onCurrentTime") {
         const v = data.value as { currentTime?: number; duration?: number } | undefined;
-        if (activeRef.current && v && Number(v.duration) > 0) watch.progress(Number(v.currentTime) / Number(v.duration));
+        if (v && Number(v.duration) > 0) {
+          if (!scrubbing.current) clock.current = { t: Number(v.currentTime) || 0, d: Number(v.duration), at: performance.now() };
+          if (activeRef.current) watch.progress(Number(v.currentTime) / Number(v.duration));
+        }
+      } else if (data.type === "onPlayerError") {
+        // TikTok can't show this video here (removed, private, not embeddable…): show its player the
+        // earlier way, so its own message and buttons can be read and tapped. (3xxx = it only refused
+        // to start by itself, which SOOZ handles.)
+        const code = Number((data.value as { errorCode?: number } | undefined)?.errorCode);
+        if (code > 0 && code < 3000) setTapThrough(true);
       } else if (data.type === "onMute") {
         const m = !!data.value;
         setMuted(m);
@@ -278,6 +390,7 @@ export const TikTokReel = memo(function TikTokReel({ video, active, near = false
     if (!mutedRef.current) { ourMuteAt.current = Date.now(); send("mute"); }
     setIsPlaying(false);
     setBlockedHint(false);
+    setPausedIcon(false);
   }, [active, kick, send]);
 
   // Keep nudging for a few seconds after it loads, until TikTok reports it is playing.
@@ -286,6 +399,17 @@ export const TikTokReel = memo(function TikTokReel({ video, active, near = false
     const timers = [150, 600, 1200, 2000, 3200, 5000, 8000].map((ms) => setTimeout(kick, ms));
     return () => timers.forEach(clearTimeout);
   }, [active, loaded, kick]);
+
+  // Floating look: a player that has loaded but never says it is ready can't be started by SOOZ —
+  // show it the earlier way (TikTok starts it by itself there, and its own controls can be tapped).
+  useEffect(() => {
+    if (!active || !loaded || ready || !float) return;
+    const t = setTimeout(() => { playerAnswered(false); setTapThrough(true); }, 9000);
+    return () => clearTimeout(t);
+  }, [active, loaded, ready, float]);
+
+  // …and once SOOZ has stopped relying on commands for this visit, slides already loaded follow.
+  useEffect(() => { if (tiktokTapForwarding.broken) setTapThrough(true); }, [active, near]);
 
   // Ready but still not playing: the phone is refusing autoplay — say "tap to play".
   useEffect(() => {
@@ -321,14 +445,18 @@ export const TikTokReel = memo(function TikTokReel({ video, active, near = false
 
   // A tap on the video: play it / turn the sound on / pause it. The command is sent during the tap,
   // which Safari counts as the tap itself (so it works in Low Power Mode and allows sound). If that
-  // doesn't work on this phone, taps go straight to TikTok's player from then on.
+  // doesn't work on this phone, taps go straight to TikTok's player from then on (and the slide
+  // goes back to the side-panel look, where TikTok's own controls show).
   const onTap = () => {
-    const check = (ok: () => boolean) => setTimeout(() => {
-      if (!ok()) { tiktokTapForwarding.broken = true; setTapThrough(true); }
-    }, 1600);
+    // Only a player that has said it is ready is judged: an early tap on a loading one proves nothing.
+    const judged = !!handle.current?.ready;
+    const check = (ok: () => boolean) => {
+      if (judged) setTimeout(() => { const good = ok(); tapForwarded(good); if (!good) setTapThrough(true); }, 1600);
+    };
     gestureAt.current = Date.now();
     if (!playing.current) {
       userPaused.current = false;
+      setPausedIcon(false);
       send("play");
       if (soundWanted()) send("unMute");
       check(() => lastState.current === 1 || lastState.current === 3);
@@ -339,14 +467,23 @@ export const TikTokReel = memo(function TikTokReel({ video, active, near = false
       check(() => !mutedRef.current);
     } else {
       userPaused.current = true;
+      setPausedIcon(true);
       send("pause");
     }
   };
 
+  // Scrubbing SOOZ's progress line (floating look).
+  const seek = useCallback((seconds: number, done: boolean) => {
+    scrubbing.current = !done;
+    clock.current = { ...clock.current, t: seconds, at: performance.now() };
+    send("seekTo", seconds);
+  }, [send]);
+
   // TikToks are 9:16 unless we know better (TikTok's lookup no longer tells, so sizes come from the
   // database, the built-in list, or the cover image).
   const dbRatio = video.thumbnail_width && video.thumbnail_height ? video.thumbnail_width / video.thumbnail_height : null;
-  const ratio = clampRatio(dbRatio ?? thumbRatio ?? 9 / 16);
+  // (Floating look: very wide videos keep their true shape too — there is no TikTok play bar to fit in.)
+  const ratio = float ? Math.min(2.5, Math.max(0.45, dbRatio ?? thumbRatio ?? 9 / 16)) : clampRatio(dbRatio ?? thumbRatio ?? 9 / 16);
   // Fill the screen when the video is close to the screen's shape; otherwise show it whole on black.
   const sar = stageAR ?? 390 / 738;
   const fill = 1 - Math.min(sar / ratio, ratio / sar) <= MAX_FILL_CROP;
@@ -360,7 +497,11 @@ export const TikTokReel = memo(function TikTokReel({ video, active, near = false
     <div className="reel-frame">
       <div className="reel-media bg-black">
         <div ref={stageRef} className="tiktok-stage">
-          <div ref={playerRef} className={cn("tiktok-player", fill && "tiktok-player--fill")} style={{ ["--ar" as string]: String(ratio) }}>
+          <div
+            ref={playerRef}
+            className={cn("tiktok-player", fill && (float ? "tiktok-player--cover" : "tiktok-player--fill"), float && "tiktok-player--float")}
+            style={{ ["--ar" as string]: String(ratio) }}
+          >
             {/* Until TikTok's player is ready */}
             {!(mounted && showPlayer) && (
               <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black px-8 text-center text-white">
@@ -400,24 +541,36 @@ export const TikTokReel = memo(function TikTokReel({ video, active, near = false
                 allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
                 referrerPolicy="strict-origin-when-cross-origin"
                 onLoad={() => setLoaded(true)}
-                className={cn("absolute inset-0 h-full w-full border-0 bg-black transition-opacity duration-300", showPlayer ? "opacity-100" : "opacity-0")}
+                className={cn("tiktok-iframe absolute inset-0 h-full w-full border-0 bg-black transition-opacity duration-300", showPlayer ? "opacity-100" : "opacity-0")}
               />
             )}
           </div>
           {/* Covers TikTok's name strip only on phones where it can't be tucked under the status bar. */}
-          {fill && <div className="tiktok-topband" style={{ ["--ar" as string]: String(ratio) }} aria-hidden />}
+          {fill && !float && <div className="tiktok-topband" style={{ ["--ar" as string]: String(ratio) }} aria-hidden />}
 
-          {/* Tap layer over the video (not over TikTok's own buttons along the bottom and right):
-              taps here are SOOZ's, so swipes always move the feed and every touch warms up the
-              next players for Low Power Mode. */}
-          {active && mounted && showPlayer && fill && !tapThrough && (
+          {/* Tap layer over the video: taps here are SOOZ's, so swipes always move the feed and every
+              touch warms up the next players for Low Power Mode. Floating look: the whole slide (TikTok's
+              controls are out of sight; SOOZ plays / pauses). Side panel: everywhere but TikTok's own
+              buttons along the bottom and right. */}
+          {active && mounted && showPlayer && float && <div className="tiktok-tap tiktok-tap--full" onClick={onTap} aria-hidden />}
+          {active && mounted && showPlayer && fill && !float && !tapThrough && (
             <>
               <div className="tiktok-tap tiktok-tap--main" onClick={onTap} aria-hidden />
               <div className="tiktok-tap tiktok-tap--side" onClick={onTap} aria-hidden />
             </>
           )}
 
-          {active && blockedHint && !isPlaying && (
+          {/* Floating look: SOOZ's pause icon, as on SOOZ videos */}
+          {float && active && showPlayer && !isPlaying && (pausedIcon || blockedHint) && (
+            <div className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center gap-3">
+              <div className="flex h-20 w-20 items-center justify-center rounded-full bg-black/35 backdrop-blur-sm animate-scale-in">
+                <Play className="ml-1 h-10 w-10 fill-white/90 text-white/90" />
+              </div>
+              {blockedHint && !pausedIcon && <span className="rounded-full bg-black/55 px-3 py-1 text-[13px] font-semibold text-white">Tap to play</span>}
+            </div>
+          )}
+
+          {!float && active && blockedHint && !isPlaying && (
             <div className="pointer-events-none absolute inset-x-0 top-[55%] z-10 flex justify-center px-6">
               <span className="rounded-full bg-black/70 px-5 py-2.5 text-[14px] font-semibold text-white backdrop-blur">
                 Tap to play
@@ -432,7 +585,7 @@ export const TikTokReel = memo(function TikTokReel({ video, active, near = false
         {captionOpen && <div className="tiktok-caption-dim absolute inset-0 bg-black/50 animate-fade-in" onClick={() => setCaptionOpen(false)} aria-hidden />}
 
         {/* Who made it, like TikTok's caption (kept above TikTok's own play / sound bar) */}
-        <div className="reel-caption reel-caption--tiktok">
+        <div className={cn("reel-caption reel-caption--tiktok", float && "reel-caption--float")}>
           {repostedBy && (
             <p className="mb-1.5 flex items-center gap-1.5 text-[13px] font-semibold text-white/85"><Repeat2 className="h-4 w-4 text-amber-400" /> {repostedBy} reposted</p>
           )}
@@ -455,15 +608,17 @@ export const TikTokReel = memo(function TikTokReel({ video, active, near = false
             <span className="truncate">TikTok{handleName && handleName !== who ? ` · ${handleName}` : ""}</span>
           </div>
         </div>
+
+        {float && active && mounted && showPlayer && <TikTokProgress clock={clock} playing={playing} onSeek={seek} />}
       </div>
 
-      {/* SOOZ's buttons, in the same dock as on SOOZ posts. TikTok's player always draws its own like /
-          comment / share column and SOOZ can't remove it (it's TikTok's page), so on full-screen TikToks
-          the dock covers that whole column — wherever TikTok puts it — and SOOZ's heart shows TikTok's
-          like count. */}
+      {/* SOOZ's buttons, the same as on SOOZ posts; the heart shows TikTok's like count. Floating look:
+          they float over the video (TikTok's own column is out of sight). Side panel: TikTok's column is
+          on screen and SOOZ can't remove it (it's TikTok's page), so a solid dock covers it — the whole
+          column on full-screen TikToks, the video's right edge on landscape ones. */}
       <div
-        className={cn("tiktok-sooz-rail reel-dock", fill && "tiktok-sooz-rail--cover", !fill && playerBox && "tiktok-sooz-rail--onvideo")}
-        style={!fill && playerBox ? { top: playerBox.top, minHeight: playerBox.height } : undefined}
+        className={cn("tiktok-sooz-rail reel-dock", !float && "reel-dock--keep", !float && fill && "tiktok-sooz-rail--cover", !float && !fill && playerBox && "tiktok-sooz-rail--onvideo")}
+        style={!float && !fill && playerBox ? { top: playerBox.top, minHeight: playerBox.height } : undefined}
       >
         <RailButton
           ariaLabel={liked ? "Unlike" : "Like"}
