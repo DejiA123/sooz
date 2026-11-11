@@ -1,516 +1,378 @@
-import { useState, useRef } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { ArrowLeft, AtSign, Hash, Loader2, Play, X } from "lucide-react";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { X, Image, Film, Loader2, Upload as UploadIcon, Camera as CameraIcon, Sparkles } from "lucide-react";
-import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Progress } from "@/components/ui/progress";
 import { getPresignedUploadUrl } from "@/integrations/s3/client";
 import { extractVideoThumbnail, extractImageThumbnail } from "@/utils/videoThumbnail";
-import { CameraCapture } from "./CameraCapture";
+import { CameraCapture, DEFAULT_MODE, MODES, type CameraMode } from "./CameraCapture";
 import { LiveStudio } from "../live/LiveStudio";
 import { TemplatePicker, type TemplatePickerHandle } from "./TemplatePicker";
 
 interface CreateModalProps {
-    isOpen: boolean;
-    onClose: () => void;
-    onPostCreated?: () => void;
+  isOpen: boolean;
+  onClose: () => void;
+  onPostCreated?: () => void;
 }
 
-export const CreateModal = ({ isOpen, onClose, onPostCreated }: CreateModalProps) => {
-    const { user } = useAuth();
-    const [caption, setCaption] = useState("");
-    const [mediaFileState, setMediaFile] = useState<File | null>(null);
-    const [mediaPreview, setMediaPreview] = useState<string | null>(null);
-    const [mediaTypeState, setMediaType] = useState<"image" | "video" | null>(null);
-    const [isLoading, setIsLoading] = useState(false);
-    const [uploadProgress, setUploadProgress] = useState(0);
-    const [isDragging, setIsDragging] = useState(false);
-    const [activeTab, setActiveTab] = useState<"post" | "story" | "live">("post");
-    const [captureMode, setCaptureMode] = useState<"upload" | "camera" | "template">("upload");
-    const templateRef = useRef<TemplatePickerHandle>(null);
-    const [templateReady, setTemplateReady] = useState(false);
-    const [cameraMediaType, setCameraMediaType] = useState<"photo" | "video">("photo");
-    const [streamConfig, setStreamConfig] = useState<{ id?: string; playback_url: string; status: string } | null>(null);
+type Tab = "story" | "post" | "templates" | "live";
+const TABS: { key: Tab; label: string }[] = [
+  { key: "story", label: "STORY" },
+  { key: "post", label: "POST" },
+  { key: "templates", label: "TEMPLATES" },
+  { key: "live", label: "LIVE" },
+];
 
-    const fileInputRef = useRef<HTMLInputElement>(null);
+interface Media { file: File; url: string; type: "image" | "video" }
 
-    const fetchStreamConfig = async () => {
-        try {
-            const { data, error } = await supabase
-                .from('live_stream_config')
-                .select('id, playback_url, status')
-                .limit(1)
-                .maybeSingle();
-
-            if (data) {
-                setStreamConfig(data);
-            } else {
-                // Initialize empty config if none exists
-                setStreamConfig({ playback_url: "", status: "offline" });
-            }
-        } catch (e) {
-            console.error(e);
-        }
-    };
-
-    const handleToggleLive = async (isLive: boolean) => {
-        setIsLoading(true);
-        try {
-            const newStatus = isLive ? 'live' : 'offline';
-            const updates = {
-                status: newStatus,
-                playback_url: streamConfig?.playback_url,
-                updated_at: new Date().toISOString(),
-                // Ensure other fields are not null if inserting new
-            };
-
-            let error;
-
-            if (streamConfig?.id) {
-                const { error: updateError } = await supabase
-                    .from('live_stream_config')
-                    .update(updates)
-                    .eq('id', streamConfig.id);
-                error = updateError;
-            } else {
-                const { error: insertError } = await supabase
-                    .from('live_stream_config')
-                    .insert([updates]);
-                error = insertError;
-                // Re-fetch to get ID
-                fetchStreamConfig();
-            }
-
-            if (error) throw error;
-
-            setStreamConfig(prev => ({ ...prev!, status: newStatus }));
-            toast.success(isLive ? "You are LIVE!" : "Stream Ended");
-
-        } catch (e) {
-            console.error(e);
-            toast.error("Failed to update stream status");
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    // Fetch config when Live tab is selected
-    if (activeTab === "live" && !streamConfig) {
-        fetchStreamConfig();
-    }
-
-    const resetForm = () => {
-        setCaption("");
-        setMediaFile(null);
-        setMediaPreview(null);
-        setMediaType(null);
-        setIsLoading(false);
-        setUploadProgress(0);
-        setCaptureMode("upload");
-        setCameraMediaType("photo");
-    };
-
-    const handleFileSelect = (file: File) => {
-        const isImage = file.type.startsWith("image/");
-        const isVideo = file.type.startsWith("video/") || file.name.match(/\.(mp4|mov|avi|webm)$/i);
-        setMediaFile(file);
-        setMediaType(isVideo ? "video" : "image");
-        setMediaPreview(URL.createObjectURL(file));
-    };
-
-    const handleDrop = (e: React.DragEvent) => {
-        e.preventDefault();
-        setIsDragging(false);
-        const file = e.dataTransfer.files[0];
-        if (file) handleFileSelect(file);
-    };
-
-    const handleSubmit = async (override?: File) => {
-        if (!user) return;
-        const mediaFile = override ?? mediaFileState;
-        const mediaType = override ? "image" : mediaTypeState;
-        if (!mediaFile && activeTab === "story") {
-            toast.error("Story must have media");
-            return;
-        }
-
-        setIsLoading(true);
-        setUploadProgress(0);
-
-        try {
-            let mediaUrl = null;
-            let thumbnailUrl = null;
-
-            // Upload media if present
-            if (mediaFile) {
-                // Get presigned URL from Edge Function
-                const { signedUrl, publicUrl } = await getPresignedUploadUrl(mediaFile.name, mediaFile.type);
-                mediaUrl = publicUrl;
-
-                // Handle media upload
-                const xhr = new XMLHttpRequest();
-                xhr.open('PUT', signedUrl, true);
-                xhr.setRequestHeader('Content-Type', mediaFile.type);
-
-                xhr.upload.onprogress = (e) => {
-                    if (e.lengthComputable) {
-                        const percent = Math.round((e.loaded / e.total) * 100);
-                        setUploadProgress(percent);
-                    }
-                };
-
-                const uploadPromise = new Promise((resolve, reject) => {
-                    xhr.onload = () => {
-                        if (xhr.status === 200) resolve(true);
-                        else reject(new Error('Upload failed'));
-                    };
-                    xhr.onerror = () => reject(new Error('Upload failed'));
-                    xhr.send(mediaFile);
-                });
-
-                await uploadPromise;
-
-                // Universal thumbnail generation for all media types
-                if (activeTab === "post") {
-                    try {
-                        console.log(`Generating ${mediaType} thumbnail...`);
-                        const thumbnailBlob = mediaType === 'video'
-                            ? await extractVideoThumbnail(mediaFile)
-                            : await extractImageThumbnail(mediaFile);
-
-                        const thumbnailFile = new File([thumbnailBlob], "thumbnail.jpg", { type: "image/jpeg" });
-
-                        const { signedUrl: thumbSignedUrl, publicUrl: thumbPublicUrl } = await getPresignedUploadUrl("thumbnail.jpg", "image/jpeg");
-
-                        const thumbXhr = new XMLHttpRequest();
-                        thumbXhr.open("PUT", thumbSignedUrl, true);
-                        thumbXhr.setRequestHeader("Content-Type", "image/jpeg");
-
-                        const thumbUploadPromise = new Promise((resolve, reject) => {
-                            thumbXhr.onload = () => (thumbXhr.status === 200 ? resolve(true) : reject(new Error("Thumb failed")));
-                            thumbXhr.onerror = () => reject(new Error("Thumb failed"));
-                            thumbXhr.send(thumbnailFile);
-                        });
-
-                        await thumbUploadPromise;
-                        thumbnailUrl = thumbPublicUrl;
-                    } catch (err) {
-                        console.error("Failed to generate thumbnail:", err);
-                    }
-                }
-            }
-
-            const commonData = {
-                user_id: user.id,
-                media_url: mediaUrl,
-                media_type: mediaType || (mediaFile ? "image" : null),
-                thumbnail_url: thumbnailUrl || null
-            };
-
-            if (activeTab === "post") {
-                const { error: postError } = await supabase.from("posts").insert({
-                    ...commonData,
-                    caption: caption || null,
-                    media_type: mediaType // If null (text only), it stays null
-                });
-
-                if (postError) throw postError;
-            } else {
-                // Story
-                // Expires in 24 hours
-                const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
-
-                const { error: storyError } = await supabase.from("stories").insert({
-                    user_id: user.id,
-                    media_type: commonData.media_type || "image",
-                    media_url: mediaUrl!, // Enforced check above
-                    expires_at: expiresAt
-                });
-
-                if (storyError) throw storyError;
-            }
-
-            onPostCreated?.();
-            resetForm();
-            onClose();
-        } catch (error) {
-            console.error(error);
-            toast.error("Failed to create " + activeTab);
-        } finally {
-            setIsLoading(false);
-            setUploadProgress(0); // Reset progress on completion/error
-        }
-    };
-
-    if (!isOpen) return null;
-
-    return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/60 backdrop-blur-md animate-in fade-in duration-200">
-            <div className="relative w-full max-w-lg max-h-[94dvh] overflow-y-auto overflow-x-hidden overscroll-contain bg-[#0b0d12] border border-white/10 rounded-3xl shadow-2xl animate-in zoom-in-95 duration-200">
-
-                {/* Close Button */}
-                <button
-                    onClick={onClose}
-                    className="absolute top-4 right-4 p-2 rounded-full bg-black/5 hover:bg-black/10 dark:bg-white/5 dark:hover:bg-white/10 transition-colors z-10"
-                >
-                    <X className="w-5 h-5" />
-                </button>
-
-                <div className="p-6">
-                    <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "post" | "story" | "live")} className="w-full">
-                        <TabsList className="grid w-full grid-cols-3 mb-6 bg-black/5 dark:bg-white/5 rounded-2xl p-1 h-auto">
-                            <TabsTrigger
-                                value="post"
-                                className="rounded-xl py-3 data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm transition-all text-xs sm:text-sm font-medium"
-                            >
-                                Post
-                            </TabsTrigger>
-                            <TabsTrigger
-                                value="story"
-                                className="rounded-xl py-3 data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm transition-all text-xs sm:text-sm font-medium"
-                            >
-                                Story
-                            </TabsTrigger>
-                            <TabsTrigger
-                                value="live"
-                                className="rounded-xl py-3 data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm transition-all text-xs sm:text-sm font-medium"
-                            >
-                                Go Live
-                            </TabsTrigger>
-                        </TabsList>
-
-                        <div className="space-y-6">
-                            {/* Live Stream Tab Content */}
-                            {activeTab === "live" ? (
-                                <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2">
-                                        <LiveStudio
-                                            onStreamStarted={(url) => setStreamConfig(prev => ({ ...prev!, playback_url: url, status: 'live' }))}
-                                            onStreamEnded={() => setStreamConfig(prev => ({ ...prev!, status: 'offline' }))}
-                                        />
-
-                                </div>
-                            ) : (
-                                <>
-                                    {/* Media Upload/Camera Mode Toggle */}
-                                    {!mediaPreview && (
-                                        <div className="flex gap-2 mb-4">
-                                            <Button
-                                                type="button"
-                                                variant={captureMode === "upload" ? "default" : "outline"}
-                                                className={cn(
-                                                    "flex-1 h-12 rounded-xl transition-all",
-                                                    captureMode === "upload" && "shadow-md"
-                                                )}
-                                                onClick={() => setCaptureMode("upload")}
-                                            >
-                                                <UploadIcon className="w-4 h-4 mr-2" />
-                                                Upload
-                                            </Button>
-                                            <Button
-                                                type="button"
-                                                variant={captureMode === "camera" ? "default" : "outline"}
-                                                className={cn(
-                                                    "flex-1 h-12 rounded-xl transition-all",
-                                                    captureMode === "camera" && "shadow-md"
-                                                )}
-                                                onClick={() => setCaptureMode("camera")}
-                                            >
-                                                <CameraIcon className="w-4 h-4 mr-2" />
-                                                Camera
-                                            </Button>
-                                            <Button
-                                                type="button"
-                                                variant={captureMode === "template" ? "default" : "outline"}
-                                                className={cn(
-                                                    "flex-1 h-12 rounded-xl transition-all",
-                                                    captureMode === "template" && "shadow-md"
-                                                )}
-                                                onClick={() => setCaptureMode("template")}
-                                            >
-                                                <Sparkles className="w-4 h-4 mr-2" />
-                                                Templates
-                                            </Button>
-                                        </div>
-                                    )}
-
-                                    {/* Media Upload/Camera Area */}
-                                    {!mediaPreview ? (
-                                        captureMode === "template" ? (
-                                            <TemplatePicker ref={templateRef} onReadyChange={setTemplateReady} />
-                                        ) : captureMode === "camera" ? (
-                                            <>
-                                                {/* Photo/Video Mode Selector (for Posts) */}
-                                                {activeTab === "post" && (
-                                                    <div className="flex gap-2 mb-4">
-                                                        <Button
-                                                            type="button"
-                                                            variant={cameraMediaType === "photo" ? "default" : "outline"}
-                                                            size="sm"
-                                                            className={cn(
-                                                                "flex-1 h-10 rounded-xl transition-all",
-                                                                cameraMediaType === "photo" && "shadow-md"
-                                                            )}
-                                                            onClick={() => setCameraMediaType("photo")}
-                                                        >
-                                                            <CameraIcon className="w-4 h-4 mr-2" />
-                                                            Photo
-                                                        </Button>
-                                                        <Button
-                                                            type="button"
-                                                            variant={cameraMediaType === "video" ? "default" : "outline"}
-                                                            size="sm"
-                                                            className={cn(
-                                                                "flex-1 h-10 rounded-xl transition-all",
-                                                                cameraMediaType === "video" && "shadow-md"
-                                                            )}
-                                                            onClick={() => setCameraMediaType("video")}
-                                                        >
-                                                            <Film className="w-4 h-4 mr-2" />
-                                                            Video
-                                                        </Button>
-                                                    </div>
-                                                )}
-                                                <CameraCapture
-                                                    mode={activeTab === "story" ? "video" : cameraMediaType}
-                                                    onCapture={handleFileSelect}
-                                                    onClose={() => setCaptureMode("upload")}
-                                                />
-                                            </>
-                                        ) : (
-                                            <div
-                                                className={cn(
-                                                    "border-2 border-dashed rounded-3xl h-[300px] flex flex-col items-center justify-center text-center transition-all duration-300 cursor-pointer group",
-                                                    isDragging
-                                                        ? "border-primary bg-primary/10 scale-[0.98]"
-                                                        : "border-muted-foreground/20 hover:border-primary/50 hover:bg-muted/30"
-                                                )}
-                                                onDragOver={(e) => {
-                                                    e.preventDefault();
-                                                    setIsDragging(true);
-                                                }}
-                                                onDragLeave={() => setIsDragging(false)}
-                                                onDrop={handleDrop}
-                                                onClick={() => fileInputRef.current?.click()}
-                                            >
-                                                <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
-                                                    <UploadIcon className="w-10 h-10 text-primary" />
-                                                </div>
-                                                <p className="text-lg font-semibold mb-2">
-                                                    {activeTab === 'story' ? 'Add a photo or video to your story' : 'Add a photo or video'}
-                                                </p>
-                                                <p className="text-sm text-muted-foreground max-w-[200px] mx-auto mb-6">
-                                                    Tap to choose from your phone
-                                                </p>
-                                                <div className="flex items-center gap-4 text-xs font-medium text-muted-foreground bg-black/5 dark:bg-white/5 px-4 py-2 rounded-full">
-                                                    <span className="flex items-center gap-1.5">
-                                                        <Image className="w-3.5 h-3.5" /> Photos
-                                                    </span>
-                                                    <span className="w-1 h-1 rounded-full bg-current opacity-30" />
-                                                    <span className="flex items-center gap-1.5">
-                                                        <Film className="w-3.5 h-3.5" /> Videos
-                                                    </span>
-                                                </div>
-                                                <input
-                                                    ref={fileInputRef}
-                                                    type="file"
-                                                    accept="image/*,video/*"
-                                                    onChange={(e) => {
-                                                        const file = e.target.files?.[0];
-                                                        if (file) handleFileSelect(file);
-                                                    }}
-                                                    className="hidden"
-                                                />
-                                            </div>
-                                        )
-                                    ) : (
-                                        <div className="relative rounded-3xl overflow-hidden bg-black aspect-[4/5] shadow-inner group">
-                                            {mediaTypeState === "image" ? (
-                                                <img
-                                                    src={mediaPreview}
-                                                    alt="Preview"
-                                                    className="w-full h-full object-contain"
-                                                />
-                                            ) : (
-                                                <video
-                                                    src={mediaPreview}
-                                                    controls
-                                                    className="w-full h-full object-contain"
-                                                />
-                                            )}
-                                            <button
-                                                onClick={() => {
-                                                    setMediaFile(null);
-                                                    setMediaPreview(null);
-                                                    setMediaType(null);
-                                                }}
-                                                className="absolute top-4 right-4 p-2 rounded-full bg-black/50 text-white backdrop-blur-md hover:bg-black/70 transition-all opacity-0 group-hover:opacity-100"
-                                            >
-                                                <X className="w-5 h-5" />
-                                            </button>
-                                        </div>
-                                    )}
-
-                                    {/* Caption Input (Only for Post) */}
-                                    {activeTab === "post" && (
-                                        <div className="relative">
-                                            <Textarea
-                                                value={caption}
-                                                onChange={(e) => setCaption(e.target.value)}
-                                                placeholder={captureMode === "template" ? "Add a caption (optional)…" : "Write a caption..."}
-                                                className="min-h-[100px] p-4 rounded-2xl bg-muted/30 border-none focus:ring-1 focus:ring-primary/50 resize-none text-base transition-all placeholder:text-muted-foreground/50"
-                                            />
-                                            <div className="absolute bottom-3 right-3 text-xs text-muted-foreground/50 font-medium">
-                                                {caption.length}/2200
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    {/* Progress Bar Area */}
-                                    {isLoading && (mediaFileState || captureMode === "template") && (
-                                        <div className="space-y-1.5 animate-in fade-in slide-in-from-bottom-2">
-                                            <div className="flex items-center justify-between text-xs font-medium text-muted-foreground">
-                                                <span>Uploading...</span>
-                                                <span>{uploadProgress}%</span>
-                                            </div>
-                                            <Progress value={uploadProgress} className="h-2 w-full" />
-                                        </div>
-                                    )}
-
-                                    {/* Submit Button */}
-                                    <Button
-                                        size="lg"
-                                        className="w-full h-14 rounded-2xl text-lg font-semibold bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/20 transition-all active:scale-[0.98]"
-                                        onClick={async () => {
-                                            if (captureMode === "template" && !mediaPreview) {
-                                                try { await handleSubmit(await templateRef.current!.toFile()); }
-                                                catch { toast.error("Couldn't create your design — please try again"); }
-                                            } else handleSubmit();
-                                        }}
-                                        disabled={isLoading || (captureMode === "template" ? !templateReady : (activeTab === "story" && !mediaFileState) || (activeTab === "post" && !caption && !mediaFileState))}
-                                    >
-                                        {isLoading ? (
-                                            <div className="flex items-center gap-2">
-                                                <Loader2 className="w-5 h-5 animate-spin" />
-                                                <span>
-                                                    {uploadProgress < 100 ? `Uploading ${uploadProgress}%` : 'Finalizing...'}
-                                                </span>
-                                            </div>
-                                        ) : (
-                                            <span>{activeTab === "story" ? "Share to Story" : "Share Post"}</span>
-                                        )}
-                                    </Button>
-                                </>
-                            )}
-                        </div>
-                    </Tabs>
-                </div>
-            </div>
-        </div>
-    );
+/** Puts a file on R2 with progress; resolves with its public address. */
+const uploadFile = async (file: File, onProgress?: (pct: number) => void) => {
+  const { signedUrl, publicUrl } = await getPresignedUploadUrl(file.name, file.type);
+  await new Promise<void>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("PUT", signedUrl, true);
+    xhr.setRequestHeader("Content-Type", file.type);
+    if (onProgress) xhr.upload.onprogress = (e) => { if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100)); };
+    xhr.onload = () => (xhr.status === 200 ? resolve() : reject(new Error("Upload failed")));
+    xhr.onerror = () => reject(new Error("Upload failed"));
+    xhr.send(file);
+  });
+  return publicUrl;
 };
 
+/** Tells the Home feed to pause (and not count the time) while Create covers it. */
+const coverFeed = (on: boolean) => {
+  document.body.classList.toggle("sooz-feed-covered", on);
+  window.dispatchEvent(new CustomEvent("sooz:feed-cover", { detail: on }));
+};
+
+/**
+ * Create, like TikTok: a full-screen camera (STORY / POST), TEMPLATES and LIVE along the bottom,
+ * then a post screen with the caption and "Your Story" / "Post".
+ */
+export const CreateModal = ({ isOpen, onClose, onPostCreated }: CreateModalProps) => {
+  const { user } = useAuth();
+  const [tab, setTab] = useState<Tab>("post");
+  const [mode, setMode] = useState<CameraMode>(DEFAULT_MODE.post);
+  const [text, setText] = useState("");
+  const [stage, setStage] = useState<"capture" | "compose">("capture");
+  const [media, setMedia] = useState<Media | null>(null);
+  const [caption, setCaption] = useState("");
+  const [sharing, setSharing] = useState<"post" | "story" | null>(null);
+  const [progress, setProgress] = useState(0);
+  const [preview, setPreview] = useState(false);
+  const [cameraBusy, setCameraBusy] = useState(false);
+  const [live, setLive] = useState(false);
+  const [templateReady, setTemplateReady] = useState(false);
+  const [makingTemplate, setMakingTemplate] = useState(false);
+  const templateRef = useRef<TemplatePickerHandle>(null);
+  const captionRef = useRef<HTMLTextAreaElement>(null);
+
+  // Full screen: no page scroll behind, Home's video paused.
+  useEffect(() => {
+    if (!isOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    coverFeed(true);
+    return () => { document.body.style.overflow = prev; coverFeed(false); };
+  }, [isOpen]);
+
+  useEffect(() => () => { if (media) URL.revokeObjectURL(media.url); }, [media]);
+
+  const close = useCallback(() => {
+    if (sharing) return;
+    if (live && !window.confirm("End your live?")) return;
+    onClose();
+  }, [sharing, live, onClose]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") { if (preview) setPreview(false); else if (stage === "compose") back(); else close(); } };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [close, preview, stage]);
+
+  const chooseTab = (t: Tab) => {
+    if (cameraBusy || live || t === tab) return;
+    setTab(t);
+    if (t === "post" || t === "story") {
+      if (!MODES[t].includes(mode)) setMode(DEFAULT_MODE[t]);
+    }
+  };
+
+  const takeFile = (file: File, kind?: "image" | "video") => {
+    const isVideo = kind ? kind === "video" : file.type.startsWith("video/") || /\.(mp4|mov|m4v|avi|webm)$/i.test(file.name);
+    setMedia({ file, url: URL.createObjectURL(file), type: isVideo ? "video" : "image" });
+    setStage("compose");
+  };
+
+  const back = () => {
+    if (sharing) return;
+    setMedia(null);
+    setPreview(false);
+    setStage("capture");
+  };
+
+  const nextFromTemplate = async () => {
+    if (!templateRef.current || makingTemplate) return;
+    setMakingTemplate(true);
+    try { takeFile(await templateRef.current.toFile(), "image"); }
+    catch { toast.error("Couldn't create your design — please try again"); }
+    finally { setMakingTemplate(false); }
+  };
+
+  const nextFromText = () => {
+    setMedia(null);
+    setCaption(text.trim());
+    setStage("compose");
+  };
+
+  const share = async (target: "post" | "story") => {
+    if (!user || sharing) return;
+    const file = media?.file ?? null;
+    const mediaType = media?.type ?? null;
+    if (target === "story" && !file) { toast.error("Add a photo or video for your story"); return; }
+    if (target === "post" && !file && !caption.trim()) { toast.error("Write something to post"); return; }
+
+    setSharing(target);
+    setProgress(0);
+    try {
+      let mediaUrl: string | null = null;
+      let thumbnailUrl: string | null = null;
+      if (file) {
+        mediaUrl = await uploadFile(file, setProgress);
+        if (target === "post") {
+          try {
+            const blob = mediaType === "video" ? await extractVideoThumbnail(file) : await extractImageThumbnail(file);
+            thumbnailUrl = await uploadFile(new File([blob], "thumbnail.jpg", { type: "image/jpeg" }));
+          } catch (err) {
+            console.error("Failed to generate thumbnail:", err);
+          }
+        }
+      }
+
+      if (target === "post") {
+        const { error } = await supabase.from("posts").insert({
+          user_id: user.id,
+          media_url: mediaUrl,
+          media_type: mediaType, // null for a text post
+          thumbnail_url: thumbnailUrl,
+          caption: caption.trim() || null,
+        });
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from("stories").insert({
+          user_id: user.id,
+          media_type: mediaType || "image",
+          media_url: mediaUrl!,
+          expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+        });
+        if (error) throw error;
+      }
+
+      toast.success(target === "story" ? "Added to your story" : "Posted 🙌");
+      onPostCreated?.();
+      onClose();
+    } catch (error) {
+      console.error(error);
+      toast.error(target === "story" ? "Couldn't add to your story — please try again" : "Couldn't post — please try again");
+    } finally {
+      setSharing(null);
+      setProgress(0);
+    }
+  };
+
+  // Hashtag / mention chips: add the sign where the cursor is and keep typing there.
+  const caret = useRef<number | null>(null);
+  useLayoutEffect(() => {
+    const el = captionRef.current;
+    if (caret.current === null || !el) return;
+    el.focus();
+    el.setSelectionRange(caret.current, caret.current);
+    caret.current = null;
+  }, [caption]);
+  const insert = (ch: string) => {
+    const el = captionRef.current;
+    const at = el && document.activeElement === el ? el.selectionStart : caption.length;
+    const before = caption.slice(0, at);
+    const after = caption.slice(at);
+    const pad = before && !/\s$/.test(before) ? " " : "";
+    const gap = after && !/^\s/.test(after) ? " " : "";
+    el?.focus();
+    caret.current = (before + pad + ch).length;
+    setCaption((before + pad + ch + gap + after).slice(0, 2200));
+  };
+
+  if (!isOpen) return null;
+
+  const camera = tab === "post" || tab === "story";
+  const primary: "post" | "story" = tab === "story" ? "story" : "post";
+  const showTabs = stage === "capture" && !cameraBusy && !live;
+
+  return (
+    <div className="fixed inset-0 z-[60] bg-black text-white animate-in fade-in duration-150" role="dialog" aria-modal="true" aria-label="Create">
+      <div className="relative mx-auto h-full w-full max-w-[480px] overflow-hidden">
+        {/* ---- Camera (Story / Post) ---- */}
+        {stage === "capture" && camera && (
+          <CameraCapture
+            target={tab as "post" | "story"}
+            mode={mode}
+            onModeChange={setMode}
+            text={text}
+            onTextChange={setText}
+            onMedia={(f) => takeFile(f)}
+            onText={nextFromText}
+            onClose={close}
+            onBusyChange={setCameraBusy}
+          />
+        )}
+
+        {/* ---- Templates (kept while on the post screen so going back keeps their words) ---- */}
+        {tab === "templates" && (
+          <div className={cn("absolute inset-0 flex flex-col bg-[#0b0d12]", stage !== "capture" && "hidden")}>
+            <Header title="Templates" onClose={close} />
+            <div className="flex-1 overflow-y-auto overscroll-contain px-4 pb-6 pt-2">
+              <TemplatePicker ref={templateRef} onReadyChange={setTemplateReady} />
+            </div>
+            <div className="px-4 pb-[calc(env(safe-area-inset-bottom,0px)+60px)] pt-2">
+              <button
+                type="button"
+                onClick={nextFromTemplate}
+                disabled={!templateReady || makingTemplate}
+                className="flex w-full items-center justify-center gap-2 rounded-2xl bg-amber-400 py-3.5 text-[17px] font-bold text-black active:scale-[0.98] disabled:opacity-40"
+              >
+                {makingTemplate ? <Loader2 className="h-5 w-5 animate-spin" /> : "Next"}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ---- Go Live ---- */}
+        {tab === "live" && stage === "capture" && (
+          <div className="absolute inset-0 flex flex-col bg-[#0b0d12]">
+            <Header title="Go LIVE" onClose={close} />
+            <div className="flex-1 overflow-y-auto overscroll-contain px-4 pb-[calc(env(safe-area-inset-bottom,0px)+64px)] pt-2">
+              <LiveStudio onLiveChange={setLive} />
+            </div>
+          </div>
+        )}
+
+        {/* ---- Bottom tabs, like TikTok ---- */}
+        {showTabs && (
+          <nav className="absolute inset-x-0 bottom-0 z-30 flex items-center justify-center gap-6 bg-black/80 pb-[env(safe-area-inset-bottom,0px)] backdrop-blur" aria-label="Create">
+            {TABS.map((t) => (
+              <button
+                key={t.key}
+                type="button"
+                onClick={() => chooseTab(t.key)}
+                aria-current={tab === t.key ? "page" : undefined}
+                className={cn("relative h-12 text-[13.5px] font-bold tracking-wide transition-colors", tab === t.key ? "text-white" : "text-white/55")}
+              >
+                {t.label}
+                {tab === t.key && <span className="absolute bottom-2 left-1/2 h-[3px] w-5 -translate-x-1/2 rounded-full bg-white" />}
+              </button>
+            ))}
+          </nav>
+        )}
+
+        {/* ---- Post screen ---- */}
+        {stage === "compose" && (
+          <div className="absolute inset-0 z-40 flex flex-col bg-[#0b0d12]">
+            <div className="flex items-center gap-2 px-2 pb-2 pt-[calc(env(safe-area-inset-top,0px)+10px)]">
+              <button type="button" aria-label="Back" onClick={back} disabled={!!sharing} className="flex h-10 w-10 items-center justify-center rounded-full active:bg-white/10">
+                <ArrowLeft className="h-6 w-6" />
+              </button>
+              <h2 className="flex-1 text-center text-[17px] font-bold">{media ? "New post" : "Text post"}</h2>
+              <span className="h-10 w-10" />
+            </div>
+
+            <div className="flex-1 overflow-y-auto overscroll-contain">
+              <div className="flex gap-3 px-4 pt-2">
+                <textarea
+                  ref={captionRef}
+                  value={caption}
+                  onChange={(e) => setCaption(e.target.value.slice(0, 2200))}
+                  placeholder={media ? "Add a caption… Share what God is doing 🙌" : "What's on your heart?"}
+                  rows={media ? 6 : 8}
+                  className="min-h-[150px] flex-1 resize-none border-0 bg-transparent text-[16px] leading-snug text-white placeholder:text-white/40 focus:outline-none"
+                />
+                {media && (
+                  <button type="button" onClick={() => setPreview(true)} aria-label="Preview" className="relative h-[136px] w-[102px] shrink-0 overflow-hidden rounded-xl bg-black ring-1 ring-white/10">
+                    {media.type === "image"
+                      ? <img src={media.url} alt="" className="h-full w-full object-cover" />
+                      : <video src={media.url} muted playsInline autoPlay loop className="h-full w-full object-cover" />}
+                    <span className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-1 bg-black/55 py-1 text-[11.5px] font-semibold">
+                      {media.type === "video" && <Play className="h-3 w-3 fill-current" />} Preview
+                    </span>
+                  </button>
+                )}
+              </div>
+              <div className="flex items-center gap-2 px-4 pb-3 pt-2">
+                <button type="button" onPointerDown={(e) => e.preventDefault()} onClick={() => insert("#")} className="flex items-center gap-1 rounded-full bg-white/10 px-3 py-1.5 text-[13px] font-semibold active:scale-95"><Hash className="h-3.5 w-3.5" /> Hashtags</button>
+                <button type="button" onPointerDown={(e) => e.preventDefault()} onClick={() => insert("@")} className="flex items-center gap-1 rounded-full bg-white/10 px-3 py-1.5 text-[13px] font-semibold active:scale-95"><AtSign className="h-3.5 w-3.5" /> Mention</button>
+                <span className="ml-auto text-[12px] tabular-nums text-white/40">{caption.length}/2200</span>
+              </div>
+              <div className="mx-4 border-t border-white/10 py-3 text-[13px] leading-snug text-white/50">
+                {media
+                  ? "Post shares it on your profile and in everyone's feed. Your Story shows it for 24 hours (captions are for posts)."
+                  : "Your words go on your profile and in everyone's feed."}
+              </div>
+            </div>
+
+            {sharing && (
+              <div className="px-4 pb-2">
+                <div className="h-1.5 overflow-hidden rounded-full bg-white/10"><div className="h-full rounded-full bg-amber-400 transition-[width]" style={{ width: `${media ? progress : 100}%` }} /></div>
+              </div>
+            )}
+            <div className={cn("grid gap-3 px-4 pb-[calc(env(safe-area-inset-bottom,0px)+14px)] pt-2", media ? "grid-cols-2" : "grid-cols-1")}>
+              {media && (
+                <ShareButton primary={primary === "story"} busy={sharing === "story"} disabled={!!sharing} progress={progress} onClick={() => share("story")}>
+                  <span className="relative flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-br from-amber-300 to-amber-600 p-[2px]"><span className="h-full w-full rounded-full bg-[#0b0d12]" /></span>
+                  Your Story
+                </ShareButton>
+              )}
+              <ShareButton primary={primary === "post" || !media} busy={sharing === "post"} disabled={!!sharing || (!media && !caption.trim())} progress={progress} onClick={() => share("post")}>
+                Post
+              </ShareButton>
+            </div>
+
+            {preview && media && (
+              <div className="absolute inset-0 z-10 flex items-center justify-center bg-black">
+                {media.type === "image"
+                  ? <img src={media.url} alt="Preview" className="max-h-full max-w-full object-contain" />
+                  : <video src={media.url} controls autoPlay playsInline className="max-h-full max-w-full object-contain" />}
+                <button type="button" aria-label="Close preview" onClick={() => setPreview(false)} className="absolute left-3 top-[calc(env(safe-area-inset-top,0px)+12px)] flex h-10 w-10 items-center justify-center rounded-full bg-black/50">
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+const Header = ({ title, onClose }: { title: string; onClose: () => void }) => (
+  <div className="flex items-center gap-2 px-3 pb-2 pt-[calc(env(safe-area-inset-top,0px)+14px)]">
+    <button type="button" aria-label="Close" onClick={onClose} className="flex h-10 w-10 items-center justify-center rounded-full active:bg-white/10"><X className="h-7 w-7" /></button>
+    <h2 className="flex-1 text-center text-[17px] font-bold">{title}</h2>
+    <span className="h-10 w-10" />
+  </div>
+);
+
+const ShareButton = ({ primary, busy, disabled, progress, onClick, children }: { primary: boolean; busy: boolean; disabled: boolean; progress: number; onClick: () => void; children: React.ReactNode }) => (
+  <button
+    type="button"
+    onClick={onClick}
+    disabled={disabled}
+    className={cn(
+      "flex h-[52px] items-center justify-center gap-2 rounded-xl text-[16px] font-bold transition active:scale-[0.98]",
+      disabled && !busy && "opacity-50",
+      primary ? "bg-amber-400 text-black" : "bg-white/[0.12] text-white",
+    )}
+  >
+    {busy ? <><Loader2 className="h-5 w-5 animate-spin" /> {progress > 0 && progress < 100 ? `${progress}%` : progress >= 100 ? "Finishing…" : "Sharing…"}</> : children}
+  </button>
+);

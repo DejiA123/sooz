@@ -309,7 +309,7 @@ export function useTasteWatch(item: TasteItem | null, active: boolean) {
     }
     if (!s.open) return;
     if (s.since) { s.dwell += Date.now() - s.since; s.since = 0; }
-    if (typeof document !== "undefined" && document.hidden) return; // app in the background: carry on later
+    if (typeof document !== "undefined" && (document.hidden || document.body.classList.contains("sooz-feed-covered"))) return; // app in the background / Create open: carry on later
     finish();
   }, [active]);
 
