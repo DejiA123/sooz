@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { CONTACT_EMAIL } from "@/lib/contact";
 
 export default function Terms() {
     const navigate = useNavigate();
@@ -11,7 +12,7 @@ export default function Terms() {
             </Button>
             <h1 className="text-3xl font-bold mb-6">Terms of Service</h1>
             <div className="prose dark:prose-invert text-sm text-muted-foreground space-y-4">
-                <p>Last updated: December 2024</p>
+                <p>Last updated: November 2026</p>
                 <h3 className="text-foreground font-semibold text-lg">1. Terms</h3>
                 <p>
                     By accessing SOOZ, you agree to be bound by these terms of service, all applicable laws and regulations, and agree that you are responsible for compliance with any applicable local laws.
@@ -23,6 +24,15 @@ export default function Terms() {
                 <h3 className="text-foreground font-semibold text-lg">3. Disclaimer</h3>
                 <p>
                     The materials on SOOZ's website are provided on an 'as is' basis. SOOZ makes no warranties, expressed or implied, and hereby disclaims and negates all other warranties including, without limitation, implied warranties or conditions of merchantability.
+                </p>
+                <h3 className="text-foreground font-semibold text-lg">4. Videos from TikTok</h3>
+                <p>
+                    Videos from TikTok shown in SOOZ belong to their creators. They are played through TikTok's player and are not copied or re-uploaded by SOOZ. SOOZ shows each video's caption, creator name and a preview picture so people can find and share it. SOOZ is not affiliated with or endorsed by TikTok.
+                </p>
+                <p>
+                    If you are a creator and want your videos removed from SOOZ, contact us at{" "}
+                    <a href={`mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent("Remove my videos from SOOZ")}`} className="text-primary hover:underline">{CONTACT_EMAIL}</a>{" "}
+                    with your TikTok username and we will remove them.
                 </p>
             </div>
         </div>

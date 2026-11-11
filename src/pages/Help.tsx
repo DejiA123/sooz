@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { CONTACT_EMAIL } from "@/lib/contact";
 
 export default function Help() {
     const navigate = useNavigate();
@@ -22,7 +23,7 @@ export default function Help() {
                 <section>
                     <h2 className="text-xl font-semibold mb-2">Contact Support</h2>
                     <p className="text-muted-foreground">
-                        Need more help? Reach out to us at <a href="mailto:support@sooz.app" className="text-primary hover:underline">support@sooz.app</a>.
+                        Need more help? Reach out to us at <a href={`mailto:${CONTACT_EMAIL}`} className="text-primary hover:underline">{CONTACT_EMAIL}</a>.
                     </p>
                 </section>
             </div>

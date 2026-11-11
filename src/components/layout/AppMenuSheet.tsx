@@ -63,6 +63,12 @@ export const AppMenuSheet = ({ trigger }: { trigger: ReactNode }) => {
             <LogOut className="h-5 w-5 transition-transform group-hover:scale-110" />
             <span className="text-[15px] font-bold">Log out</span>
           </button>
+          {/* Who owns the videos, and how a creator asks for removal, live on these pages. */}
+          <nav aria-label="About SOOZ" className="mt-3 flex flex-wrap justify-center gap-x-4 gap-y-1 px-2 text-[12.5px] text-muted-foreground">
+            {[["/about", "About"], ["/terms", "Terms"], ["/privacy", "Privacy"], ["/help", "Help"]].map(([to, label]) => (
+              <Link key={to} to={to} onClick={close} className="py-1 hover:text-foreground">{label}</Link>
+            ))}
+          </nav>
         </div>
       </SheetContent>
     </Sheet>
