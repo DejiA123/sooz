@@ -26,7 +26,11 @@ const PER_CREATOR = 6;
 const PER_CHURCH_CREATOR = 40;
 const CHURCH = "Our church";
 const CREATORS_PER_RUN = Number(process.env.CREATORS_PER_RUN || 700);
-const LIKES_PER_RUN = Number(process.env.LIKES_PER_RUN || 350);
+// Every video's TikTok like count, every day (owner's request: SOOZ's heart must match TikTok), within a
+// time budget so the run always finishes.
+const LIKES_PER_RUN = Number(process.env.LIKES_PER_RUN || 20000);
+const LIKES_MINUTES = Number(process.env.LIKES_MINUTES || 45);
+const LIKES_WORKERS = 3;
 const CARDS_PER_RUN = 3000;
 const COVERS_DIR = process.env.COVERS_DIR || "";
 const COVER_LOOKUPS_PER_RUN = 300; // extra embed pages per run for older videos without a card yet
@@ -124,27 +128,39 @@ lib.videos = [...byCreator.values()].flat();
 for (const v of lib.videos) if (v[4].length > MAX_CAPTION) v[4] = cleanCaption(v[4]); // older, longer captions too
 
 // TikTok's like count for each video (shown on SOOZ's own heart) and its full caption. Each video's
-// public embed page has both; a few hundred per day, oldest-checked first, so every count stays fresh
-// within a few days.
+// public embed page has both. Every video, every day: ones never counted first, then the newest (their
+// counts move fastest), then the longest unchecked; a few at a time, all pausing if TikTok says slow down.
 lib.likes ??= {};
 lib.likesAt ??= {};
 const today = new Date().toISOString().slice(0, 10);
 const starterIds = [...(await readFile(new URL("../src/data/christianTikTokStarter.ts", import.meta.url), "utf8")).matchAll(/\/video\/(\d+)/g)].map((m) => m[1]);
 const allIds = [...new Set([...lib.videos.map((v) => v[0]), ...starterIds])];
-const due = allIds.filter((id) => lib.likesAt[id] !== today).sort((a, b) => (lib.likesAt[a] ?? "").localeCompare(lib.likesAt[b] ?? "")).slice(0, LIKES_PER_RUN);
-for (const id of due) {
-  const res = await fetch(`https://www.tiktok.com/embed/v2/${id}`, { headers: { "user-agent": UA } }).catch(() => null);
-  const html = res?.ok ? await res.text() : "";
-  if (/ratelimit/.test(html) && html.length < 200) { await sleep(20000); continue; }
-  const m = html.match(new RegExp(`"id":"${id}"[\\s\\S]{0,4000}?"diggCount":(\\d+)`)) || html.match(/"diggCount":(\d+)/);
-  if (m) { lib.likes[id] = Number(m[1]); lib.likesAt[id] = today; }
-  const t = html.match(new RegExp(`"id":"${id}","text":"((?:[^"\\\\]|\\\\.)*)"`));
-  const row = t && lib.videos.find((v) => v[0] === id);
-  if (row) { try { const full = cleanCaption(JSON.parse(`"${t[1]}"`)); if (full) row[4] = full; } catch { /* odd text: keep ours */ } }
-  const cover = coverFromEmbed(html, id);
-  if (cover) coverSrc.set(id, cover);
-  await sleep(1500);
+const newestFirst = (a, b) => (BigInt(b) > BigInt(a) ? 1 : BigInt(b) < BigInt(a) ? -1 : 0);
+const due = [
+  ...allIds.filter((id) => lib.likes[id] === undefined).sort(newestFirst),
+  ...allIds.filter((id) => lib.likes[id] !== undefined && lib.likesAt[id] !== today).sort(newestFirst),
+].slice(0, LIKES_PER_RUN);
+const likesUntil = Date.now() + LIKES_MINUTES * 60_000;
+let pauseUntil = 0, counted = 0, nextLike = 0;
+async function likesWorker() {
+  while (nextLike < due.length && Date.now() < likesUntil) {
+    const id = due[nextLike++];
+    if (Date.now() < pauseUntil) await sleep(pauseUntil - Date.now());
+    const res = await fetch(`https://www.tiktok.com/embed/v2/${id}`, { headers: { "user-agent": UA }, signal: AbortSignal.timeout(20000) }).catch(() => null);
+    const html = res?.ok ? await res.text().catch(() => "") : "";
+    if (/ratelimit/.test(html) && html.length < 200) { pauseUntil = Date.now() + 30000; due.push(id); await sleep(30000); continue; }
+    const m = html.match(new RegExp(`"id":"${id}"[\\s\\S]{0,4000}?"diggCount":(\\d+)`)) || html.match(/"diggCount":(\d+)/);
+    if (m) { lib.likes[id] = Number(m[1]); lib.likesAt[id] = today; counted++; }
+    const t = html.match(new RegExp(`"id":"${id}","text":"((?:[^"\\\\]|\\\\.)*)"`));
+    const row = t && lib.videos.find((v) => v[0] === id);
+    if (row) { try { const full = cleanCaption(JSON.parse(`"${t[1]}"`)); if (full) row[4] = full; } catch { /* odd text: keep ours */ } }
+    const cover = coverFromEmbed(html, id);
+    if (cover) coverSrc.set(id, cover);
+    await sleep(700);
+  }
 }
+await Promise.all(Array.from({ length: LIKES_WORKERS }, likesWorker));
+console.log(`Like counts: ${counted} updated today; ${allIds.filter((id) => lib.likes[id] !== undefined).length} of ${allIds.length} videos have one.`);
 for (const id of Object.keys(lib.likes)) if (!allIds.includes(id)) { delete lib.likes[id]; delete lib.likesAt[id]; }
 
 // ---- Link-preview cards (tt/{id}.jpg on the covers branch) ----

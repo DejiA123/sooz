@@ -219,9 +219,18 @@ const today = new Date().toISOString().slice(0, 10);
 const due = (h) => !state.harvested[h] || state.harvested[h] === 1 || (Date.now() - Date.parse(state.harvested[h])) / 86_400_000 >= 14;
 for (const h of Object.keys(lib.creators)) if (due(h)) state.queue.push(`=${h}`);
 
+// …and every new video in the library (hundreds a day) is a source too, so discovery never runs dry:
+// names written in its caption straight away, and the exact accounts it tags (its embed page) once.
+state.harvestedVideos ??= {};
+const libIds = new Set(lib.videos.map((v) => v[0]));
+for (const id of Object.keys(state.harvestedVideos)) if (!libIds.has(id)) delete state.harvestedVideos[id];
+for (const v of lib.videos) for (const m of String(v[4] || "").matchAll(/(?<![A-Za-z0-9._])@([A-Za-z0-9._]{2,24})/g)) enqueue(m[1]); // not e-mail addresses
+const VIDEO_LOOKUPS = Number(process.env.VIDEO_LOOKUPS || 600);
+for (const v of lib.videos.filter((x) => !state.harvestedVideos[x[0]] && String(x[4] || "").includes("@")).slice(0, VIDEO_LOOKUPS)) state.queue.push(`#${v[0]}`);
+
 let checkedNow = 0, addedNow = 0;
 const save = () => {
-  writeFileSync(STATE, JSON.stringify(state));
+  writeFileSync(STATE, JSON.stringify({ ...state, queue: state.queue.filter((x) => !x.startsWith("#") && !x.startsWith("=")) }));
   writeFileSync(FILE, JSON.stringify(lib));
   if (COVER_HINTS) writeFileSync(COVER_HINTS, JSON.stringify(coverHints));
 };
@@ -230,6 +239,18 @@ async function worker() {
     let h = state.queue.shift();
     // Past the target, only accounts the owner asked for are still added.
     if (Object.keys(lib.creators).length >= TARGET && !state.approved.includes(h)) { if (!state.queue.some((x) => state.approved.includes(x))) break; continue; }
+    if (h.startsWith("#")) {
+      const id = h.slice(1);
+      if (state.harvestedVideos[id]) continue;
+      try {
+        const res = await fetch(`https://www.tiktok.com/embed/v2/${id}`, { headers: { "user-agent": UA }, signal: AbortSignal.timeout(20000) });
+        const html = await res.text();
+        for (const m of html.matchAll(/"UserUniqueId":"([^"]+)"/g)) enqueue(m[1]);
+        if (html.includes(`"id":"${id}"`)) state.harvestedVideos[id] = 1; // a real page (not a "slow down" one)
+      } catch { /* try again another day */ }
+      await sleep(700);
+      continue;
+    }
     if (h.startsWith("=")) {
       h = h.slice(1);
       if (!due(h)) continue;
