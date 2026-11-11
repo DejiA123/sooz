@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { CONTACT_EMAIL } from "@/lib/contact";
 
 export default function About() {
     const navigate = useNavigate();
@@ -17,6 +18,15 @@ export default function About() {
                 <p>
                     Founded in 2024, we aim to bring back the joy of sharing moments without the clutter.
                     Our focus is on authentic connections, high-quality video sharing, and a community-first approach.
+                </p>
+                <h2 className="mt-8 mb-2 text-lg font-semibold">Videos from TikTok</h2>
+                <p className="text-muted-foreground">
+                    Videos from TikTok shown in SOOZ belong to their creators. They are played through TikTok's player and are not copied or re-uploaded by SOOZ. SOOZ is not affiliated with or endorsed by TikTok.
+                </p>
+                <p className="mt-3 text-muted-foreground">
+                    If you are a creator and want your videos removed from SOOZ, contact us at{" "}
+                    <a href={`mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent("Remove my videos from SOOZ")}`} className="text-primary hover:underline">{CONTACT_EMAIL}</a>{" "}
+                    and we will remove them. More in our <Link to="/terms" className="text-primary hover:underline">Terms</Link>.
                 </p>
             </div>
         </div>
