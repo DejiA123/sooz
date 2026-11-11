@@ -189,6 +189,78 @@ function getTikTokPool(): Promise<TikTokVideo[]> {
   return tiktokPool;
 }
 
+// ── Discover: Christian TikToks from creators this viewer hasn't got to know yet ──
+// (SOOZ has no "follow" for TikTok creators, so "not followed" = creators they've rarely been shown /
+// engaged with.) Unseen videos first; one video per creator before anyone's second, new faces first;
+// within that, popular and recent ones lead, with a little luck so it changes each visit.
+export interface DiscoverData { videos: TikTokVideo[]; kinds: Record<string, string>; tags: string[] }
+const GENERIC_TAGS = new Set(["fyp", "fypシ", "foryou", "foryoupage", "fy", "viral", "goviral", "trending", "tiktok", "capcut", "creatorsearchinsights", "explore", "xyzbca", "duet", "stitch", "newmusic", "music", "community"]);
+let discoverLoad: Promise<DiscoverData> | null = null;
+export function discoverTikToks(): Promise<DiscoverData> {
+  discoverLoad ??= (async () => {
+    const [pool, allow, lib] = await Promise.all([getTikTokPool(), contentFilter(), loadLibrary().catch(() => null)]);
+    const vids = pool.filter(allow.tiktok);
+    const score = (v: TikTokVideo) => {
+      const age = tiktokAgeDays(v.tiktok_id) ?? 365;
+      return (isSeen("tiktok", v.tiktok_id) ? -6 : 0) - 0.7 * Math.log1p(exposure(v.author_handle?.toLowerCase())) +
+        0.45 * Math.log10(1 + (v.likes ?? 0)) + 1.2 * Math.exp(-age / 30) + 0.9 * Math.random();
+    };
+    const byCreator = new Map<string, { best: number; list: { v: TikTokVideo; s: number }[] }>();
+    for (const v of vids) {
+      const c = v.author_handle?.toLowerCase() || v.tiktok_id;
+      const s = score(v);
+      const g = byCreator.get(c) ?? { best: -Infinity, list: [] };
+      g.list.push({ v, s });
+      g.best = Math.max(g.best, s);
+      byCreator.set(c, g);
+    }
+    const groups = [...byCreator.values()].sort((a, b) => b.best - a.best);
+    for (const g of groups) g.list.sort((a, b) => b.s - a.s);
+    const out: TikTokVideo[] = [];
+    for (let round = 0; out.length < vids.length; round++) {
+      let any = false;
+      for (const g of groups) if (g.list[round]) { out.push(g.list[round].v); any = true; }
+      if (!any) break;
+    }
+    // Popular hashtags (leaving out the "#fyp" kind) for quick searches.
+    const counts = new Map<string, number>();
+    for (const v of vids) for (const t of new Set((v.title?.toLowerCase().match(/#[\p{L}\p{N}_]+/gu) ?? []).map((x) => x.slice(1)))) {
+      if (!GENERIC_TAGS.has(t) && t.length > 2) counts.set(t, (counts.get(t) ?? 0) + 1);
+    }
+    const tags = [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 14).map(([t]) => t);
+    return { videos: out, kinds: lib?.kinds ?? {}, tags };
+  })().finally(() => setTimeout(() => { discoverLoad = null; }, 120_000));
+  return discoverLoad;
+}
+
+/** Search the Christian TikToks: creators (name / @handle) and videos (caption, hashtags, creator). */
+export function searchTikToks(data: DiscoverData, query: string): { creators: { handle: string; name: string; videos: number; likes: number; kind: string | null }[]; videos: TikTokVideo[]; creator?: string } {
+  const raw = query.trim().toLowerCase();
+  const q = raw.replace(/^@/, "");
+  if (!q) return { creators: [], videos: [] };
+  // "@handle" of a creator in the library: just their videos, newest first (a creator page).
+  if (raw.startsWith("@") && data.videos.some((v) => v.author_handle?.toLowerCase() === q)) {
+    const theirs = data.videos.filter((v) => v.author_handle?.toLowerCase() === q).sort((a, b) => (BigInt(b.tiktok_id) > BigInt(a.tiktok_id) ? 1 : -1));
+    const name = theirs[0]?.author_name || q;
+    return { creators: [{ handle: q, name, videos: theirs.length, likes: theirs.reduce((n, v) => n + (v.likes ?? 0), 0), kind: data.kinds[q] ?? null }], videos: theirs, creator: q };
+  }
+  const words = q.split(/\s+/).filter(Boolean);
+  const hay = (v: TikTokVideo) => `${v.title ?? ""} ${v.author_name ?? ""} @${v.author_handle ?? ""}`.toLowerCase();
+  const videos = data.videos.filter((v) => { const h = hay(v); return words.every((w) => h.includes(w)); })
+    .sort((a, b) => (b.likes ?? 0) - (a.likes ?? 0));
+  const creators = new Map<string, { handle: string; name: string; videos: number; likes: number; kind: string | null }>();
+  for (const v of data.videos) {
+    const handle = v.author_handle?.toLowerCase();
+    if (!handle) continue;
+    const name = v.author_name || handle;
+    if (!(handle.includes(q) || name.toLowerCase().includes(q))) continue;
+    const c = creators.get(handle) ?? { handle, name, videos: 0, likes: 0, kind: data.kinds[handle] ?? null };
+    c.videos++; c.likes += v.likes ?? 0;
+    creators.set(handle, c);
+  }
+  return { creators: [...creators.values()].sort((a, b) => b.likes - a.likes).slice(0, 12), videos };
+}
+
 // ── For You: ranked for this viewer, like TikTok (src/lib/taste.ts learns what they enjoy) ──
 //
 // Each page is picked fresh from everything they haven't seen yet, using what this phone has learnt
