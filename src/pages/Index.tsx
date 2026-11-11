@@ -8,6 +8,7 @@ import { useLiveStatus } from "@/hooks/useLiveStatus";
 import { fetchFollowingPage, fetchForYouPage, FIRST_CURSOR, hasTikTokToOpen, openTikTokFirst, readCachedFeed, writeCachedFeed, type FeedCursor, type FeedPage } from "@/services/api/feed";
 import { ReelsFeed } from "@/components/reels/ReelsFeed";
 import { FeedTopBar, LiveViewer, SoundToggle, StoriesPanel, type FeedTab } from "@/components/reels/FeedChrome";
+import { useReelUi } from "@/lib/reelUi";
 import { SuggestedAccounts } from "@/components/home/SuggestedAccounts";
 import { queryClient } from "@/lib/react-query";
 
@@ -126,6 +127,7 @@ export default function Index() {
   const loadMore = useCallback(() => { if (!q.isPlaceholderData) q.fetchNextPage(); }, [q]);
   const onIndexChange = useCallback((i: number) => { savedIndex[tab] = i; setActiveIndex(i); }, [tab]);
   const activeKind = items[Math.min(activeIndex, Math.max(items.length - 1, 0))]?.kind;
+  const reelUi = useReelUi();
 
   // Leaving the app: keep the videos after this one for next time, so it opens on something new.
   const upcoming = useRef({ items, activeIndex, tab });
@@ -219,7 +221,8 @@ export default function Index() {
         storiesOpen={storiesOpen}
         onToggleStories={() => setStoriesOpen((v) => !v)}
       />
-      {items.length > 0 && !storiesOpen && activeKind === "post" && <SoundToggle />}
+      {/* Sound on / off: on SOOZ posts, and on TikToks in the floating look (TikTok's own sound button is out of sight there). */}
+      {items.length > 0 && !storiesOpen && (activeKind === "post" || reelUi === "float") && <SoundToggle />}
       {storiesOpen && user && <StoriesPanel onClose={() => setStoriesOpen(false)} />}
       {storiesOpen && !user && (
         <StoriesPanelSignIn onClose={() => setStoriesOpen(false)} onSignIn={() => navigate("/auth")} />

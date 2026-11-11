@@ -26,11 +26,32 @@ export function registerTikTokPlayer(handle: TikTokPlayerHandle): () => void {
   return () => { players.delete(handle); };
 }
 
-/** At least one TikTok player has answered this visit (so silence from another one means trouble). */
-export const tiktokProtocol = { works: false };
+/**
+ * Does TikTok's player still listen to SOOZ on this phone? The floating-buttons look depends on it
+ * (TikTok's own controls are out of sight there), so a slide that gets no answer goes back to the
+ * side-panel look, where TikTok's controls can be tapped — and after two in a row with no success in
+ * between, so does every slide for the rest of this visit.
+ */
+export const tiktokTapForwarding = {
+  /** Commands can't be relied on here: let taps reach TikTok's player directly. */
+  broken: false,
+  /** Taps passed to a player that didn't act on them, in a row. */
+  fails: 0,
+  /** Players that loaded but never said they were ready, in a row. */
+  silent: 0,
+};
 
-/** Taps forwarded to TikTok's player didn't start it on this phone: let taps reach TikTok directly. */
-export const tiktokTapForwarding = { broken: false };
+/** A tap was passed on to a ready player: did the player do what was asked? */
+export function tapForwarded(ok: boolean): void {
+  if (ok) tiktokTapForwarding.fails = 0;
+  else if (++tiktokTapForwarding.fails >= 2) tiktokTapForwarding.broken = true;
+}
+
+/** A loaded player did (true) or didn't (false) announce it was ready for commands. */
+export function playerAnswered(ok: boolean): void {
+  if (ok) tiktokTapForwarding.silent = 0;
+  else if (++tiktokTapForwarding.silent >= 2) tiktokTapForwarding.broken = true;
+}
 
 let started = false;
 export function startTikTokGestures(): void {
