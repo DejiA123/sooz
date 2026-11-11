@@ -38,6 +38,8 @@ type Store = {
   n: Record<string, number>;
   /** TikToks hearted in SOOZ: id → [minutes, handle]; negative minutes = un-hearted then (so it syncs). */
   lk?: Record<string, [number, string | null]>;
+  /** TikToks saved (bookmarked) in SOOZ: same shape as `lk` (shown in the profile's Saved tab). */
+  sv?: Record<string, [number, string | null]>;
   /** Watch history cleared up to this time (minutes); the feed still remembers what was seen. */
   hc?: number;
 };
@@ -106,6 +108,7 @@ function saveNow() {
   trim(s.t, 400, Math.abs);
   trim(s.n, 1500, (v) => v);
   if (s.lk) trim(s.lk as unknown as Record<string, number>, 3000, (v) => Math.abs((v as unknown as [number])[0]));
+  if (s.sv) trim(s.sv as unknown as Record<string, number>, 3000, (v) => Math.abs((v as unknown as [number])[0]));
   try { localStorage.setItem(KEY, JSON.stringify(s)); } catch { /* storage full: keep going in memory */ }
 }
 
@@ -147,6 +150,11 @@ export function mergeTaste(remote: Partial<Store> | null | undefined) {
   for (const [id, entry] of Object.entries(remote.lk ?? {})) {
     const mine = s.lk[id];
     if (!mine || Math.abs(entry[0]) > Math.abs(mine[0])) s.lk[id] = [entry[0], entry[1] ?? mine?.[1] ?? null];
+  }
+  s.sv ??= {};
+  for (const [id, entry] of Object.entries(remote.sv ?? {})) {
+    const mine = s.sv[id];
+    if (!mine || Math.abs(entry[0]) > Math.abs(mine[0])) s.sv[id] = [entry[0], entry[1] ?? mine?.[1] ?? null];
   }
   s.hc = Math.max(s.hc ?? 0, remote.hc ?? 0);
   s.at = Math.max(s.at, remote.at ?? 0);
@@ -204,9 +212,9 @@ function learn(item: TasteItem, delta: number) {
   save();
 }
 
-export type TasteAction = "like" | "unlike" | "comment" | "openComments" | "share" | "openShare" | "repost" | "profile" | "follow" | "more";
+export type TasteAction = "like" | "unlike" | "comment" | "openComments" | "share" | "openShare" | "repost" | "profile" | "follow" | "more" | "save" | "unsave";
 const ACTION_WEIGHT: Record<TasteAction, number> = {
-  like: 2.5, unlike: -2.5, comment: 2, openComments: 1, share: 3, openShare: 0.6, repost: 3, profile: 1.5, follow: 3, more: 0.7,
+  like: 2.5, unlike: -2.5, comment: 2, openComments: 1, share: 3, openShare: 0.6, repost: 3, profile: 1.5, follow: 3, more: 0.7, save: 3, unsave: -2,
 };
 export function engage(item: TasteItem, action: TasteAction) {
   learn(item, ACTION_WEIGHT[action]);
@@ -233,6 +241,24 @@ export function setTikTokLiked(id: string, on: boolean, handle: string | null) {
 /** Hearted TikToks, newest first. */
 export function likedTikToks(): { id: string; handle: string | null; at: number }[] {
   return Object.entries(load().lk ?? {})
+    .filter(([, e]) => e[0] > 0)
+    .map(([id, e]) => ({ id, handle: e[1], at: EPOCH + e[0] * 60_000 }))
+    .sort((a, b) => b.at - a.at);
+}
+// ── Saved TikToks (the profile's Saved tab), kept on the account like hearts ──
+export function isTikTokSaved(id: string): boolean {
+  const e = load().sv?.[id];
+  return !!e && e[0] > 0;
+}
+export function setTikTokSaved(id: string, on: boolean, handle: string | null) {
+  const s = load();
+  s.sv ??= {};
+  s.sv[id] = [on ? now() : -now(), handle ?? s.sv[id]?.[1] ?? null];
+  save();
+}
+/** Saved TikToks, newest first. */
+export function savedTikToks(): { id: string; handle: string | null; at: number }[] {
+  return Object.entries(load().sv ?? {})
     .filter(([, e]) => e[0] > 0)
     .map(([id, e]) => ({ id, handle: e[1], at: EPOCH + e[0] * 60_000 }))
     .sort((a, b) => b.at - a.at);

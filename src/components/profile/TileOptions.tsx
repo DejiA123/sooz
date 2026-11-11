@@ -1,6 +1,8 @@
 import { lazy, Suspense, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Bookmark, BookmarkMinus, Edit, Flag, Link2, Play, Share2, Trash2 } from "lucide-react";
+import { isTikTokSaved, setTikTokSaved } from "@/lib/taste";
+import { refreshProfiles } from "@/lib/profileRefresh";
 import { toast } from "sonner";
 import { Drawer, DrawerContent, DrawerTitle } from "@/components/ui/drawer";
 import { supabase } from "@/integrations/supabase/client";
@@ -73,6 +75,15 @@ export const TileOptions = ({ item, tab, onClose, onWatch }: {
   if (post && mine) rows.push({ icon: Edit, label: "Edit caption", onClick: () => then("edit") });
   if (post && user && tab === "saved") rows.push({ icon: BookmarkMinus, label: "Remove from Saved", onClick: () => save(false) });
   else if (post && user && !mine) rows.push({ icon: Bookmark, label: "Save", onClick: () => save(true) });
+  if (video) {
+    const on = isTikTokSaved(video.tiktok_id);
+    rows.push({ icon: on ? BookmarkMinus : Bookmark, label: on ? "Remove from Saved" : "Save", onClick: () => {
+      done();
+      setTikTokSaved(video.tiktok_id, !on, video.author_handle?.toLowerCase() ?? null);
+      toast.success(on ? "Removed from Saved" : "Saved to your profile");
+      refreshProfiles();
+    } });
+  }
   if (!mine && user) rows.push({ icon: Flag, label: "Report", onClick: () => then("report"), danger: true });
   if (mine) rows.push({ icon: Trash2, label: "Delete post", onClick: remove, danger: true });
 

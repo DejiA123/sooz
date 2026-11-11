@@ -3,7 +3,7 @@ import { loadLibrary, postItem, tiktokItem, type FeedItem, type Library } from "
 import { fetchPostsByIds, fetchUserPosts, type FeedPost } from "./posts";
 import { fetchUserReposts, repostedTikTokVideo } from "./reposts";
 import { starterTikToks, type TikTokVideo } from "./tiktok";
-import { likedTikToks } from "@/lib/taste";
+import { likedTikToks, savedTikToks } from "@/lib/taste";
 import { isHiddenLocally } from "./safety";
 
 /** The tabs on a profile, like TikTok: their posts, what they reposted, and (your own) saved / liked. */
@@ -65,6 +65,17 @@ async function likedItems(profileId: string, viewerId?: string): Promise<FeedIte
   ].sort((a, b) => b.at - a.at).map((x) => x.item);
 }
 
+/** Your Saved tab: SOOZ posts you bookmarked and TikToks you saved (kept on your account), newest first. */
+async function savedItems(profileId: string, viewerId?: string): Promise<FeedItem[]> {
+  const mine = viewerId === profileId;
+  const saves = mine ? savedTikToks().filter((h) => !isHiddenLocally("tiktok", h.id)) : [];
+  const [posts, videos] = await Promise.all([postsFrom("bookmarks", profileId, viewerId), tiktoksById(saves)]);
+  return [
+    ...posts.map(({ post, at }) => ({ item: postItem(post), at })),
+    ...videos.map((video, i) => ({ item: tiktokItem(video), at: saves[i].at })),
+  ].sort((a, b) => b.at - a.at).map((x) => x.item);
+}
+
 /** What they reposted: SOOZ posts and Christian TikToks (with the library's full caption and like count). */
 async function repostItems(profileId: string, viewerId?: string): Promise<FeedItem[]> {
   const reposts = await fetchUserReposts(profileId);
@@ -95,7 +106,7 @@ async function repostItems(profileId: string, viewerId?: string): Promise<FeedIt
 export async function fetchProfileTab(profileId: string, tab: ProfileTab, viewerId?: string): Promise<FeedItem[]> {
   switch (tab) {
     case "posts": return (await fetchUserPosts(profileId, viewerId)).map(postItem);
-    case "saved": return (await postsFrom("bookmarks", profileId, viewerId)).map(({ post }) => postItem(post));
+    case "saved": return savedItems(profileId, viewerId);
     case "liked": return likedItems(profileId, viewerId);
     case "reposts": return repostItems(profileId, viewerId);
   }
