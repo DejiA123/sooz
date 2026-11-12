@@ -1326,10 +1326,6 @@ export type Database = {
         Args: { target_conversation_id: string }
         Returns: boolean
       }
-      get_email_by_username: {
-        Args: { username_input: string }
-        Returns: string
-      }
       get_or_create_direct_chat: {
         Args: { other_user: string }
         Returns: string
