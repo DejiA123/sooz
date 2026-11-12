@@ -1,127 +1,40 @@
-import { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { urlBase64ToUint8Array, VAPID_PUBLIC_KEY } from '@/utils/pushParams';
-import { useAuth } from './useAuth';
-import { toast } from 'sonner';
+import { useCallback, useEffect, useState } from "react";
+import { useAuth } from "./useAuth";
+import { enablePush, forgetPushOnThisPhone, pushStatus, syncPush, type PushStatus } from "@/lib/push";
 
+/**
+ * This phone's notification status for the signed-in person (see src/lib/push.ts). Once allowed, the
+ * subscription is checked and renewed silently every time the app opens or comes back to the front.
+ */
 export const usePushNotifications = () => {
-    const { user } = useAuth();
-    const [subscription, setSubscription] = useState<PushSubscription | null>(null);
-    const [isSubscribed, setIsSubscribed] = useState(false);
+  const { user } = useAuth();
+  const [status, setStatus] = useState<PushStatus>(() => pushStatus());
 
-    useEffect(() => {
-        if (!('serviceWorker' in navigator && 'PushManager' in window) || !user) return;
-        (async () => {
-            const registration: any = await navigator.serviceWorker.ready;
-            let sub: PushSubscription | null = await registration.pushManager.getSubscription();
-            const want = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
-            const have = sub?.options?.applicationServerKey ? new Uint8Array(sub.options.applicationServerKey as ArrayBuffer) : null;
-            const stale = !!(sub && have && (have.length !== want.length || have.some((b, i) => b !== want[i])));
-            // Silently re-subscribe when keys changed, or permission is granted but no subscription exists
-            if ((stale || !sub) && Notification.permission === 'granted') {
-                if (sub) { await supabase.from('push_subscriptions' as any).delete().eq('endpoint', sub.endpoint); await sub.unsubscribe(); }
-                sub = await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: want });
-            }
-            if (sub) {
-                const keys = sub.toJSON().keys;
-                if (keys?.p256dh && keys?.auth) {
-                    await supabase.from('push_subscriptions' as any).upsert({ user_id: user.id, endpoint: sub.endpoint, p256dh: keys.p256dh, auth: keys.auth, last_used: new Date().toISOString() } as any, { onConflict: 'endpoint' });
-                }
-                setSubscription(sub);
-                setIsSubscribed(true);
-            }
-        })().catch(err => console.error('Push sync failed', err));
-    }, [user?.id]);
-
-    const subscribeToPush = async () => {
-        if (!user) {
-            toast.error("You must be logged in to enable notifications");
-            return;
-        }
-
-        if (!('serviceWorker' in navigator)) {
-            toast.error("Push notifications are not supported in this browser");
-            return;
-        }
-
-        try {
-            const registration: any = await navigator.serviceWorker.ready;
-            console.log('Service Worker ready:', registration);
-
-            // Check if permission is granted
-            const permission = await Notification.requestPermission();
-            console.log('Notification permission:', permission);
-
-            if (permission !== 'granted') {
-                toast.error("Please allow notifications in your browser settings");
-                return;
-            }
-
-            // 1. Subscribe to Browser Push Manager
-            console.log('Attempting to subscribe with VAPID key:', VAPID_PUBLIC_KEY);
-            const sub = await registration.pushManager.subscribe({
-                userVisibleOnly: true,
-                applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
-            });
-
-            console.log('Browser Subscription:', sub);
-
-            // 2. Save to Database
-            const keys = sub.toJSON().keys;
-            if (!keys || !keys.p256dh || !keys.auth) {
-                throw new Error("Failed to generate keys");
-            }
-
-            const { error } = await supabase
-                // @ts-ignore
-                .from('push_subscriptions')
-                .upsert({
-                    user_id: user.id,
-                    endpoint: sub.endpoint,
-                    p256dh: keys.p256dh,
-                    auth: keys.auth,
-                    last_used: new Date().toISOString()
-                }, { onConflict: 'endpoint' });
-
-            if (error) {
-                console.error("Supabase error:", error);
-                throw error;
-            }
-
-            setSubscription(sub);
-            setIsSubscribed(true);
-            toast.success("Notifications enabled!", {
-                description: "You will now receive updates when the app is closed."
-            });
-
-        } catch (error: any) {
-            console.error("Failed to subscribe:", error);
-            console.error("Error name:", error.name);
-            console.error("Error message:", error.message);
-            toast.error(`Failed to enable notifications: ${error.name}`);
-        }
+  useEffect(() => {
+    if (!user) return;
+    const run = () => {
+      setStatus(pushStatus());
+      syncPush(user.id).catch((err) => console.error("Push sync failed", err));
     };
+    run();
+    // People can turn notifications on in the phone's settings while SOOZ is in the background.
+    const onShow = () => { if (document.visibilityState === "visible") run(); };
+    document.addEventListener("visibilitychange", onShow);
+    return () => document.removeEventListener("visibilitychange", onShow);
+  }, [user]);
 
-    const unsubscribeFromPush = async () => {
-        if (!subscription) return;
+  /** Call straight from a tap (iPhone only asks from a tap). */
+  const subscribeToPush = useCallback(async () => {
+    if (!user) return pushStatus();
+    const next = await enablePush(user.id).catch((err) => { console.error("Push enable failed", err); return pushStatus(); });
+    setStatus(next);
+    return next;
+  }, [user]);
 
-        // 1. Unsubscribe from Browser
-        await subscription.unsubscribe();
+  const unsubscribeFromPush = useCallback(async () => {
+    await forgetPushOnThisPhone();
+    setStatus(pushStatus());
+  }, []);
 
-        // 2. Remove from Database
-        if (supabase) { // check if supabase is initialized, fallback if not? It is imported above.
-            // @ts-ignore
-            await supabase.from('push_subscriptions').delete().eq('endpoint', subscription.endpoint);
-        }
-
-        setSubscription(null);
-        setIsSubscribed(false);
-        toast.info("Notifications disabled");
-    };
-
-    return {
-        isSubscribed,
-        subscribeToPush,
-        unsubscribeFromPush
-    };
+  return { status, isSubscribed: status === "on", subscribeToPush, unsubscribeFromPush };
 };

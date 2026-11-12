@@ -9,6 +9,42 @@ import { FamilySafeSetting } from "@/components/safety/FamilySafeSetting";
 import { useIsAdmin } from "@/lib/admin";
 import { REEL_UI_DEFAULT, setReelUi, useReelUi, type ReelUi } from "@/lib/reelUi";
 import { cn } from "@/lib/utils";
+import { forgetPushOnThisPhone, isIOS } from "@/lib/push";
+import { usePushNotifications } from "@/hooks/usePushNotifications";
+import { Bell } from "lucide-react";
+
+/** Notifications on this phone: on, a one-tap "Turn on", or how to fix it (phones never let an app allow itself). */
+const NotificationsSetting = () => {
+  const { status, subscribeToPush } = usePushNotifications();
+  const [busy, setBusy] = useState(false);
+  const help: Record<typeof status, string> = {
+    on: "On — messages and calls reach you even when SOOZ is closed.",
+    ask: "Off — turn them on so you never miss a message or a call.",
+    blocked: isIOS()
+      ? "Blocked on this iPhone. Open the iPhone's Settings → Notifications → SOOZ and turn on Allow Notifications."
+      : "Blocked for SOOZ in this browser. Open the site settings (the icon next to the address, or the browser's Settings → Site settings → Notifications) and allow SOOZ.",
+    "home-screen": "iPhone only sends notifications to apps on the Home Screen: in Safari tap Share → Add to Home Screen, then open SOOZ from the icon.",
+    unsupported: "This browser can't show notifications. Try SOOZ in Chrome, Safari (from the Home Screen on iPhone) or Edge.",
+  };
+  return (
+    <>
+      <p className="px-1 pt-4 text-[12px] font-bold uppercase tracking-wider text-muted-foreground">Notifications</p>
+      <div className="flex items-start gap-3 rounded-2xl border border-border/20 bg-card p-4">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-secondary text-amber-400"><Bell className="h-[18px] w-[18px]" /></span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-[14px] font-semibold">{status === "on" ? "Notifications are on" : "Notifications are off"}</span>
+          <span className="mt-0.5 block text-[12.5px] leading-snug text-muted-foreground">{help[status]}</span>
+        </span>
+        {status === "ask" && (
+          <button type="button" disabled={busy} onClick={async () => { setBusy(true); await subscribeToPush(); setBusy(false); }}
+            className="shrink-0 rounded-full bg-amber-400 px-4 py-2 text-[13.5px] font-bold text-[#1a1204] active:scale-95 disabled:opacity-60">
+            Turn on
+          </button>
+        )}
+      </div>
+    </>
+  );
+};
 
 /** Admin only: try the two looks of the feed's buttons on this phone (everyone else gets REEL_UI_DEFAULT). */
 const VideoButtonsSetting = () => {
@@ -75,7 +111,7 @@ export default function Settings() {
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const { isAdmin } = useIsAdmin();
   const handleLogout = async () => {
-    try { await supabase.auth.signOut(); } catch (error) { console.error(error); }
+    try { await forgetPushOnThisPhone(); await supabase.auth.signOut(); } catch (error) { console.error(error); }
     finally { Object.keys(localStorage).forEach((key) => { if (key.startsWith("sb-")) localStorage.removeItem(key); }); window.location.href = "/auth"; }
   };
 
@@ -95,6 +131,8 @@ export default function Settings() {
           <FamilySafeSetting />
 
           {isAdmin && <VideoButtonsSetting />}
+
+          <NotificationsSetting />
 
           {/* Feedback */}
           <p className="px-1 pt-4 text-[12px] font-bold uppercase tracking-wider text-muted-foreground">Help us improve</p>
