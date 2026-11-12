@@ -29,6 +29,31 @@ export default defineConfig(({ mode }) => ({
         this.emitFile({ type: "asset", fileName: "version.json", source: JSON.stringify({ build: BUILD_ID }) });
       },
     },
+    {
+      // Home is the first screen almost everyone opens: fetch its code together with the app's core
+      // instead of after it (it's a separate, lazily loaded piece).
+      name: "sooz-preload-home",
+      transformIndexHtml: {
+        order: "post",
+        handler(_html, ctx) {
+          if (!ctx.bundle) return;
+          const chunks = Object.values(ctx.bundle).filter((c): c is import("rollup").OutputChunk => c.type === "chunk");
+          const home = chunks.find((c) => c.facadeModuleId?.endsWith("/src/pages/Index.tsx"));
+          if (!home) return;
+          const entry = chunks.find((c) => c.isEntry);
+          const have = new Set<string>(entry ? [entry.fileName, ...entry.imports] : []);
+          const want = new Set<string>();
+          const add = (file: string) => {
+            if (have.has(file) || want.has(file)) return;
+            want.add(file);
+            const c = ctx.bundle![file];
+            if (c && c.type === "chunk") c.imports.forEach(add);
+          };
+          add(home.fileName);
+          return [...want].map((file) => ({ tag: "link", attrs: { rel: "modulepreload", crossorigin: true, href: `/${file}` }, injectTo: "head" as const }));
+        },
+      },
+    },
     VitePWA({
       registerType: "prompt", // a new version waits until the user taps "Update now"
       injectRegister: null,
@@ -41,7 +66,8 @@ export default defineConfig(({ mode }) => ({
         globPatterns: ["**/*.{js,css,html,svg,png,ico,woff2}"],
         // The built-in TikTok library is only a fallback (the app reads the live copy), and it changes
         // daily: don't make every phone download it with each update.
-        globIgnores: ["**/christianTikTokLibrary-*.js"],
+        // Nor big pictures the app never shows on screen (old logos, install icons).
+        globIgnores: ["**/christianTikTokLibrary-*.js", "sooz-logo*.png", "sooz-favicon.png", "icon-*.png", "apple-touch-icon.png"],
         maximumFileSizeToCacheInBytes: 8 * 1024 * 1024,
         navigateFallback: "/index.html",
         navigateFallbackDenylist: [/^\/~oauth/, /^\/api/],

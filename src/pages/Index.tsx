@@ -5,7 +5,7 @@ import { Compass, PlayCircle, RefreshCw, Users } from "lucide-react";
 import { Helmet } from "react-helmet-async";
 import { useAuth } from "@/hooks/useAuth";
 import { useLiveStatus } from "@/hooks/useLiveStatus";
-import { fetchFollowingPage, fetchForYouPage, FIRST_CURSOR, hasTikTokToOpen, openTikTokFirst, readCachedFeed, writeCachedFeed, type FeedCursor, type FeedPage } from "@/services/api/feed";
+import { fetchFollowingPage, fetchForYouPage, FIRST_CURSOR, hasTikTokToOpen, instantForYou, openTikTokFirst, readCachedFeed, writeCachedFeed, type FeedCursor, type FeedPage } from "@/services/api/feed";
 import { ReelsFeed } from "@/components/reels/ReelsFeed";
 import { FeedTopBar, LiveViewer, SoundToggle, StoriesPanel, type FeedTab } from "@/components/reels/FeedChrome";
 import { useReelUi } from "@/lib/reelUi";
@@ -100,7 +100,7 @@ export default function Index() {
     getNextPageParam: (last) => last.nextCursor ?? undefined,
     placeholderData: () => {
       if (hasTikTokToOpen()) return undefined; // a shared TikTok goes first: don't flash the saved screen
-      const cached = readCachedFeed("foryou");
+      const cached = instantForYou();
       return cached ? { pages: [cached], pageParams: [FIRST_CURSOR] } : undefined;
     },
     enabled: !authLoading,

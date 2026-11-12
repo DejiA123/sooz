@@ -27,7 +27,11 @@ export function registerServiceWorker() {
     return;
   }
 
+  const register = () => navigator.serviceWorker.register("/sw.js").then(watchServiceWorker).catch((err) => console.warn("SW registration failed", err));
   window.addEventListener("load", () => {
-    navigator.serviceWorker.register("/sw.js").then(watchServiceWorker).catch((err) => console.warn("SW registration failed", err));
+    // First visit: the worker's first job is downloading the whole app for offline use (several MB).
+    // Give the first videos a head start, so that download doesn't slow them down.
+    if (navigator.serviceWorker.controller) register();
+    else setTimeout(register, 12000);
   });
 }

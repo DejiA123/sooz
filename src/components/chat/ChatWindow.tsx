@@ -461,7 +461,7 @@ export const ChatWindow = ({ chatId, focusMessageId, onBack, onOpenChat }: ChatW
     switch (a) {
       case "reply": setEditing(null); setReplyTo(m); break;
       case "forward": setForwardMsgs([m]); break;
-      case "copy": navigator.clipboard?.writeText(m.content).then(() => toast("Copied"), () => toast.error("Couldn't copy")); break;
+      case "copy": navigator.clipboard?.writeText(m.content).catch(() => toast.error("Couldn't copy")); break;
       case "star": star([m], !extras.starred.has(m.id)); break;
       case "pin": pin(m, !extras.pins.some((p) => p.messageId === m.id)); break;
       case "edit": setReplyTo(null); setEditing(m); break;
@@ -568,7 +568,7 @@ export const ChatWindow = ({ chatId, focusMessageId, onBack, onOpenChat }: ChatW
           <button type="button" aria-label="Cancel" onClick={() => setSelecting(null)} className="flex h-10 w-10 items-center justify-center rounded-full active:bg-neutral-100"><X className="h-6 w-6" /></button>
           <span className="flex-1 text-[17px] font-semibold">{selecting.size}</span>
           <button type="button" aria-label="Star" disabled={!selectedMsgs.length} onClick={() => { star(selectedMsgs, !selectedMsgs.every((m) => extras.starred.has(m.id))); setSelecting(null); }} className="flex h-10 w-10 items-center justify-center rounded-full active:bg-neutral-100 disabled:opacity-40"><Star className="h-5 w-5" /></button>
-          <button type="button" aria-label="Copy" disabled={!selectedMsgs.some((m) => m.content)} onClick={() => { navigator.clipboard?.writeText(selectedMsgs.filter((m) => m.content).map((m) => m.content).join("\n")).then(() => toast("Copied")); setSelecting(null); }} className="flex h-10 w-10 items-center justify-center rounded-full active:bg-neutral-100 disabled:opacity-40"><Copy className="h-5 w-5" /></button>
+          <button type="button" aria-label="Copy" disabled={!selectedMsgs.some((m) => m.content)} onClick={() => { navigator.clipboard?.writeText(selectedMsgs.filter((m) => m.content).map((m) => m.content).join("\n")).catch(() => {}); setSelecting(null); }} className="flex h-10 w-10 items-center justify-center rounded-full active:bg-neutral-100 disabled:opacity-40"><Copy className="h-5 w-5" /></button>
           <button type="button" aria-label="Delete" disabled={!selectedMsgs.length} onClick={() => setSelDelete(true)} className="flex h-10 w-10 items-center justify-center rounded-full active:bg-neutral-100 disabled:opacity-40"><Trash2 className="h-5 w-5" /></button>
           <button type="button" aria-label="Forward" disabled={!selectedMsgs.some((m) => !m.isDeleted)} onClick={() => setForwardMsgs(selectedMsgs)} className="flex h-10 w-10 items-center justify-center rounded-full active:bg-neutral-100 disabled:opacity-40"><Forward className="h-5 w-5" /></button>
         </header>

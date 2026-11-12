@@ -110,7 +110,7 @@ let libraryLoad: Promise<Library> | null = null;
 export function loadLibrary(): Promise<Library> {
   libraryLoad ??= (async () => {
     const saved = await savedLibrary();
-    if (saved) { fetchLiveLibrary(20000); return saved; }
+    if (saved) { setTimeout(() => fetchLiveLibrary(20000), 8000); return saved; } // refreshed once the first video is playing
     return (await fetchLiveLibrary(6000)) ?? ((await import("@/data/christianTikTokLibrary.json")).default as unknown as Library);
   })().finally(() => setTimeout(() => { libraryLoad = null; }, 60_000));
   return libraryLoad;
@@ -188,6 +188,10 @@ function getTikTokPool(): Promise<TikTokVideo[]> {
   }
   return tiktokPool;
 }
+
+/** Starts gathering the videos as soon as the app's code runs (before the Home screen has even loaded),
+ *  so the feed is ready sooner. Safe to call more than once. */
+export function warmForYou() { getTikTokPool().catch(() => { /* the feed retries by itself */ }); }
 
 // ── Discover: Christian TikToks from creators this viewer hasn't got to know yet ──
 // (SOOZ has no "follow" for TikTok creators, so "not followed" = creators they've rarely been shown /
@@ -539,5 +543,27 @@ export function writeCachedFeed(scope: string, page: FeedPage, from = 1) {
     localStorage.setItem(CACHE_PREFIX + scope, JSON.stringify({ items, nextCursor: page.nextCursor }));
   } catch {
     /* storage full or blocked — the feed still works, just without the instant start */
+  }
+}
+
+/**
+ * What For You shows the moment the app opens: the screenful saved on this phone — or, the very first
+ * time (nothing saved yet), a few of the built-in videos, so a new member is watching straight away
+ * instead of waiting for the library to download. They're saved like any other screenful, so the real
+ * page keeps the first one in first place.
+ */
+export function instantForYou(): FeedPage | undefined {
+  const cached = readCachedFeed("foryou");
+  if (cached) return cached;
+  try {
+    const family = familySafeOn();
+    const fresh = shuffle(starterTikToks().filter((v) => !isDeadTikTok(v.tiktok_id) && !isSeen("tiktok", v.tiktok_id) &&
+      !isHiddenLocally("tiktok", v.tiktok_id) && !(family && unsafeText(v.title))));
+    if (!fresh.length) return undefined;
+    const page: FeedPage = { items: fresh.slice(0, 3).map((v) => tiktokItem(v)), nextCursor: null };
+    localStorage.setItem(CACHE_PREFIX + "foryou", JSON.stringify(page));
+    return page;
+  } catch {
+    return undefined;
   }
 }
