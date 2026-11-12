@@ -29,9 +29,12 @@ function parseISO8601Duration(iso: string): string {
     return `${m}:${String(s).padStart(2, "0")}`;
 }
 
-/** Only the scheduled job (service key) or a SOOZ moderator may run this — it spends the YouTube
- *  quota and storage. Everyone else gets 403. */
-async function mayRun(req: Request): Promise<boolean> {
+/** Anyone can refresh the archive (owner's request), but each refresh spends SOOZ's daily YouTube
+ *  quota, so one runs at most every COOLDOWN_MIN minutes; in between people just get "up to date".
+ *  The scheduled job (service key) and moderators skip the wait. */
+const COOLDOWN_MIN = 10;
+
+async function isPrivileged(req: Request): Promise<boolean> {
     const token = (req.headers.get("Authorization") ?? "").replace(/^Bearer\s+/i, "");
     if (!token) return false;
     if (token === Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")) return true;
@@ -52,10 +55,6 @@ serve(async (req) => {
         });
     }
 
-    if (!(await mayRun(req))) {
-        return new Response(JSON.stringify({ error: "Not allowed" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
-
     try {
         const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
         const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -66,6 +65,18 @@ serve(async (req) => {
         }
 
         const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+        // Refreshed in the last few minutes (every sync stamps updated_at): nothing to do yet.
+        if (!(await isPrivileged(req))) {
+            const { data: last } = await supabase.from("video_archive").select("updated_at")
+                .order("updated_at", { ascending: false }).limit(1).maybeSingle();
+            const age = last?.updated_at ? Date.now() - Date.parse(last.updated_at) : Infinity;
+            if (age < COOLDOWN_MIN * 60_000) {
+                return new Response(JSON.stringify({ message: "The archive is already up to date", synced: 0, upToDate: true }), {
+                    headers: { ...corsHeaders, "Content-Type": "application/json" },
+                });
+            }
+        }
 
         console.log("📺 Fetching ALL videos from YouTube channel...");
         const uploadsPlaylistId = YOUTUBE_CHANNEL_ID.replace(/^UC/, 'UU');
@@ -142,7 +153,7 @@ serve(async (req) => {
         }
 
         return new Response(JSON.stringify({
-            message: "Sync complete",
+            message: "Archive updated from YouTube",
             processed: items.length,
             synced: syncedCount
         }), {
