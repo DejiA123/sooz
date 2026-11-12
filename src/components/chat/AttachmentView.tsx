@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Check, FileText, MapPin, MessageCircle, Mic, Pause, Play, UserRound } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
-import { formatBytes, formatDuration } from "@/lib/chat";
+import { formatBytes, formatDuration, safeUrl } from "@/lib/chat";
 import type { Attachment, ChatMember } from "@/services/api/chat";
 
 // ── Photo / video ────────────────────────────────────────────────────────────────────────────
@@ -128,7 +128,7 @@ export const AudioAttachment = ({ a, mine, avatar, name }: { a: Extract<Attachme
 export const FileAttachment = ({ a, mine }: { a: Extract<Attachment, { type: "file" }>; mine: boolean }) => {
   const ext = (a.name.split(".").pop() || "file").toUpperCase().slice(0, 4);
   return (
-    <a href={a.url} target="_blank" rel="noopener noreferrer" download={a.name} onClick={(e) => e.stopPropagation()}
+    <a href={safeUrl(a.url)} target="_blank" rel="noopener noreferrer" download={a.name} onClick={(e) => e.stopPropagation()}
       className={cn("flex w-[250px] max-w-full items-center gap-3 rounded-xl p-2.5", mine ? "bg-black/10" : "bg-black/[0.05]")}>
       <span className="relative flex h-11 w-9 shrink-0 items-center justify-center rounded-md bg-white text-[#1a1204] shadow-sm">
         <FileText className="h-5 w-5" />

@@ -125,12 +125,15 @@ export const LiveStudio = ({ onStreamStarted, onStreamEnded, onLiveChange }: Liv
       updated_at: new Date().toISOString(),
     };
     if (!rowIdRef.current) {
-      const { data } = await supabase.from("live_stream_config").select("id").order("updated_at", { ascending: false }).limit(1).maybeSingle();
+      // Your own live row (each live belongs to the person streaming it — only they can change it).
+      const { data } = await supabase.from("live_stream_config").select("id").eq("stream_uid", user.id).order("updated_at", { ascending: false }).limit(1).maybeSingle();
       rowIdRef.current = data?.id ?? null;
     }
     if (rowIdRef.current) {
-      const { error } = await supabase.from("live_stream_config").update(row).eq("id", rowIdRef.current);
-      return !error;
+      const { data: changed, error } = await supabase.from("live_stream_config").update(row).eq("id", rowIdRef.current).select("id");
+      if (!error && changed?.length) return true;
+      if (error) return false;
+      rowIdRef.current = null; // not ours any more: start a new row below
     }
     const { data, error } = await supabase.from("live_stream_config").insert(row).select("id").single();
     rowIdRef.current = data?.id ?? null;

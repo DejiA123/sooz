@@ -18,12 +18,14 @@ jobs:
       - name: Push to hub
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          # YouTube cookies for yt-dlp come from a repository secret, never from a file in this public repo.
+          YOUTUBE_COOKIES: ${{ secrets.YOUTUBE_COOKIES }}
         run: |
           # Create a clean deployment directory to avoid history/large file issues
           mkdir deploy_tmp
           cp -r scripts deploy_tmp/
           cp Dockerfile .dockerignore package.json package-lock.json deploy_tmp/
-          [ -f cookies.txt ] && cp cookies.txt deploy_tmp/ || echo "No cookies.txt to copy"
+          if [ -n "$YOUTUBE_COOKIES" ]; then printf '%s\n' "$YOUTUBE_COOKIES" > deploy_tmp/cookies.txt; else echo "No YOUTUBE_COOKIES secret set"; fi
           cp README.hf.md deploy_tmp/README.md
           cd deploy_tmp
           

@@ -75,3 +75,11 @@ export const DISAPPEAR_OPTIONS: { label: string; seconds: number | null }[] = [
   { label: "90 days", seconds: 7776000 },
 ];
 export const disappearLabel = (s: number | null | undefined) => DISAPPEAR_OPTIONS.find((o) => o.seconds === (s ?? null))?.label ?? "On";
+
+/** Attachment addresses come from the message (another person's phone), so only web addresses are
+ *  ever used as links — a "javascript:" one would run in SOOZ and could take over the account. */
+export const safeUrl = (url: unknown): string | undefined => {
+  if (typeof url !== "string") return undefined;
+  try { const u = new URL(url, window.location.origin); return u.protocol === "https:" || u.protocol === "http:" || u.protocol === "blob:" ? u.href : undefined; }
+  catch { return undefined; }
+};
