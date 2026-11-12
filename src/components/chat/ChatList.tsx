@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Archive, ArchiveRestore, ArrowLeft, Ban, Bell, BellOff, CheckCheck, ChevronRight, Heart, HeartOff, LogOut, MailOpen, MessageCircle, MoreHorizontal, Pin, PinOff, Plus, Search, Star, Trash2, UserPlus, Users, X, XCircle } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
@@ -36,6 +36,50 @@ const sortChats = (list: ChatSummary[]) => [...list].sort((a, b) => {
   if (a.pinnedAt && b.pinnedAt) return b.pinnedAt.localeCompare(a.pinnedAt);
   return b.activity.localeCompare(a.activity);
 });
+
+const FILTERS: [Filter, string][] = [["all", "All"], ["unread", "Unread"], ["favourites", "Favourites"], ["groups", "Groups"]];
+
+/** The chat filters as text tabs (TikTok / Instagram style): equal widths, the chosen one dark with a
+ *  short line under its label that slides across, a hairline under the row. Stays at the top of the
+ *  list while the chats scroll under it. */
+const FilterTabs = ({ value, onChange, unread }: { value: Filter; onChange: (f: Filter) => void; unread: number }) => {
+  const labels = useRef<Partial<Record<Filter, HTMLSpanElement | null>>>({});
+  const [bar, setBar] = useState<{ x: number; w: number } | null>(null);
+  const [animate, setAnimate] = useState(false);
+  useLayoutEffect(() => {
+    const measure = () => {
+      const el = labels.current[value];
+      if (el) setBar({ x: el.offsetLeft, w: el.offsetWidth }); // offsetLeft is from the row (sticky = positioned)
+    };
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, [value, unread]);
+  // No slide on the first draw, only when the tab changes.
+  useEffect(() => { const t = requestAnimationFrame(() => setAnimate(true)); return () => cancelAnimationFrame(t); }, []);
+  return (
+    <div role="tablist" aria-label="Filter chats" className="sticky top-0 z-10 mt-1 flex h-11 border-b border-neutral-100 bg-white">
+      {FILTERS.map(([key, label]) => {
+        const on = value === key;
+        return (
+          <button key={key} type="button" role="tab" aria-selected={on} onClick={() => onChange(key)}
+            className={cn("flex flex-1 items-center justify-center text-[15px] font-semibold transition-colors", on ? "text-neutral-900" : "text-[#8a8b91] active:text-neutral-600")}>
+            <span ref={(el) => { labels.current[key] = el; }} className="inline-flex items-center gap-1.5">
+              {label}
+              {key === "unread" && unread > 0 && (
+                <span className="flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-red-500 px-1 text-[11px] font-bold leading-none text-white">{unread > 99 ? "99+" : unread}</span>
+              )}
+            </span>
+          </button>
+        );
+      })}
+      {bar && (
+        <span aria-hidden className={cn("pointer-events-none absolute -bottom-px left-0 h-[2px] rounded-full bg-neutral-900", animate && "transition-[transform,width] duration-200 ease-out")}
+          style={{ width: bar.w, transform: `translateX(${bar.x}px)` }} />
+      )}
+    </div>
+  );
+};
 
 /** One chat in the list: swipe right for Unread / Pin, swipe left for More / Archive, long-press for everything. */
 const ChatRow = ({ chat, me, selected, online, typing, isOpen, onOpenSwipe, onSelect, onMenu, onPatch, onMarkRead }: {
@@ -265,7 +309,7 @@ export const ChatList = ({ selectedId, onSelect }: ChatListProps) => {
   const starred = useQuery({ queryKey: ["starred-all", me], queryFn: () => fetchAllStarred(me), enabled: starredOpen && !!me });
 
   const loading = chatsQ.isLoading || authLoading;
-  const chips: [Filter, string][] = [["all", "All"], ["unread", `Unread${chats.some((c) => !c.archived && (c.unread || c.markedUnread)) ? ` ${chats.filter((c) => !c.archived && (c.unread || c.markedUnread)).length}` : ""}`], ["favourites", "Favourites"], ["groups", "Groups"]];
+  const unreadCount = chats.filter((c) => !c.archived && (c.unread || c.markedUnread)).length;
 
   // People to show along the top: one-to-one chats, online first, then most recent.
   const people = useMemo(() => sortChats(chats.filter((c) => !c.isGroup && !c.archived && c.otherUserId))
@@ -376,15 +420,8 @@ export const ChatList = ({ selectedId, onSelect }: ChatListProps) => {
               {inbox?.activity.newCount ? <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-[11.5px] font-bold text-white">{inbox.activity.newCount > 99 ? "99+" : inbox.activity.newCount}</span> : <ChevronRight className="h-5 w-5 text-neutral-300" />}
             </button>
 
-            {/* Filters */}
-            <div className="flex gap-2 overflow-x-auto px-4 pb-1 pt-3 hide-scrollbar">
-              {chips.map(([key, label]) => (
-                <button key={key} type="button" onClick={() => setFilter(key)}
-                  className={cn("h-8 shrink-0 rounded-full px-4 text-[14px] font-semibold transition-colors", filter === key ? "bg-neutral-900 text-white" : "bg-neutral-100 text-neutral-600 active:bg-neutral-200")}>
-                  {label}
-                </button>
-              ))}
-            </div>
+            {/* Filters: text tabs with a sliding line, like TikTok and Instagram (pinned under the header). */}
+            <FilterTabs value={filter} onChange={setFilter} unread={unreadCount} />
           </>
         )}
 
