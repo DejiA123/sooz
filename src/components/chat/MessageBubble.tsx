@@ -100,7 +100,7 @@ export const MessageBubble = memo(function MessageBubble(p: BubbleProps) {
   const a = msg.attachment;
   const media = !msg.isDeleted && a && (a.type === "image" || a.type === "video");
   const bare = media && !msg.content && !p.replyTo && !msg.forwarded && !(p.isGroup && !mine && p.showName);
-  const metaColor = mine ? "text-[#1a1204]/60" : "text-white/45";
+  const metaColor = mine ? "text-[#1a1204]/60" : "text-neutral-500";
 
   const meta = (
     <span className={cn("inline-flex items-center gap-1 whitespace-nowrap text-[11px] leading-none", bare ? "text-white" : metaColor)}>
@@ -128,13 +128,13 @@ export const MessageBubble = memo(function MessageBubble(p: BubbleProps) {
       onClick={onClick}
     >
       {p.selecting && (
-        <span className={cn("mr-1 flex h-5 w-5 shrink-0 self-center items-center justify-center rounded-full border-2", p.selected ? "border-amber-400 bg-amber-400 text-[#1a1204]" : "border-white/40")}>
+        <span className={cn("mr-1 flex h-5 w-5 shrink-0 self-center items-center justify-center rounded-full border-2", p.selected ? "border-amber-400 bg-amber-400 text-[#1a1204]" : "border-neutral-300")}>
           {p.selected && <Check className="h-3.5 w-3.5" strokeWidth={3.5} />}
         </span>
       )}
       {/* Swipe-to-reply arrow */}
-      <span className="pointer-events-none absolute left-1 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-white/10 transition-opacity" style={{ opacity: Math.min(1, dx / REPLY_AT) }}>
-        <Reply className="h-4 w-4 text-white" />
+      <span className="pointer-events-none absolute left-1 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-neutral-200 transition-opacity" style={{ opacity: Math.min(1, dx / REPLY_AT) }}>
+        <Reply className="h-4 w-4 text-neutral-700" />
       </span>
 
       {p.isGroup && !mine && (
@@ -142,7 +142,7 @@ export const MessageBubble = memo(function MessageBubble(p: BubbleProps) {
           {!p.joinsNext && (
             <Avatar className="h-8 w-8">
               <AvatarImage src={p.sender?.avatar || ""} className="object-cover" />
-              <AvatarFallback className="bg-white/10 text-[11px] font-semibold text-white">{p.sender?.name?.[0]?.toUpperCase() || "?"}</AvatarFallback>
+              <AvatarFallback className="bg-neutral-200 text-[11px] font-semibold text-neutral-700">{p.sender?.name?.[0]?.toUpperCase() || "?"}</AvatarFallback>
             </Avatar>
           )}
         </div>
@@ -161,7 +161,7 @@ export const MessageBubble = memo(function MessageBubble(p: BubbleProps) {
           className={cn(
             "group/bubble relative select-none text-[15.5px] leading-[1.38]",
             bare ? "overflow-hidden rounded-[16px]" : "rounded-[18px] px-2.5 pb-1.5 pt-1.5",
-            !bare && (mine ? "bg-gradient-to-b from-amber-400 to-amber-500 text-[#1a1204]" : "bg-[#1c1f26] text-white"),
+            !bare && (mine ? "bg-gradient-to-b from-amber-400 to-amber-500 text-[#1a1204]" : "bg-neutral-100 text-neutral-900"),
             !bare && mine && p.joinsPrev && "rounded-tr-[6px]",
             !bare && mine && p.joinsNext && "rounded-br-[6px]",
             !bare && !mine && p.joinsPrev && "rounded-tl-[6px]",
@@ -172,7 +172,7 @@ export const MessageBubble = memo(function MessageBubble(p: BubbleProps) {
           {/* Desktop: a small arrow opens the menu */}
           {!p.selecting && !msg.status && (
             <button type="button" aria-label="Message menu" onClick={(e) => { e.stopPropagation(); openMenu(); }}
-              className={cn("absolute right-1 top-1 z-10 hidden h-6 w-6 items-center justify-center rounded-full opacity-0 transition-opacity group-hover/bubble:opacity-100 md:flex", mine ? "bg-amber-400/90 text-[#1a1204]" : "bg-[#1c1f26]/90 text-white/70")}>
+              className={cn("absolute right-1 top-1 z-10 hidden h-6 w-6 items-center justify-center rounded-full opacity-0 transition-opacity group-hover/bubble:opacity-100 md:flex", mine ? "bg-amber-400/90 text-[#1a1204]" : "bg-neutral-100/90 text-neutral-500")}>
               <ChevronDown className="h-4 w-4" />
             </button>
           )}
@@ -184,23 +184,23 @@ export const MessageBubble = memo(function MessageBubble(p: BubbleProps) {
           )}
 
           {msg.forwarded && !msg.isDeleted && (
-            <span className={cn("flex items-center gap-1 text-[12.5px] italic", mine ? "text-[#1a1204]/60" : "text-white/50")}><Forward className="h-3.5 w-3.5" /> Forwarded</span>
+            <span className={cn("flex items-center gap-1 text-[12.5px] italic", mine ? "text-[#1a1204]/60" : "text-neutral-500")}><Forward className="h-3.5 w-3.5" /> Forwarded</span>
           )}
 
           {p.replyTo && !msg.isDeleted && (
             <button type="button" onClick={(e) => { e.stopPropagation(); if (p.replyTo?.msg) p.onJumpTo(p.replyTo.msg.id); }}
-              className={cn("mb-1 mt-0.5 flex w-full min-w-[160px] overflow-hidden rounded-[10px] text-left", mine ? "bg-black/10" : "bg-white/[0.06]")}>
+              className={cn("mb-1 mt-0.5 flex w-full min-w-[160px] overflow-hidden rounded-[10px] text-left", mine ? "bg-black/10" : "bg-black/[0.05]")}>
               <span className="w-1 shrink-0" style={{ background: p.replyTo.msg ? nameColor(p.replyTo.msg.senderId) : "#888" }} />
               <span className="min-w-0 flex-1 px-2 py-1.5">
                 <span className="block truncate text-[12.5px] font-semibold" style={{ color: mine ? undefined : p.replyTo.msg ? nameColor(p.replyTo.msg.senderId) : undefined }}>{p.replyTo.senderName}</span>
-                <span className={cn("line-clamp-2 text-[13px]", mine ? "text-[#1a1204]/75" : "text-white/65")}>{p.replyTo.msg ? messageSummary(p.replyTo.msg) || "Message" : "Message not available"}</span>
+                <span className={cn("line-clamp-2 text-[13px]", mine ? "text-[#1a1204]/75" : "text-neutral-600")}>{p.replyTo.msg ? messageSummary(p.replyTo.msg) || "Message" : "Message not available"}</span>
               </span>
               {p.replyTo.msg?.attachment?.type === "image" && <img src={p.replyTo.msg.attachment.url} alt="" className="h-12 w-12 shrink-0 object-cover" />}
             </button>
           )}
 
           {msg.isDeleted ? (
-            <span className={cn("flex items-center gap-1.5 py-0.5 pr-1 italic", mine ? "text-[#1a1204]/65" : "text-white/50")}>
+            <span className={cn("flex items-center gap-1.5 py-0.5 pr-1 italic", mine ? "text-[#1a1204]/65" : "text-neutral-500")}>
               <Ban className="h-4 w-4" /> {mine ? "You deleted this message" : "This message was deleted"}
               <span className="ml-2 self-end">{meta}</span>
             </span>
@@ -223,11 +223,11 @@ export const MessageBubble = memo(function MessageBubble(p: BubbleProps) {
                 if (!t) return null;
                 return (
                   <button type="button" onClick={(e) => { e.stopPropagation(); window.location.assign(`/?tiktok=${t[1]}${t[2] ? `&by=${t[2]}` : ""}`); }}
-                    className={cn("mb-1 mt-0.5 flex w-full min-w-[200px] items-center gap-2.5 rounded-xl px-3 py-2.5 text-left", mine ? "bg-black/15" : "bg-white/[0.07]")}>
+                    className={cn("mb-1 mt-0.5 flex w-full min-w-[200px] items-center gap-2.5 rounded-xl px-3 py-2.5 text-left", mine ? "bg-black/15" : "bg-black/[0.05]")}>
                     <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-black text-white"><Play className="ml-0.5 h-4 w-4 fill-white" /></span>
                     <span className="min-w-0">
                       <span className="block text-[14px] font-bold leading-tight">Watch on SOOZ</span>
-                      <span className={cn("block truncate text-[12.5px]", mine ? "text-black/60" : "text-white/55")}>Christian TikTok{t[2] ? ` · @${t[2]}` : ""}</span>
+                      <span className={cn("block truncate text-[12.5px]", mine ? "text-black/60" : "text-neutral-500")}>Christian TikTok{t[2] ? ` · @${t[2]}` : ""}</span>
                     </span>
                   </button>
                 );
@@ -247,16 +247,16 @@ export const MessageBubble = memo(function MessageBubble(p: BubbleProps) {
         </div>
 
         {msg.status === "failed" && (
-          <button type="button" onClick={(e) => { e.stopPropagation(); p.onRetry(msg); }} className="mr-1 mt-1 flex items-center gap-1 text-[12px] font-medium text-red-400">
+          <button type="button" onClick={(e) => { e.stopPropagation(); p.onRetry(msg); }} className="mr-1 mt-1 flex items-center gap-1 text-[12px] font-medium text-red-600">
             <RotateCw className="h-3 w-3" /> Not sent · Tap to retry
           </button>
         )}
 
         {reactionGroups.total > 0 && (
           <button type="button" onClick={(e) => { e.stopPropagation(); p.onReactions(msg); }}
-            className={cn("absolute -bottom-3 z-10 flex items-center gap-0.5 rounded-full border border-[#05070b] bg-[#262a33] px-1.5 py-[1px] text-[13px] shadow", mine ? "right-3" : p.isGroup ? "left-12" : "left-3", reactionGroups.mineToo && "bg-[#3a3324]")}>
+            className={cn("absolute -bottom-3 z-10 flex items-center gap-0.5 rounded-full border border-white bg-white px-1.5 py-[1px] text-[13px] shadow", mine ? "right-3" : p.isGroup ? "left-12" : "left-3", reactionGroups.mineToo && "bg-amber-50")}>
             {reactionGroups.emojis.map((e) => <span key={e}>{e}</span>)}
-            {reactionGroups.total > 1 && <span className="ml-0.5 text-[11.5px] font-semibold text-white/75">{reactionGroups.total}</span>}
+            {reactionGroups.total > 1 && <span className="ml-0.5 text-[11.5px] font-semibold text-neutral-600">{reactionGroups.total}</span>}
           </button>
         )}
       </div>

@@ -65,7 +65,7 @@ export function formatBytes(n: number | undefined | null): string {
 export function nameColor(id: string): string {
   let h = 0;
   for (const c of id) h = (h * 31 + c.charCodeAt(0)) % 360;
-  return `hsl(${h} 70% 68%)`;
+  return `hsl(${h} 65% 38%)`;
 }
 
 export const DISAPPEAR_OPTIONS: { label: string; seconds: number | null }[] = [
