@@ -53,7 +53,7 @@ export default function Chat() {
   }, [selectedChatId]);
 
   return (
-    <div className={cn("chat-page fixed inset-x-0 bottom-0 flex bg-[#05070b] md:left-64 md:bg-neutral-50 md:top-0", selectedChatId && "z-[60] md:z-auto")}>
+    <div className={cn("chat-page fixed inset-x-0 bottom-0 flex bg-white md:left-64 md:bg-neutral-50 md:top-0", selectedChatId && "z-[60] md:z-auto")}>
       <div className={cn("chat-list-panel h-full w-full shrink-0 overflow-hidden bg-white md:w-80 md:border-r md:border-neutral-200 lg:w-96", selectedChatId ? "hidden md:block" : "block")}>
         <ChatList selectedId={selectedChatId || undefined} onSelect={openChat} />
       </div>
