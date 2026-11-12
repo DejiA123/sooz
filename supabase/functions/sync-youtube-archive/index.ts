@@ -109,46 +109,55 @@ serve(async (req) => {
             });
         }
 
-        // Fetch extra details (duration, views) in batches of 50
+        // Fetch extra details (duration, views) in batches of 50, eight requests at a time.
         const detailsMap = new Map();
-        for (let i = 0; i < videoIds.length; i += 50) {
-            const batch = videoIds.slice(i, i + 50);
-            const detailsUrl = `https://www.googleapis.com/youtube/v3/videos?part=contentDetails,statistics&id=${batch.join(',')}&key=${youtubeApiKey}`;
-            const detailsResponse = await fetch(detailsUrl);
-            const detailsData = await detailsResponse.json();
-            for (const d of (detailsData.items || [])) {
-                detailsMap.set(d.id, d);
-            }
+        const idBatches: string[][] = [];
+        for (let i = 0; i < videoIds.length; i += 50) idBatches.push(videoIds.slice(i, i + 50));
+        for (let i = 0; i < idBatches.length; i += 8) {
+            await Promise.all(idBatches.slice(i, i + 8).map(async (batch) => {
+                const detailsUrl = `https://www.googleapis.com/youtube/v3/videos?part=contentDetails,statistics&id=${batch.join(',')}&key=${youtubeApiKey}`;
+                const detailsData = await (await fetch(detailsUrl)).json().catch(() => ({}));
+                for (const d of (detailsData.items || [])) detailsMap.set(d.id, d);
+            }));
         }
 
         console.log(`📡 Processing ${items.length} videos...`);
-        let syncedCount = 0;
 
+        // One row per video (a playlist can list a video twice; one batch can't save the same row twice).
+        const rows = new Map<string, Record<string, unknown>>();
+        const now = new Date().toISOString();
         for (const item of items) {
-            const videoId = item.snippet.resourceId.videoId;
+            const videoId = item.snippet?.resourceId?.videoId;
             const snippet = item.snippet;
+            // Private / deleted videos stay in a channel's list with no picture: leave them out.
+            if (!videoId || !snippet?.thumbnails || /^(Private|Deleted) video$/.test(snippet.title ?? "")) continue;
             const detail = detailsMap.get(videoId) as any;
-
-            const videoData = {
+            rows.set(videoId, {
                 youtube_id: videoId,
                 title: snippet.title,
                 description: snippet.description,
-                thumbnail_url: snippet.thumbnails.high?.url || snippet.thumbnails.default?.url,
+                thumbnail_url: snippet.thumbnails?.high?.url || snippet.thumbnails?.default?.url || null,
                 duration: detail?.contentDetails?.duration ? parseISO8601Duration(detail.contentDetails.duration) : null,
                 view_count: detail?.statistics?.viewCount ? parseInt(detail.statistics.viewCount) : 0,
                 category: categorizeVideo(snippet.title),
                 published_at: snippet.publishedAt,
-                updated_at: new Date().toISOString(),
-            };
+                updated_at: now,
+            });
+        }
 
-            const { error } = await supabase
-                .from('video_archive')
-                .upsert(videoData, { onConflict: 'youtube_id' });
-
-            if (error) {
-                console.error(`Error upserting ${videoId}:`, error.message);
-            } else {
-                syncedCount++;
+        // Saved 500 at a time (one at a time took longer than a function may run, so big channels
+        // were cut off halfway). Only these columns change; r2_video_url and the rest are kept.
+        const all = [...rows.values()];
+        let syncedCount = 0;
+        for (let i = 0; i < all.length; i += 500) {
+            const batch = all.slice(i, i + 500);
+            const { error } = await supabase.from("video_archive").upsert(batch, { onConflict: "youtube_id" });
+            if (!error) { syncedCount += batch.length; continue; }
+            console.error(`Batch ${i / 500 + 1} failed (${error.message}); saving it one by one`);
+            for (const row of batch) {
+                const { error: rowError } = await supabase.from("video_archive").upsert(row, { onConflict: "youtube_id" });
+                if (rowError) console.error(`Error upserting ${row.youtube_id}:`, rowError.message);
+                else syncedCount++;
             }
         }
 
