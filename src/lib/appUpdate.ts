@@ -57,6 +57,23 @@ async function checkVersionFile() {
   } catch { /* offline */ }
 }
 
+/** Settings → "Check for updates": true when a newer version is ready (the update pop-up shows too). */
+export async function checkForUpdate(): Promise<boolean> {
+  if (ready) return true;
+  try { await registration?.update(); } catch { /* offline */ }
+  await checkVersionFile();
+  if (!ready && registration?.waiting && navigator.serviceWorker.controller) announce();
+  return ready;
+}
+
+/** This copy of the app: "v1.0.0 (2611121039)" — the build number is the build time (UTC, yyMMddHHmm). */
+export function appVersionLabel(): string {
+  const version = typeof __SOOZ_VERSION__ === "undefined" ? "1.0.0" : __SOOZ_VERSION__;
+  const build = typeof __SOOZ_BUILD__ === "undefined" ? "" : __SOOZ_BUILD__;
+  const m = build.match(/^\d{2}(\d{2})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
+  return m ? `v${version} (${m.slice(1).join("")})` : `v${version} (dev)`;
+}
+
 const check = () => {
   if (ready) return;
   registration?.update().catch(() => {});

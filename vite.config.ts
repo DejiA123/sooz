@@ -2,10 +2,14 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { VitePWA } from "vite-plugin-pwa";
+import { readFileSync } from "fs";
 
 // Each build gets an id; it is baked into the app and written to /version.json, so a running app
 // can tell when a newer version has been published (see src/lib/appUpdate.ts).
 const BUILD_ID = new Date().toISOString();
+// The version shown at the bottom of Settings: package.json's version plus a build number from the
+// build time (e.g. 2611121039 = 2026-11-12 10:39 UTC), so every release has its own number.
+const APP_VERSION: string = JSON.parse(readFileSync(path.resolve(__dirname, "package.json"), "utf8")).version;
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
@@ -15,6 +19,7 @@ export default defineConfig(({ mode }) => ({
   },
   define: {
     __SOOZ_BUILD__: JSON.stringify(BUILD_ID),
+    __SOOZ_VERSION__: JSON.stringify(APP_VERSION),
   },
   plugins: [
     react(),

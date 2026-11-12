@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { ArrowLeft, ChevronRight, LogOut, ThumbsUp } from "lucide-react";
+import { ArrowLeft, ChevronRight, Loader2, LogOut, ThumbsUp } from "lucide-react";
+import { appVersionLabel, applyUpdate, checkForUpdate } from "@/lib/appUpdate";
 import { FeedbackSheet } from "@/components/feedback/FeedbackSheet";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
@@ -43,6 +44,29 @@ const VideoButtonsSetting = () => {
         </p>
       </div>
     </>
+  );
+};
+
+/** The bottom of Settings: which version this is (like other apps), and a quick update check. */
+const AppVersion = () => {
+  const [state, setState] = useState<"idle" | "checking" | "latest" | "ready">("idle");
+  const check = async () => {
+    if (state === "checking") return;
+    setState("checking");
+    const [hasUpdate] = await Promise.all([checkForUpdate(), new Promise((r) => setTimeout(r, 600))]);
+    setState(hasUpdate ? "ready" : "latest");
+  };
+  return (
+    <div className="flex flex-col items-center gap-1.5 pt-8 text-center">
+      <p className="text-[13px] tabular-nums text-muted-foreground">SOOZ {appVersionLabel()}</p>
+      {state === "ready" ? (
+        <button type="button" onClick={() => applyUpdate()} className="rounded-full bg-amber-400 px-4 py-1.5 text-[13px] font-bold text-[#1a1204] active:scale-95">Update now</button>
+      ) : (
+        <button type="button" onClick={check} disabled={state === "checking"} className="flex items-center gap-1.5 text-[12.5px] font-semibold text-muted-foreground/80 underline-offset-2 active:underline">
+          {state === "checking" ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Checking…</> : state === "latest" ? "You're on the latest version" : "Check for updates"}
+        </button>
+      )}
+    </div>
   );
 };
 
@@ -90,6 +114,8 @@ export default function Settings() {
               <span className="font-bold">Log Out</span>
             </Button>
           </div>
+
+          <AppVersion />
         </div>
       </div>
       <FeedbackSheet open={feedbackOpen} onOpenChange={setFeedbackOpen} />
