@@ -562,6 +562,9 @@ html.light-page, body.light-page { background: #fff; }
   pointer-events: none; background: hsl(var(--background) / 0.03);
 }
 .status-shield--light { background: rgb(255 255 255 / 0.03); }
+/* Resting (page at its top): too narrow for the phone to count as a layer, but still the top-most thing
+   where it looks (top centre), so it finds none and the strip is the page's background. */
+.status-shield--rest { left: calc(50% - 12px); right: auto; width: 24px; }
 body.light-page .app-topbar { background: rgba(255, 255, 255, 0.86); border-color: rgba(0, 0, 0, 0.06); color: #171717; }
 /* Profiles use the app's normal colour names (background, card, muted…): inside .light-scope those names
    mean white and near-black instead of SOOZ's dark colours, so the page turns white as a whole. */
