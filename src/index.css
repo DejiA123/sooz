@@ -553,6 +553,15 @@ body.light-page .mobile-bottom-nav .glass-tabbar__lens { background: rgba(0, 0, 
 /* White pages (Messages, chats, profiles — src/lib/statusBar.ts): white behind everything, so no dark
    edge shows when the page is pulled past its top or bottom, and the app's top bar turns white. */
 html.light-page, body.light-page { background: #fff; }
+/* The status bar strip's colour (src/lib/statusBar.ts): iPhones on iOS 26+ take it from the top-most
+   full-width fixed layer, so this see-through one sits above everything in the strip's colour (black,
+   or white on white pages — the same colour as the page behind it, so every iPhone version lands on
+   it). Taller than 10px so the phone reads its colour straight from here. */
+.status-shield {
+  position: fixed; top: 0; left: 0; right: 0; height: 12px; z-index: 2147483647;
+  pointer-events: none; background: hsl(var(--background) / 0.03);
+}
+.status-shield--light { background: rgb(255 255 255 / 0.03); }
 body.light-page .app-topbar { background: rgba(255, 255, 255, 0.86); border-color: rgba(0, 0, 0, 0.06); color: #171717; }
 /* Profiles use the app's normal colour names (background, card, muted…): inside .light-scope those names
    mean white and near-black instead of SOOZ's dark colours, so the page turns white as a whole. */
@@ -658,6 +667,7 @@ body.reels-viewer-open .mobile-bottom-nav .glass-tabbar {
 @media (display-mode: standalone) {
   :root { --bottom-nav-safe-area: max(env(safe-area-inset-bottom, 0px), 20px); }
   body::before { content: ""; position: fixed; top: 0; left: 0; right: 0; height: env(safe-area-inset-top); background: hsl(var(--background)); z-index: 51; }
+  body.light-page::before { background: #fff; }
   .fixed.top-0 { top: 0 !important; }
   .pwa-fixed-top { top: calc(3.5rem + env(safe-area-inset-top, 0px)) !important; }
 }
