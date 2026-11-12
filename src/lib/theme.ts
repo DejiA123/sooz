@@ -1,5 +1,5 @@
 /** SOOZ is dark only (the light look was removed at the owner's request). */
-const STATUS_BAR = "#05070b";
+export const STATUS_BAR = "#05070b";
 
 /** Colour of the phone's status bar / browser chrome. */
 export function setThemeColor(color: string) {

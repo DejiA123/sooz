@@ -4,6 +4,7 @@ import { MessageCircle } from "lucide-react";
 import { ChatList } from "@/components/chat/ChatList";
 import { ChatWindow } from "@/components/chat/ChatWindow";
 import { cn } from "@/lib/utils";
+import { useLightPage } from "@/lib/statusBar";
 
 /**
  * Messages. Phone: the list, and an open conversation takes the whole screen (its own header at
@@ -31,6 +32,9 @@ export default function Chat() {
     else setParams(new URLSearchParams(), { replace: true });
   };
 
+  // Messages and open chats are white, with a white status bar and bottom bar (src/lib/statusBar.ts).
+  useLightPage();
+
   // iPhone keyboard: keep the open conversation exactly the visible height, so the typing bar sits
   // right above the keyboard and the header stays at the top.
   useEffect(() => {
@@ -49,8 +53,8 @@ export default function Chat() {
   }, [selectedChatId]);
 
   return (
-    <div className={cn("chat-page fixed inset-x-0 bottom-0 flex bg-[#05070b] md:left-64 md:top-0", selectedChatId && "z-[60] md:z-auto")}>
-      <div className={cn("chat-list-panel h-full w-full shrink-0 overflow-hidden border-white/[0.06] bg-[#05070b] md:w-80 md:border-r lg:w-96", selectedChatId ? "hidden md:block" : "block")}>
+    <div className={cn("chat-page fixed inset-x-0 bottom-0 flex bg-[#05070b] md:left-64 md:bg-neutral-50 md:top-0", selectedChatId && "z-[60] md:z-auto")}>
+      <div className={cn("chat-list-panel h-full w-full shrink-0 overflow-hidden bg-white md:w-80 md:border-r md:border-neutral-200 lg:w-96", selectedChatId ? "hidden md:block" : "block")}>
         <ChatList selectedId={selectedChatId || undefined} onSelect={openChat} />
       </div>
 
@@ -60,11 +64,11 @@ export default function Chat() {
         </div>
       ) : (
         <div className="hidden flex-1 flex-col items-center justify-center gap-3 text-center md:flex">
-          <span className="flex h-20 w-20 items-center justify-center rounded-full bg-white/[0.06]">
-            <MessageCircle className="h-9 w-9 text-amber-400" />
+          <span className="flex h-20 w-20 items-center justify-center rounded-full bg-amber-50">
+            <MessageCircle className="h-9 w-9 text-amber-500" />
           </span>
-          <p className="text-[18px] font-semibold text-white">Your messages</p>
-          <p className="text-[14px] text-white/50">Pick a conversation to start chatting</p>
+          <p className="text-[18px] font-semibold text-neutral-900">Your messages</p>
+          <p className="text-[14px] text-neutral-500">Pick a conversation to start chatting</p>
         </div>
       )}
     </div>

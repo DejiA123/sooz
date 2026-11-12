@@ -13,7 +13,7 @@ const INLINE: { re: RegExp; wrap: (children: ReactNode, key: string) => ReactNod
   { re: /(^|[\s(["'])\*(\S(?:[^*\n]*?\S)?)\*(?=$|[\s.,!?;:)\]"'])/, wrap: (c, k) => <strong key={k} className="font-bold">{c}</strong> },
   { re: /(^|[\s(["'])_(\S(?:[^_\n]*?\S)?)_(?=$|[\s.,!?;:)\]"'])/, wrap: (c, k) => <em key={k}>{c}</em> },
   { re: /(^|[\s(["'])~(\S(?:[^~\n]*?\S)?)~(?=$|[\s.,!?;:)\]"'])/, wrap: (c, k) => <s key={k}>{c}</s> },
-  { re: /(^|[\s(["'])`([^`\n]+)`(?=$|[\s.,!?;:)\]"'])/, wrap: (c, k) => <code key={k} className="rounded bg-black/25 px-1 font-mono text-[0.92em]">{c}</code> },
+  { re: /(^|[\s(["'])`([^`\n]+)`(?=$|[\s.,!?;:)\]"'])/, wrap: (c, k) => <code key={k} className="rounded bg-black/10 px-1 font-mono text-[0.92em]">{c}</code> },
 ];
 
 function highlightText(text: string, highlight: string | undefined, key: string): ReactNode {
@@ -83,12 +83,12 @@ function inline(text: string, ctx: Ctx, key: string): ReactNode[] {
 type Ctx = { highlight?: string; mentionClass: string };
 
 export const ChatText = ({ text, highlight, mine }: { text: string; highlight?: string; mine?: boolean }) => {
-  const ctx: Ctx = { highlight: highlight?.trim() || undefined, mentionClass: mine ? "font-semibold underline-offset-2 hover:underline" : "font-semibold text-amber-300 hover:underline" };
+  const ctx: Ctx = { highlight: highlight?.trim() || undefined, mentionClass: mine ? "font-semibold underline-offset-2 hover:underline" : "font-semibold text-amber-700 hover:underline" };
   const blocks = text.split(/```/);
   return (
     <>
       {blocks.map((block, bi) => {
-        if (bi % 2) return <code key={bi} className="my-0.5 block whitespace-pre-wrap rounded-md bg-black/25 px-2 py-1 font-mono text-[0.9em]">{block.replace(/^\n|\n$/g, "")}</code>;
+        if (bi % 2) return <code key={bi} className="my-0.5 block whitespace-pre-wrap rounded-md bg-black/10 px-2 py-1 font-mono text-[0.9em]">{block.replace(/^\n|\n$/g, "")}</code>;
         const lines = block.split("\n");
         return (
           <Fragment key={bi}>

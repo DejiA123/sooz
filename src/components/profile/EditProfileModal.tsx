@@ -147,7 +147,7 @@ const EditProfileModal = ({ profile, onClose, onUpdate }: EditProfileModalProps)
   // A full-screen page (like TikTok's Edit profile), put straight on <body> so nothing on the
   // profile page (the bottom bar, transforms) can sit over it or stop it scrolling.
   return createPortal(
-    <div className="fixed inset-0 z-50 flex flex-col bg-background text-foreground animate-in fade-in slide-in-from-bottom-4 duration-200" role="dialog" aria-modal="true" aria-label="Edit profile">
+    <div className="light-scope fixed inset-0 z-50 flex flex-col bg-background text-foreground animate-in fade-in slide-in-from-bottom-4 duration-200" role="dialog" aria-modal="true" aria-label="Edit profile">
       <div className="flex shrink-0 items-center gap-2 border-b border-border/20 px-2 pb-2 pt-[calc(env(safe-area-inset-top,0px)+8px)]">
         <button type="button" onClick={onClose} className="h-10 rounded-full px-3 text-[15px] font-medium text-muted-foreground active:bg-secondary">Cancel</button>
         <h2 className="flex-1 text-center text-[17px] font-bold">Edit profile</h2>

@@ -9,6 +9,7 @@ import { extractVideoThumbnail, extractImageThumbnail } from "@/utils/videoThumb
 import { CameraCapture, DEFAULT_MODE, MODES, type CameraMode } from "./CameraCapture";
 import { LiveStudio } from "../live/LiveStudio";
 import { TemplatePicker, type TemplatePickerHandle } from "./TemplatePicker";
+import { useDarkCover } from "@/lib/statusBar";
 
 interface CreateModalProps {
   isOpen: boolean;
@@ -52,6 +53,7 @@ const coverFeed = (on: boolean) => {
  * then a post screen with the caption and "Your Story" / "Post".
  */
 export const CreateModal = ({ isOpen, onClose, onPostCreated }: CreateModalProps) => {
+  useDarkCover(isOpen); // the camera is full-screen black: the status bar goes black too
   const { user } = useAuth();
   const [tab, setTab] = useState<Tab>("post");
   const [mode, setMode] = useState<CameraMode>(DEFAULT_MODE.post);

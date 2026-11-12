@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { createPortal } from "react-dom";
+import { useDarkCover } from "@/lib/statusBar";
 import { ChevronLeft } from "lucide-react";
 import type { FeedItem } from "@/services/api/feed";
 import { ReelsFeed } from "./ReelsFeed";
@@ -17,6 +18,7 @@ export const ReelsViewer = ({ items, startIndex, title, onClose }: {
   title?: string;
   onClose: () => void;
 }) => {
+  useDarkCover(); // videos are full-screen black: the status bar goes black too
   useEffect(() => {
     document.body.classList.add("reels-viewer-open");
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape" && !document.querySelector("[role=dialog]")) onClose(); };
