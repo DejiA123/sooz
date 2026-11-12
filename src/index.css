@@ -565,6 +565,10 @@ html.light-page, body.light-page { background: #fff; }
 /* Resting (page at its top): too narrow for the phone to count as a layer, but still the top-most thing
    where it looks (top centre), so it finds none and the strip is the page's background. */
 .status-shield--rest { left: calc(50% - 12px); right: auto; width: 24px; }
+/* The page's own first row lies right under the strip, beneath whatever covers it (the Messages panel,
+   a full-screen video): keep it the strip's colour, or the iPhone shows it as a thin line under the clock. */
+html.light-page .app-shell { background: #fff; }
+html:not(.light-page) .app-shell.light-scope { background: #090c10; }
 body.light-page .app-topbar { background: rgba(255, 255, 255, 0.86); border-color: rgba(0, 0, 0, 0.06); color: #171717; }
 /* Profiles use the app's normal colour names (background, card, muted…): inside .light-scope those names
    mean white and near-black instead of SOOZ's dark colours, so the page turns white as a whole. */
