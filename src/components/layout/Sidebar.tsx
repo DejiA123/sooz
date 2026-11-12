@@ -17,6 +17,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { usePrefetch } from "@/hooks/usePrefetch";
 import { isAdmin } from "@/lib/admin";
+import { forgetPushOnThisPhone } from "@/lib/push";
 
 export const Sidebar = () => {
     const location = useLocation();
@@ -151,7 +152,7 @@ export const Sidebar = () => {
 
                             <DropdownMenuItem
                                 onClick={async () => {
-                                    await supabase.auth.signOut();
+                                    await forgetPushOnThisPhone(); await supabase.auth.signOut();
                                     window.location.href = "/auth";
                                 }}
                                 className="flex items-center gap-3 p-3 cursor-pointer rounded-lg focus:bg-secondary/50 hover:text-red-500 focus:text-red-500"

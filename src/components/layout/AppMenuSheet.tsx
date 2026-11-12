@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useIsAdmin } from "@/lib/admin";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { forgetPushOnThisPhone } from "@/lib/push";
 
 /** The app's side menu (archive, settings, log out; Christian TikTok for admins only). */
 export const AppMenuSheet = ({ trigger }: { trigger: ReactNode }) => {
@@ -57,7 +58,7 @@ export const AppMenuSheet = ({ trigger }: { trigger: ReactNode }) => {
           </button>
           <div className="mx-2 my-4 h-px bg-border/20" />
           <button
-            onClick={async () => { close(); await supabase.auth.signOut(); window.location.href = "/auth"; }}
+            onClick={async () => { close(); await forgetPushOnThisPhone(); await supabase.auth.signOut(); window.location.href = "/auth"; }}
             className="group flex items-center gap-4 rounded-2xl p-4 text-left text-destructive transition-all hover:bg-destructive/10"
           >
             <LogOut className="h-5 w-5 transition-transform group-hover:scale-110" />

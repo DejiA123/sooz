@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchChatList, isChatVisible, isMuted } from "@/services/api/chat";
+import { setIconBadge } from "@/lib/push";
 
 // The create flow is heavy (camera, uploads, live studio) — only download it when opened.
 const CreateModal = lazy(() => import("@/components/create/CreateModal").then((m) => ({ default: m.CreateModal })));
@@ -56,6 +57,8 @@ export const BottomNav = () => {
   // Unread chats, like WhatsApp's badge (same cached list the Messages screen uses).
   const { data: chatList } = useQuery({ queryKey: ["chats", user?.id ?? ""], queryFn: fetchChatList, enabled: !!user, staleTime: 30_000 });
   const unreadChats = (chatList ?? []).filter((c) => !c.archived && isChatVisible(c) && !isMuted(c.mutedUntil) && (c.unread > 0 || c.markedUnread)).length;
+  // …and on SOOZ's Home Screen icon, like WhatsApp (where the phone supports it).
+  useEffect(() => { setIconBadge(unreadChats); }, [unreadChats]);
 
   const { data: me } = useQuery({
     queryKey: ["nav-profile", user?.id],
