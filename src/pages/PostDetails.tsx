@@ -100,7 +100,7 @@ export default function PostDetails() {
                 <meta name="twitter:image" content={pageImage} />
             </Helmet>
 
-            <div className="sticky top-0 z-40 bg-background/80 backdrop-blur-md border-b border-white/5 px-4 h-14 flex items-center gap-4">
+            <div className="sticky top-0 z-40 bg-background/80 backdrop-blur-md border-b border-border/60 px-4 h-14 flex items-center gap-4">
                 <Button variant="ghost" size="icon" onClick={() => {
                     if (window.history.state && window.history.state.idx > 0) {
                         navigate(-1);

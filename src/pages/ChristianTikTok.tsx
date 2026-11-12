@@ -42,7 +42,7 @@ const STATUS_STYLE: Record<string, { label: string; className: string; icon: typ
   approved: { label: "In the feed", className: "bg-emerald-500/15 text-emerald-400", icon: CheckCircle2 },
   pending: { label: "Waiting for review", className: "bg-amber-500/15 text-amber-400", icon: Clock },
   rejected: { label: "Not added", className: "bg-red-500/15 text-red-400", icon: XCircle },
-  duplicate: { label: "Already added", className: "bg-white/10 text-muted-foreground", icon: CheckCircle2 },
+  duplicate: { label: "Already added", className: "bg-muted text-muted-foreground", icon: CheckCircle2 },
   error: { label: "Problem", className: "bg-red-500/15 text-red-400", icon: XCircle },
   needs_override: { label: "Check this one", className: "bg-amber-500/15 text-amber-400", icon: Clock },
 };

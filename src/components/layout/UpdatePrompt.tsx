@@ -24,7 +24,7 @@ export const UpdatePrompt = () => {
 
   return (
     <div className="update-prompt fixed inset-x-0 z-[90] flex justify-center px-3" role="dialog" aria-label="Update available">
-      <div className="w-full max-w-md rounded-3xl border border-amber-400/25 bg-[#11131a] p-4 text-white shadow-[0_20px_60px_-15px_rgba(0,0,0,0.8)] backdrop-blur-xl animate-in slide-in-from-bottom-4 fade-in duration-300">
+      <div className="sheet-auto update-card w-full max-w-md rounded-3xl border border-amber-400/25 bg-[#11131a] p-4 text-white shadow-[0_20px_60px_-15px_rgba(0,0,0,0.8)] backdrop-blur-xl animate-in slide-in-from-bottom-4 fade-in duration-300">
         <div className="flex items-start gap-3">
           <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-300 to-amber-600 text-[#1a1204]">
             <Sparkles className="h-5 w-5" />

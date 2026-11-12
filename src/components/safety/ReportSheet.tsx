@@ -54,7 +54,7 @@ export const ReportSheet = ({ target, open, onOpenChange, onReported }: {
 
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
-      <DrawerContent className="max-h-[88dvh] border-white/10 bg-[#111216] text-white">
+      <DrawerContent className="sheet-auto max-h-[88dvh] border-white/10 bg-[#111216] text-white">
         <div className="overflow-y-auto px-4 pb-[max(env(safe-area-inset-bottom,0px),16px)]">
           <DrawerTitle className="pt-2 text-center text-[17px] font-bold">Report this {noun}</DrawerTitle>
           <p className="mx-auto mt-1 max-w-xs text-center text-[13px] text-white/60">Reports are private — the person won't know it was you.</p>

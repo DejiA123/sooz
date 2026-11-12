@@ -4,7 +4,6 @@ import { MessageCircle } from "lucide-react";
 import { ChatList } from "@/components/chat/ChatList";
 import { ChatWindow } from "@/components/chat/ChatWindow";
 import { cn } from "@/lib/utils";
-import { useLightPage } from "@/lib/statusBar";
 
 /**
  * Messages. Phone: the list, and an open conversation takes the whole screen (its own header at
@@ -31,9 +30,6 @@ export default function Chat() {
     if ((location.state as { fromList?: boolean } | null)?.fromList) navigate(-1);
     else setParams(new URLSearchParams(), { replace: true });
   };
-
-  // Messages and open chats are white, with a white status bar and bottom bar (src/lib/statusBar.ts).
-  useLightPage();
 
   // iPhone keyboard: keep the open conversation exactly the visible height, so the typing bar sits
   // right above the keyboard and the header stays at the top.

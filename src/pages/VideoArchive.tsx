@@ -161,12 +161,12 @@ export default function VideoArchive() {
             </div>
 
             {/* Search Bar */}
-            <div className="sticky top-12 md:top-0 z-40 bg-background/80 backdrop-blur-xl px-4 py-3 border-b border-white/5">
+            <div className="sticky top-12 md:top-0 z-40 bg-background/80 backdrop-blur-xl px-4 py-3 border-b border-border/60">
                 <div className="relative">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                     <Input
                         placeholder="Search videos..."
-                        className="pl-10 bg-muted/50 border-white/10 rounded-xl focus:bg-background transition-colors"
+                        className="pl-10 bg-muted/50 border-border rounded-xl focus:bg-background transition-colors"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                     />
@@ -182,7 +182,7 @@ export default function VideoArchive() {
                             onClick={() => setActiveCategory(cat.value)}
                             className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold whitespace-nowrap transition-all duration-300 ${activeCategory === cat.value
                                 ? "bg-primary text-primary-foreground shadow-lg shadow-primary/25 scale-105"
-                                : "bg-muted/50 text-muted-foreground hover:bg-muted border border-white/5"
+                                : "bg-muted/50 text-muted-foreground hover:bg-muted border border-border/60"
                                 }`}
                         >
                             <span>{cat.emoji}</span>

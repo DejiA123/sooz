@@ -93,7 +93,7 @@ export const TileOptions = ({ item, tab, onClose, onWatch }: {
   return (
     <>
       <Drawer open={menuOpen} onOpenChange={(o) => { if (!o) done(); }}>
-        <DrawerContent className="border-white/10 bg-[#121318] pb-[calc(env(safe-area-inset-bottom,0px)+12px)] text-white">
+        <DrawerContent className="sheet-auto border-white/10 bg-[#121318] pb-[calc(env(safe-area-inset-bottom,0px)+12px)] text-white">
           <DrawerTitle className="sr-only">Options</DrawerTitle>
           <div className="flex items-center gap-3 px-5 pb-2 pt-3">
             {thumb && <img src={thumb} alt="" className="h-12 w-9 shrink-0 rounded-md object-cover" />}
