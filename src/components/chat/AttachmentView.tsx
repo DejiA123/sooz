@@ -95,7 +95,7 @@ export const AudioAttachment = ({ a, mine, avatar, name }: { a: Extract<Attachme
         <span className="relative shrink-0">
           <Avatar className="h-11 w-11">
             <AvatarImage src={avatar || ""} className="object-cover" />
-            <AvatarFallback className={cn("text-[14px] font-bold", mine ? "bg-black/15" : "bg-neutral-200 text-neutral-700")}>{name?.[0]?.toUpperCase() || "?"}</AvatarFallback>
+            <AvatarFallback className="bg-white/15 text-[14px] font-bold">{name?.[0]?.toUpperCase() || "?"}</AvatarFallback>
           </Avatar>
           <Mic className={cn("absolute -bottom-0.5 -right-1 h-4 w-4", mine ? "text-[#1a1204]" : "text-amber-400")} strokeWidth={2.6} />
         </span>
@@ -106,14 +106,14 @@ export const AudioAttachment = ({ a, mine, avatar, name }: { a: Extract<Attachme
       <div className="min-w-0 flex-1">
         <div className="flex h-8 cursor-pointer items-center gap-[2px]" onPointerDown={seek}>
           {shape.map((v, i) => (
-            <span key={i} className={cn("w-[3px] shrink-0 rounded-full", i / shape.length < progress ? (mine ? "bg-[#1a1204]" : "bg-amber-400") : mine ? "bg-black/30" : "bg-neutral-300")} style={{ height: `${v * 100}%` }} />
+            <span key={i} className={cn("w-[3px] shrink-0 rounded-full", i / shape.length < progress ? (mine ? "bg-[#1a1204]" : "bg-amber-400") : mine ? "bg-black/30" : "bg-white/30")} style={{ height: `${v * 100}%` }} />
           ))}
         </div>
         <div className="mt-0.5 flex items-center justify-between text-[11.5px] opacity-70">
           <span className="tabular-nums">{formatDuration(playing || time ? time : duration)}</span>
           {(playing || time > 0) && (
             <button type="button" onClick={(e) => { e.stopPropagation(); const n = (speed + 1) % SPEEDS.length; setSpeed(n); if (ref.current) ref.current.playbackRate = SPEEDS[n]; }}
-              className={cn("rounded-full px-1.5 text-[11px] font-bold", mine ? "bg-black/15" : "bg-black/[0.07]")}>
+              className={cn("rounded-full px-1.5 text-[11px] font-bold", mine ? "bg-black/15" : "bg-white/15")}>
               {SPEEDS[speed]}×
             </button>
           )}
@@ -129,8 +129,8 @@ export const FileAttachment = ({ a, mine }: { a: Extract<Attachment, { type: "fi
   const ext = (a.name.split(".").pop() || "file").toUpperCase().slice(0, 4);
   return (
     <a href={a.url} target="_blank" rel="noopener noreferrer" download={a.name} onClick={(e) => e.stopPropagation()}
-      className={cn("flex w-[250px] max-w-full items-center gap-3 rounded-xl p-2.5", mine ? "bg-black/10" : "bg-black/[0.05]")}>
-      <span className="relative flex h-11 w-9 shrink-0 items-center justify-center rounded-md bg-white text-[#1a1204] shadow-sm">
+      className={cn("flex w-[250px] max-w-full items-center gap-3 rounded-xl p-2.5", mine ? "bg-black/10" : "bg-white/[0.06]")}>
+      <span className="relative flex h-11 w-9 shrink-0 items-center justify-center rounded-md bg-white/90 text-[#1a1204]">
         <FileText className="h-5 w-5" />
         <span className="absolute -bottom-1 rounded bg-amber-500 px-1 text-[8px] font-black text-white">{ext}</span>
       </span>
@@ -157,7 +157,7 @@ export const LocationAttachment = ({ a }: { a: Extract<Attachment, { type: "loca
   const maps = /iPhone|iPad|Mac/.test(navigator.userAgent) ? `https://maps.apple.com/?ll=${a.lat},${a.lng}&q=${encodeURIComponent(a.label || "Location")}` : `https://www.google.com/maps/search/?api=1&query=${a.lat},${a.lng}`;
   return (
     <a href={maps} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="block w-[260px] max-w-full overflow-hidden rounded-[14px]">
-      <span className="relative block overflow-hidden bg-neutral-200" style={{ width: W, height: H, maxWidth: "100%" }}>
+      <span className="relative block overflow-hidden bg-[#2a2d34]" style={{ width: W, height: H, maxWidth: "100%" }}>
         {tiles.map((t) => (
           <img key={`${t.x}-${t.y}`} src={`https://tile.openstreetmap.org/${Z}/${t.x}/${t.y}.png`} alt="" loading="lazy" draggable={false}
             className="absolute h-[256px] w-[256px] max-w-none" style={{ left: t.x * 256 - left, top: t.y * 256 - top }} />
@@ -177,16 +177,16 @@ export const ContactAttachment = ({ a, mine, onMessage, onView }: { a: Extract<A
     <div className="flex items-center gap-3 p-1.5">
       <Avatar className="h-11 w-11">
         <AvatarImage src={a.avatar || ""} className="object-cover" />
-        <AvatarFallback className={mine ? "bg-black/15" : "bg-neutral-200 text-neutral-600"}><UserRound className="h-5 w-5" /></AvatarFallback>
+        <AvatarFallback className="bg-white/15"><UserRound className="h-5 w-5" /></AvatarFallback>
       </Avatar>
       <span className="min-w-0">
         <span className="block truncate text-[15px] font-semibold">{a.name}</span>
         <span className="block truncate text-[12.5px] opacity-70">@{a.username}</span>
       </span>
     </div>
-    <div className={cn("mt-1 grid grid-cols-2 border-t text-[14px] font-semibold", mine ? "border-black/15" : "border-black/10")}>
+    <div className={cn("mt-1 grid grid-cols-2 border-t text-[14px] font-semibold", mine ? "border-black/15" : "border-white/10")}>
       <button type="button" onClick={onMessage} className="flex items-center justify-center gap-1.5 py-2"><MessageCircle className="h-4 w-4" /> Message</button>
-      <button type="button" onClick={onView} className={cn("py-2", mine ? "border-l border-black/15" : "border-l border-black/10")}>View</button>
+      <button type="button" onClick={onView} className={cn("py-2", mine ? "border-l border-black/15" : "border-l border-white/10")}>View</button>
     </div>
   </div>
 );
@@ -226,28 +226,28 @@ export const PollAttachment = ({ a, mine, votes, meId, members, onVote, onViewVo
             <button key={i} type="button" onClick={() => pick(i)} className="block w-full text-left">
               <span className="flex items-center gap-2.5">
                 <span className={cn("flex h-5 w-5 shrink-0 items-center justify-center border-2", a.multiple ? "rounded-md" : "rounded-full",
-                  chosen ? (mine ? "border-[#1a1204] bg-[#1a1204] text-amber-300" : "border-amber-400 bg-amber-400 text-[#1a1204]") : mine ? "border-black/40" : "border-neutral-400")}>
+                  chosen ? (mine ? "border-[#1a1204] bg-[#1a1204] text-amber-300" : "border-amber-400 bg-amber-400 text-[#1a1204]") : mine ? "border-black/40" : "border-white/40")}>
                   {chosen && <Check className="h-3.5 w-3.5" strokeWidth={3.5} />}
                 </span>
                 <span className="min-w-0 flex-1 text-[14.5px]">{opt}</span>
                 <span className="flex shrink-0 items-center -space-x-1.5">
                   {voters[i].slice(0, 3).map((u) => (
-                    <Avatar key={u} className={cn("h-5 w-5 border", mine ? "border-amber-400" : "border-neutral-100")}>
+                    <Avatar key={u} className={cn("h-5 w-5 border", mine ? "border-amber-400" : "border-[#1c1f26]")}>
                       <AvatarImage src={members.get(u)?.avatar || ""} className="object-cover" />
-                      <AvatarFallback className="bg-neutral-300 text-[9px]">{members.get(u)?.name?.[0]?.toUpperCase()}</AvatarFallback>
+                      <AvatarFallback className="bg-white/20 text-[9px]">{members.get(u)?.name?.[0]?.toUpperCase()}</AvatarFallback>
                     </Avatar>
                   ))}
                 </span>
                 <span className="w-5 shrink-0 text-right text-[13px] font-semibold tabular-nums">{counts[i]}</span>
               </span>
-              <span className={cn("ml-[30px] mt-1.5 block h-[5px] overflow-hidden rounded-full", mine ? "bg-black/15" : "bg-black/10")}>
+              <span className={cn("ml-[30px] mt-1.5 block h-[5px] overflow-hidden rounded-full", mine ? "bg-black/15" : "bg-white/12")}>
                 <span className={cn("block h-full rounded-full transition-all", mine ? "bg-[#1a1204]" : "bg-amber-400")} style={{ width: `${(counts[i] / max) * 100}%` }} />
               </span>
             </button>
           );
         })}
       </div>
-      <button type="button" onClick={onViewVotes} className={cn("mt-3 w-full border-t pt-2 text-center text-[14px] font-semibold", mine ? "border-black/15" : "border-black/10 text-amber-700")}>
+      <button type="button" onClick={onViewVotes} className={cn("mt-3 w-full border-t pt-2 text-center text-[14px] font-semibold", mine ? "border-black/15" : "border-white/10 text-amber-300")}>
         View votes{total ? ` · ${total}` : ""}
       </button>
     </div>
