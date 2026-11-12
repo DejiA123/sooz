@@ -450,7 +450,7 @@ export const ChatList = ({ selectedId, onSelect }: ChatListProps) => {
       </div>
 
       {/* Long-press / More */}
-      <Sheet light open={!!menuChat} onClose={() => setMenuChat(null)} title={menuChat?.name || ""}>
+      <Sheet open={!!menuChat} onClose={() => setMenuChat(null)} title={menuChat?.name || ""}>
         {menuChat && (() => {
           const c = menuChat;
           const unread = c.unread > 0 || c.markedUnread;
@@ -478,7 +478,7 @@ export const ChatList = ({ selectedId, onSelect }: ChatListProps) => {
         })()}
       </Sheet>
 
-      <Sheet light open={!!muteChat} onClose={() => setMuteChat(null)} title="Mute notifications">
+      <Sheet open={!!muteChat} onClose={() => setMuteChat(null)} title="Mute notifications">
         <div className="px-2 pb-2">
           <p className="px-3 pb-2 text-[13.5px] text-white/50">Others won't see that you muted this chat. You'll still be told if you're @mentioned.</p>
           {MUTE_OPTIONS.map((o) => (
@@ -487,7 +487,7 @@ export const ChatList = ({ selectedId, onSelect }: ChatListProps) => {
         </div>
       </Sheet>
 
-      <Sheet light open={!!confirm} onClose={() => setConfirm(null)} title={confirm?.title || ""}>
+      <Sheet open={!!confirm} onClose={() => setConfirm(null)} title={confirm?.title || ""}>
         {confirm && (
           <div className="px-4 pb-2">
             {confirm.body && <p className="pb-3 text-center text-[14px] text-white/55">{confirm.body}</p>}
@@ -497,7 +497,7 @@ export const ChatList = ({ selectedId, onSelect }: ChatListProps) => {
         )}
       </Sheet>
 
-      <Sheet light open={starredOpen} onClose={() => setStarredOpen(false)} title="Starred messages" tall>
+      <Sheet open={starredOpen} onClose={() => setStarredOpen(false)} title="Starred messages" tall>
         <div className="min-h-0 flex-1 overflow-y-auto">
           {starred.isLoading && <p className="py-10 text-center text-[14px] text-white/40">Loading…</p>}
           {starred.data?.length === 0 && (
@@ -512,7 +512,7 @@ export const ChatList = ({ selectedId, onSelect }: ChatListProps) => {
         </div>
       </Sheet>
 
-      <PeoplePicker light open={newChat} title="New chat" meId={me} onClose={() => setNewChat(false)}
+      <PeoplePicker open={newChat} title="New chat" meId={me} onClose={() => setNewChat(false)}
         onDone={([p]) => p && openDirectChat(p.id).then((id) => { queryClient.invalidateQueries({ queryKey: ["chats", me] }); onSelect(id); }, () => toast.error("Couldn't start that chat"))} />
 
       {newGroup && <CreateGroupModal onClose={() => setNewGroup(false)} onCreate={() => queryClient.invalidateQueries({ queryKey: ["chats", me] })} />}
