@@ -28,10 +28,10 @@ export const Sheet = ({ open, onClose, title, children, tall }: { open: boolean;
   const visible = useVisibleHeight(open && !!tall);
   return (
   <Drawer open={open} onOpenChange={(o) => { if (!o) onClose(); }} repositionInputs={!tall}>
-    <DrawerContent overlayClassName="z-[85]" style={tall && visible ? { height: `min(88dvh, ${Math.round(visible - 16)}px)` } : undefined} className={cn("z-[85] rounded-t-[20px] border-black/5 bg-white pb-[max(env(safe-area-inset-bottom),12px)] text-neutral-900", tall && "h-[88dvh]", "sheet-light")}>
+    <DrawerContent overlayClassName="z-[85]" style={tall && visible ? { height: `min(88dvh, ${Math.round(visible - 16)}px)` } : undefined} className={cn("z-[85] rounded-t-[20px] border-white/10 bg-[#121317] pb-[max(env(safe-area-inset-bottom),12px)] text-white", tall && "h-[88dvh]")}>
       <div className="relative flex items-center justify-center px-4 pb-2 pt-1">
         <DrawerTitle className="text-[16px] font-bold">{title}</DrawerTitle>
-        <button type="button" aria-label="Close" onClick={onClose} className="absolute right-3 top-0 flex h-9 w-9 items-center justify-center rounded-full text-neutral-600 active:bg-neutral-100"><X className="h-5 w-5" /></button>
+        <button type="button" aria-label="Close" onClick={onClose} className="absolute right-3 top-0 flex h-9 w-9 items-center justify-center rounded-full text-white/70 active:bg-white/10"><X className="h-5 w-5" /></button>
       </div>
       {children}
     </DrawerContent>
@@ -40,14 +40,14 @@ export const Sheet = ({ open, onClose, title, children, tall }: { open: boolean;
 };
 
 const PersonRow = ({ name, sub, avatar, group, right, onClick }: { name: string; sub?: ReactNode; avatar: string | null; group?: boolean; right?: ReactNode; onClick?: () => void }) => (
-  <button type="button" onClick={onClick} className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left active:bg-neutral-100">
+  <button type="button" onClick={onClick} className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left active:bg-white/[0.06]">
     <Avatar className="h-11 w-11">
       <AvatarImage src={avatar || ""} className="object-cover" />
       <AvatarFallback className="bg-gradient-to-br from-amber-400 to-amber-700 font-bold text-white">{group ? <Users className="h-5 w-5" /> : name[0]?.toUpperCase()}</AvatarFallback>
     </Avatar>
     <span className="min-w-0 flex-1">
       <span className="block truncate text-[15px] font-semibold">{name}</span>
-      {sub && <span className="block truncate text-[13px] text-neutral-500">{sub}</span>}
+      {sub && <span className="block truncate text-[13px] text-white/50">{sub}</span>}
     </span>
     {right}
   </button>
@@ -73,20 +73,20 @@ export const ForwardSheet = ({ open, messages, onClose, onForward }: {
     <Sheet open={open} onClose={onClose} title="Forward to…" tall>
       <div className="px-4 pb-2">
         <div className="relative">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search" className="h-10 w-full rounded-full bg-neutral-100 pl-9 pr-3 text-[15px] outline-none placeholder:text-neutral-400" />
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/40" />
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search" className="h-10 w-full rounded-full bg-white/[0.08] pl-9 pr-3 text-[15px] outline-none placeholder:text-white/40" />
         </div>
-        <p className="mt-2 text-[12.5px] text-neutral-500">{messages.length === 1 ? messageSummary(messages[0]) : `${messages.length} messages`} · up to 5 chats</p>
+        <p className="mt-2 text-[12.5px] text-white/45">{messages.length === 1 ? messageSummary(messages[0]) : `${messages.length} messages`} · up to 5 chats</p>
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto px-1">
         {list.map((c) => (
           <PersonRow key={c.id} name={c.name} avatar={c.avatar} group={c.isGroup} sub={c.isGroup ? `${c.memberCount} members` : c.otherUsername ? `@${c.otherUsername}` : undefined} onClick={() => toggle(c)}
-            right={<span className={cn("flex h-6 w-6 items-center justify-center rounded-full border-2", picked.has(c.id) ? "border-amber-400 bg-amber-400 text-[#1a1204]" : "border-neutral-300")}>{picked.has(c.id) && <Check className="h-4 w-4" strokeWidth={3} />}</span>} />
+            right={<span className={cn("flex h-6 w-6 items-center justify-center rounded-full border-2", picked.has(c.id) ? "border-amber-400 bg-amber-400 text-[#1a1204]" : "border-white/30")}>{picked.has(c.id) && <Check className="h-4 w-4" strokeWidth={3} />}</span>} />
         ))}
       </div>
       {picked.size > 0 && (
-        <div className="flex items-center gap-3 border-t border-neutral-200 px-4 pt-3">
-          <p className="min-w-0 flex-1 truncate text-[14px] text-neutral-600">{list.filter((c) => picked.has(c.id)).map((c) => c.name).join(", ") || `${picked.size} chats`}</p>
+        <div className="flex items-center gap-3 border-t border-white/10 px-4 pt-3">
+          <p className="min-w-0 flex-1 truncate text-[14px] text-white/70">{list.filter((c) => picked.has(c.id)).map((c) => c.name).join(", ") || `${picked.size} chats`}</p>
           <button type="button" disabled={busy} onClick={async () => { setBusy(true); try { await onForward([...picked]); onClose(); } finally { setBusy(false); } }}
             className="flex h-12 w-12 items-center justify-center rounded-full bg-amber-400 text-[#1a1204] active:scale-95 disabled:opacity-60" aria-label="Send">
             <Send className="h-5 w-5" />
@@ -107,16 +107,16 @@ export const MessageInfoSheet = ({ open, msg, members, meId, onClose }: { open: 
   const waiting = others.filter((m) => !read.includes(m) && !delivered.includes(m));
   const Section = ({ title, icon, people }: { title: string; icon: ReactNode; people: ChatMember[] }) => people.length ? (
     <div className="mt-3">
-      <p className="flex items-center gap-2 px-4 text-[13px] font-semibold text-neutral-500">{icon} {title}</p>
+      <p className="flex items-center gap-2 px-4 text-[13px] font-semibold text-white/55">{icon} {title}</p>
       {people.map((m) => <PersonRow key={m.userId} name={m.name} avatar={m.avatar} sub={`@${m.username}`} />)}
     </div>
   ) : null;
   return (
     <Sheet open={open} onClose={onClose} title="Message info">
       <div className="max-h-[70dvh] overflow-y-auto pb-2">
-        <div className="mx-4 rounded-2xl bg-neutral-100 px-3 py-2.5 text-[14.5px]">
+        <div className="mx-4 rounded-2xl bg-white/[0.05] px-3 py-2.5 text-[14.5px]">
           <p className="line-clamp-4 whitespace-pre-wrap">{messageSummary(msg) || "Message"}</p>
-          <p className="mt-1 text-right text-[11.5px] text-neutral-500">{bubbleTime(msg.createdAt)}</p>
+          <p className="mt-1 text-right text-[11.5px] text-white/45">{bubbleTime(msg.createdAt)}</p>
         </div>
         <Section title="Read by" icon={<CheckCheck className="h-4 w-4 text-sky-500" />} people={read} />
         <Section title="Delivered to" icon={<CheckCheck className="h-4 w-4" />} people={delivered} />
@@ -146,9 +146,9 @@ export const ReactionsSheet = ({ open, reactions, members, meId, onRemoveMine, o
   return (
     <Sheet open={open} onClose={onClose} title={`${reactions.length} reaction${reactions.length === 1 ? "" : "s"}`}>
       <div className="flex gap-2 overflow-x-auto px-4 pb-2 hide-scrollbar">
-        <button type="button" onClick={() => setTab("all")} className={cn("h-8 shrink-0 rounded-full px-3.5 text-[14px] font-semibold", tab === "all" ? "bg-neutral-900 text-white" : "bg-neutral-100")}>All {reactions.length}</button>
+        <button type="button" onClick={() => setTab("all")} className={cn("h-8 shrink-0 rounded-full px-3.5 text-[14px] font-semibold", tab === "all" ? "bg-white text-black" : "bg-white/[0.08]")}>All {reactions.length}</button>
         {groups.map(([e, n]) => (
-          <button key={e} type="button" onClick={() => setTab(e)} className={cn("h-8 shrink-0 rounded-full px-3 text-[14px] font-semibold", tab === e ? "bg-neutral-900 text-white" : "bg-neutral-100")}>{e} {n}</button>
+          <button key={e} type="button" onClick={() => setTab(e)} className={cn("h-8 shrink-0 rounded-full px-3 text-[14px] font-semibold", tab === e ? "bg-white text-black" : "bg-white/[0.08]")}>{e} {n}</button>
         ))}
       </div>
       <div className="max-h-[55dvh] overflow-y-auto pb-2">
@@ -182,8 +182,8 @@ export const PollVotesSheet = ({ open, poll, votes, members, onClose }: {
         {poll.options.map((opt, i) => {
           const who = [...(votes ?? new Map()).entries()].filter(([, o]) => o.includes(i)).map(([u]) => u);
           return (
-            <div key={i} className="mb-2 rounded-2xl bg-neutral-100 py-1">
-              <p className="flex justify-between px-3 pt-2 text-[15px] font-semibold"><span>{opt}</span><span className="text-neutral-500">{who.length} vote{who.length === 1 ? "" : "s"}</span></p>
+            <div key={i} className="mb-2 rounded-2xl bg-white/[0.04] py-1">
+              <p className="flex justify-between px-3 pt-2 text-[15px] font-semibold"><span>{opt}</span><span className="text-white/50">{who.length} vote{who.length === 1 ? "" : "s"}</span></p>
               {who.map((u) => <PersonRow key={u} name={members.get(u)?.name || "Member"} avatar={members.get(u)?.avatar ?? null} />)}
             </div>
           );
@@ -238,28 +238,28 @@ export const PollCreator = ({ open, onClose, onSend }: { open: boolean; onClose:
     <Sheet open={open} onClose={onClose} title="Create poll" tall>
       <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 pb-3">
         <div>
-          <p className="mb-1.5 text-[13px] font-semibold text-neutral-500">Question</p>
-          <input value={question} onChange={(e) => setQuestion(e.target.value)} maxLength={255} placeholder="Ask a question" className="h-12 w-full rounded-xl bg-neutral-100 px-3.5 text-[16px] outline-none placeholder:text-neutral-400" />
+          <p className="mb-1.5 text-[13px] font-semibold text-white/55">Question</p>
+          <input value={question} onChange={(e) => setQuestion(e.target.value)} maxLength={255} placeholder="Ask a question" className="h-12 w-full rounded-xl bg-white/[0.08] px-3.5 text-[16px] outline-none placeholder:text-white/35" />
         </div>
         <div>
-          <p className="mb-1.5 text-[13px] font-semibold text-neutral-500">Options</p>
+          <p className="mb-1.5 text-[13px] font-semibold text-white/55">Options</p>
           <div className="space-y-2">
             {options.map((o, i) => (
               <div key={i} className="flex items-center gap-2">
                 <input value={o} maxLength={100} placeholder={`Option ${i + 1}`}
                   onChange={(e) => { const v = e.target.value; setOptions((prev) => { const n = prev.map((x, j) => (j === i ? v : x)); if (i === n.length - 1 && v.trim() && n.length < 12) n.push(""); return n; }); }}
-                  className="h-11 min-w-0 flex-1 rounded-xl bg-neutral-100 px-3.5 text-[15.5px] outline-none placeholder:text-neutral-400" />
+                  className="h-11 min-w-0 flex-1 rounded-xl bg-white/[0.08] px-3.5 text-[15.5px] outline-none placeholder:text-white/35" />
                 {options.length > 2 && (
-                  <button type="button" aria-label="Remove option" onClick={() => setOptions((prev) => prev.filter((_, j) => j !== i))} className="flex h-9 w-9 items-center justify-center rounded-full text-neutral-500 active:bg-neutral-100"><Trash2 className="h-4 w-4" /></button>
+                  <button type="button" aria-label="Remove option" onClick={() => setOptions((prev) => prev.filter((_, j) => j !== i))} className="flex h-9 w-9 items-center justify-center rounded-full text-white/50 active:bg-white/10"><Trash2 className="h-4 w-4" /></button>
                 )}
               </div>
             ))}
             {options.length < 12 && options[options.length - 1].trim() === "" ? null : options.length < 12 && (
-              <button type="button" onClick={() => setOptions((p) => [...p, ""])} className="flex items-center gap-2 px-1 text-[14.5px] font-semibold text-amber-700"><Plus className="h-4 w-4" /> Add option</button>
+              <button type="button" onClick={() => setOptions((p) => [...p, ""])} className="flex items-center gap-2 px-1 text-[14.5px] font-semibold text-amber-300"><Plus className="h-4 w-4" /> Add option</button>
             )}
           </div>
         </div>
-        <label className="flex items-center justify-between rounded-xl bg-neutral-100 px-3.5 py-3 text-[15px]">
+        <label className="flex items-center justify-between rounded-xl bg-white/[0.05] px-3.5 py-3 text-[15px]">
           Allow multiple answers
           <Switch checked={multiple} onCheckedChange={setMultiple} />
         </label>
@@ -295,20 +295,20 @@ export const PeoplePicker = ({ open, title, meId, multiple, exclude, actionLabel
     <Sheet open={open} onClose={onClose} title={title} tall>
       <div className="px-4 pb-2">
         <div className="relative">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search name or @username" className="h-10 w-full rounded-full bg-neutral-100 pl-9 pr-3 text-[16px] outline-none placeholder:text-neutral-400" />
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/40" />
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search name or @username" className="h-10 w-full rounded-full bg-white/[0.08] pl-9 pr-3 text-[16px] outline-none placeholder:text-white/40" />
         </div>
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto px-1">
-        {people.isLoading && <p className="px-4 py-6 text-center text-[14px] text-neutral-400">Searching…</p>}
-        {!people.isLoading && list.length === 0 && <p className="px-4 py-6 text-center text-[14px] text-neutral-400">No one found</p>}
+        {people.isLoading && <p className="px-4 py-6 text-center text-[14px] text-white/40">Searching…</p>}
+        {!people.isLoading && list.length === 0 && <p className="px-4 py-6 text-center text-[14px] text-white/40">No one found</p>}
         {list.map((p) => (
           <PersonRow key={p.id} name={p.name} avatar={p.avatar} sub={`@${p.username}`}
             onClick={() => {
               if (!multiple) { onDone([p]); onClose(); return; }
               setPicked((s) => { const n = new Map(s); if (n.has(p.id)) n.delete(p.id); else n.set(p.id, p); return n; });
             }}
-            right={multiple ? <span className={cn("flex h-6 w-6 items-center justify-center rounded-full border-2", picked.has(p.id) ? "border-amber-400 bg-amber-400 text-[#1a1204]" : "border-neutral-300")}>{picked.has(p.id) && <Check className="h-4 w-4" strokeWidth={3} />}</span> : undefined} />
+            right={multiple ? <span className={cn("flex h-6 w-6 items-center justify-center rounded-full border-2", picked.has(p.id) ? "border-amber-400 bg-amber-400 text-[#1a1204]" : "border-white/30")}>{picked.has(p.id) && <Check className="h-4 w-4" strokeWidth={3} />}</span> : undefined} />
         ))}
       </div>
       {multiple && picked.size > 0 && (

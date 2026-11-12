@@ -561,49 +561,49 @@ export const ChatWindow = ({ chatId, focusMessageId, onBack, onOpenChat }: ChatW
   const senderName = (id: string) => (id === me ? "You" : memberMap.get(id)?.name || "Member");
 
   return (
-    <div className="chat-window relative flex h-full min-h-0 flex-col bg-white text-neutral-900">
+    <div className="chat-window relative flex h-full min-h-0 flex-col bg-[#05070b] text-white">
       {/* Header */}
       {selecting ? (
-        <header className="chat-header flex shrink-0 items-center gap-1 border-b border-neutral-200/80 bg-neutral-50 px-2">
-          <button type="button" aria-label="Cancel" onClick={() => setSelecting(null)} className="flex h-10 w-10 items-center justify-center rounded-full active:bg-neutral-100"><X className="h-6 w-6" /></button>
+        <header className="chat-header flex shrink-0 items-center gap-1 border-b border-white/[0.07] bg-[#0b0e14] px-2">
+          <button type="button" aria-label="Cancel" onClick={() => setSelecting(null)} className="flex h-10 w-10 items-center justify-center rounded-full active:bg-white/10"><X className="h-6 w-6" /></button>
           <span className="flex-1 text-[17px] font-semibold">{selecting.size}</span>
-          <button type="button" aria-label="Star" disabled={!selectedMsgs.length} onClick={() => { star(selectedMsgs, !selectedMsgs.every((m) => extras.starred.has(m.id))); setSelecting(null); }} className="flex h-10 w-10 items-center justify-center rounded-full active:bg-neutral-100 disabled:opacity-40"><Star className="h-5 w-5" /></button>
-          <button type="button" aria-label="Copy" disabled={!selectedMsgs.some((m) => m.content)} onClick={() => { navigator.clipboard?.writeText(selectedMsgs.filter((m) => m.content).map((m) => m.content).join("\n")).then(() => toast("Copied")); setSelecting(null); }} className="flex h-10 w-10 items-center justify-center rounded-full active:bg-neutral-100 disabled:opacity-40"><Copy className="h-5 w-5" /></button>
-          <button type="button" aria-label="Delete" disabled={!selectedMsgs.length} onClick={() => setSelDelete(true)} className="flex h-10 w-10 items-center justify-center rounded-full active:bg-neutral-100 disabled:opacity-40"><Trash2 className="h-5 w-5" /></button>
-          <button type="button" aria-label="Forward" disabled={!selectedMsgs.some((m) => !m.isDeleted)} onClick={() => setForwardMsgs(selectedMsgs)} className="flex h-10 w-10 items-center justify-center rounded-full active:bg-neutral-100 disabled:opacity-40"><Forward className="h-5 w-5" /></button>
+          <button type="button" aria-label="Star" disabled={!selectedMsgs.length} onClick={() => { star(selectedMsgs, !selectedMsgs.every((m) => extras.starred.has(m.id))); setSelecting(null); }} className="flex h-10 w-10 items-center justify-center rounded-full active:bg-white/10 disabled:opacity-40"><Star className="h-5 w-5" /></button>
+          <button type="button" aria-label="Copy" disabled={!selectedMsgs.some((m) => m.content)} onClick={() => { navigator.clipboard?.writeText(selectedMsgs.filter((m) => m.content).map((m) => m.content).join("\n")).then(() => toast("Copied")); setSelecting(null); }} className="flex h-10 w-10 items-center justify-center rounded-full active:bg-white/10 disabled:opacity-40"><Copy className="h-5 w-5" /></button>
+          <button type="button" aria-label="Delete" disabled={!selectedMsgs.length} onClick={() => setSelDelete(true)} className="flex h-10 w-10 items-center justify-center rounded-full active:bg-white/10 disabled:opacity-40"><Trash2 className="h-5 w-5" /></button>
+          <button type="button" aria-label="Forward" disabled={!selectedMsgs.some((m) => !m.isDeleted)} onClick={() => setForwardMsgs(selectedMsgs)} className="flex h-10 w-10 items-center justify-center rounded-full active:bg-white/10 disabled:opacity-40"><Forward className="h-5 w-5" /></button>
         </header>
       ) : search ? (
-        <header className="chat-header flex shrink-0 items-center gap-1 border-b border-neutral-200/80 bg-white px-2">
-          <button type="button" aria-label="Close search" onClick={() => setSearch(null)} className="flex h-10 w-10 items-center justify-center rounded-full active:bg-neutral-100"><ArrowLeft className="h-6 w-6" /></button>
-          <input autoFocus value={search.q} onChange={(e) => setSearch({ q: e.target.value, idx: 0 })} placeholder="Search…" className="h-10 min-w-0 flex-1 bg-transparent text-[16px] outline-none placeholder:text-neutral-400" />
-          {search.q && <span className="shrink-0 text-[13px] tabular-nums text-neutral-500">{matches.length ? `${Math.min(search.idx, matches.length - 1) + 1} of ${matches.length}` : "0"}</span>}
+        <header className="chat-header flex shrink-0 items-center gap-1 border-b border-white/[0.07] bg-[#05070b] px-2">
+          <button type="button" aria-label="Close search" onClick={() => setSearch(null)} className="flex h-10 w-10 items-center justify-center rounded-full active:bg-white/10"><ArrowLeft className="h-6 w-6" /></button>
+          <input autoFocus value={search.q} onChange={(e) => setSearch({ q: e.target.value, idx: 0 })} placeholder="Search…" className="h-10 min-w-0 flex-1 bg-transparent text-[16px] outline-none placeholder:text-white/40" />
+          {search.q && <span className="shrink-0 text-[13px] tabular-nums text-white/50">{matches.length ? `${Math.min(search.idx, matches.length - 1) + 1} of ${matches.length}` : "0"}</span>}
           <button type="button" aria-label="Older" disabled={search.idx >= matches.length - 1} onClick={() => setSearch((s) => s && { ...s, idx: s.idx + 1 })} className="flex h-10 w-9 items-center justify-center disabled:opacity-30"><ChevronUp className="h-5 w-5" /></button>
           <button type="button" aria-label="Newer" disabled={search.idx <= 0} onClick={() => setSearch((s) => s && { ...s, idx: s.idx - 1 })} className="flex h-10 w-9 items-center justify-center disabled:opacity-30"><ChevronDown className="h-5 w-5" /></button>
         </header>
       ) : (
-        <header className="chat-header flex shrink-0 items-center gap-1 border-b border-neutral-200/80 bg-white/95 px-1.5 backdrop-blur-xl">
-          <button type="button" onClick={onBack} aria-label="Back" className="flex h-10 w-9 items-center justify-center rounded-full active:bg-neutral-100 md:hidden"><ArrowLeft className="h-6 w-6" /></button>
+        <header className="chat-header flex shrink-0 items-center gap-1 border-b border-white/[0.07] bg-[#05070b]/95 px-1.5 backdrop-blur-xl">
+          <button type="button" onClick={onBack} aria-label="Back" className="flex h-10 w-9 items-center justify-center rounded-full active:bg-white/10 md:hidden"><ArrowLeft className="h-6 w-6" /></button>
           <button type="button" onClick={() => setShowInfo(true)} className="flex min-w-0 flex-1 items-center gap-2.5 rounded-xl py-1 pl-0.5 text-left md:pl-3">
             <span className="relative shrink-0">
               <Avatar className="h-10 w-10">
                 <AvatarImage src={avatar || ""} className="object-cover" />
                 <AvatarFallback className="bg-gradient-to-br from-amber-400 to-amber-700 text-[15px] font-bold text-white">{isGroup ? <Users className="h-5 w-5" /> : title?.[0]?.toUpperCase() || ""}</AvatarFallback>
               </Avatar>
-              {!isGroup && other && onlineUsers.has(other.userId) && !blocked && <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-white bg-emerald-500" />}
+              {!isGroup && other && onlineUsers.has(other.userId) && !blocked && <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-[#05070b] bg-emerald-500" />}
             </span>
             <span className="min-w-0">
               <span className="block truncate text-[16.5px] font-semibold leading-tight">{title}</span>
-              {status.text && <span className={cn("block truncate text-[12.5px] leading-tight", status.accent ? "text-emerald-600" : "text-neutral-500")}>{status.text}</span>}
+              {status.text && <span className={cn("block truncate text-[12.5px] leading-tight", status.accent ? "text-emerald-400" : "text-white/50")}>{status.text}</span>}
             </span>
           </button>
           <div className="flex shrink-0 items-center">
-            <button type="button" aria-label={isGroup ? "Group video call" : "Video call"} onClick={() => call(true)} disabled={notMember} className="flex h-10 w-10 items-center justify-center rounded-full active:bg-neutral-100 disabled:opacity-40"><Video className="h-[23px] w-[23px]" /></button>
-            <button type="button" aria-label={isGroup ? "Group voice call" : "Voice call"} onClick={() => call(false)} disabled={notMember} className="flex h-10 w-10 items-center justify-center rounded-full active:bg-neutral-100 disabled:opacity-40"><Phone className="h-[21px] w-[21px]" /></button>
+            <button type="button" aria-label={isGroup ? "Group video call" : "Video call"} onClick={() => call(true)} disabled={notMember} className="flex h-10 w-10 items-center justify-center rounded-full active:bg-white/10 disabled:opacity-40"><Video className="h-[23px] w-[23px]" /></button>
+            <button type="button" aria-label={isGroup ? "Group voice call" : "Voice call"} onClick={() => call(false)} disabled={notMember} className="flex h-10 w-10 items-center justify-center rounded-full active:bg-white/10 disabled:opacity-40"><Phone className="h-[21px] w-[21px]" /></button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button type="button" aria-label="More" className="flex h-10 w-9 items-center justify-center rounded-full active:bg-neutral-100"><MoreVertical className="h-5 w-5" /></button>
+                <button type="button" aria-label="More" className="flex h-10 w-9 items-center justify-center rounded-full active:bg-white/10"><MoreVertical className="h-5 w-5" /></button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="z-[80] w-56 rounded-2xl border-neutral-200 bg-white p-1 text-neutral-900 shadow-xl">
+              <DropdownMenuContent align="end" className="z-[80] w-56 rounded-2xl border-white/10 bg-[#14171d] p-1 text-white">
                 {[
                   { label: isGroup ? "Group info" : "Contact info", run: () => setShowInfo(true) },
                   { label: "Search", run: () => setSearch({ q: "", idx: 0 }) },
@@ -612,13 +612,13 @@ export const ChatWindow = ({ chatId, focusMessageId, onBack, onOpenChat }: ChatW
                   { label: meMember && meMember.mutedUntil && new Date(meMember.mutedUntil) > new Date() ? "Unmute notifications" : "Mute notifications", run: () => (meMember?.mutedUntil && new Date(meMember.mutedUntil) > new Date() ? mute(null) : mute(8 * 3600e3)) },
                   { label: "Disappearing messages", run: () => setShowInfo(true) },
                   { label: "Select messages", run: () => setSelecting(new Set()) },
-                ].map((i) => <DropdownMenuItem key={i.label} onClick={i.run} className="rounded-xl py-2.5 text-[15px] focus:bg-neutral-100">{i.label}</DropdownMenuItem>)}
-                <DropdownMenuSeparator className="bg-neutral-200" />
-                <DropdownMenuItem onClick={clearChat} className="rounded-xl py-2.5 text-[15px] text-red-600 focus:bg-red-500/10">Clear chat</DropdownMenuItem>
+                ].map((i) => <DropdownMenuItem key={i.label} onClick={i.run} className="rounded-xl py-2.5 text-[15px] focus:bg-white/10">{i.label}</DropdownMenuItem>)}
+                <DropdownMenuSeparator className="bg-white/10" />
+                <DropdownMenuItem onClick={clearChat} className="rounded-xl py-2.5 text-[15px] text-red-400 focus:bg-red-500/10">Clear chat</DropdownMenuItem>
                 {isGroup
-                  ? <DropdownMenuItem onClick={exitGroup} className="rounded-xl py-2.5 text-[15px] text-red-600 focus:bg-red-500/10">Exit group</DropdownMenuItem>
-                  : other && <DropdownMenuItem onClick={() => toggleBlock(!blocked)} className="rounded-xl py-2.5 text-[15px] text-red-600 focus:bg-red-500/10">{blocked ? "Unblock" : "Block"}</DropdownMenuItem>}
-                <DropdownMenuItem onClick={deleteChat} className="rounded-xl py-2.5 text-[15px] text-red-600 focus:bg-red-500/10">Delete chat</DropdownMenuItem>
+                  ? <DropdownMenuItem onClick={exitGroup} className="rounded-xl py-2.5 text-[15px] text-red-400 focus:bg-red-500/10">Exit group</DropdownMenuItem>
+                  : other && <DropdownMenuItem onClick={() => toggleBlock(!blocked)} className="rounded-xl py-2.5 text-[15px] text-red-400 focus:bg-red-500/10">{blocked ? "Unblock" : "Block"}</DropdownMenuItem>}
+                <DropdownMenuItem onClick={deleteChat} className="rounded-xl py-2.5 text-[15px] text-red-400 focus:bg-red-500/10">Delete chat</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
@@ -627,12 +627,12 @@ export const ChatWindow = ({ chatId, focusMessageId, onBack, onOpenChat }: ChatW
 
       {/* Pinned message */}
       {pinnedMsg && !selecting && !search && (
-        <button type="button" onClick={() => { jumpTo(pinnedMsg.id); setPinIdx((i) => i + 1); }} className="flex shrink-0 items-center gap-2.5 border-b border-neutral-200/80 bg-neutral-50 px-3 py-2 text-left">
-          <span className="flex flex-col gap-0.5">{pins.map((p, i) => <span key={p.messageId} className={cn("h-2.5 w-[3px] rounded-full", i === pinIdx % pins.length ? "bg-amber-500" : "bg-neutral-300")} />)}</span>
-          <Pin className="h-4 w-4 shrink-0 text-amber-600" />
+        <button type="button" onClick={() => { jumpTo(pinnedMsg.id); setPinIdx((i) => i + 1); }} className="flex shrink-0 items-center gap-2.5 border-b border-white/[0.06] bg-[#0b0e14] px-3 py-2 text-left">
+          <span className="flex flex-col gap-0.5">{pins.map((p, i) => <span key={p.messageId} className={cn("h-2.5 w-[3px] rounded-full", i === pinIdx % pins.length ? "bg-amber-400" : "bg-white/20")} />)}</span>
+          <Pin className="h-4 w-4 shrink-0 text-amber-300" />
           <span className="min-w-0 flex-1">
-            <span className="block text-[12.5px] font-semibold text-amber-600">Pinned message{pins.length > 1 ? ` ${(pinIdx % pins.length) + 1} of ${pins.length}` : ""}</span>
-            <span className="block truncate text-[13.5px] text-neutral-700">{messageSummary(pinnedMsg)}</span>
+            <span className="block text-[12.5px] font-semibold text-amber-300">Pinned message{pins.length > 1 ? ` ${(pinIdx % pins.length) + 1} of ${pins.length}` : ""}</span>
+            <span className="block truncate text-[13.5px] text-white/75">{messageSummary(pinnedMsg)}</span>
           </span>
         </button>
       )}
@@ -643,12 +643,12 @@ export const ChatWindow = ({ chatId, focusMessageId, onBack, onOpenChat }: ChatW
         <div ref={contentRef} className="flex min-h-full flex-col justify-end pb-3 pt-2">
           {loading ? (
             <div className="flex flex-col gap-3">
-              {[1, 2, 3, 4].map((i) => <div key={i} className={cn("h-10 animate-pulse rounded-[18px] bg-neutral-100", i % 2 ? "w-44 self-start" : "w-32 self-end")} />)}
+              {[1, 2, 3, 4].map((i) => <div key={i} className={cn("h-10 animate-pulse rounded-[18px] bg-white/[0.06]", i % 2 ? "w-44 self-start" : "w-32 self-end")} />)}
             </div>
           ) : (
             <>
               {info?.disappearSeconds ? (
-                <p className="mx-auto my-2 flex max-w-[85%] items-center gap-1.5 rounded-xl bg-neutral-100 px-3 py-1.5 text-center text-[12.5px] text-neutral-600">
+                <p className="mx-auto my-2 flex max-w-[85%] items-center gap-1.5 rounded-xl bg-white/[0.06] px-3 py-1.5 text-center text-[12.5px] text-white/60">
                   <Timer className="h-3.5 w-3.5 shrink-0" /> Disappearing messages are on. New messages disappear after {disappearLabel(info.disappearSeconds).toLowerCase()}.
                 </p>
               ) : null}
@@ -659,14 +659,14 @@ export const ChatWindow = ({ chatId, focusMessageId, onBack, onOpenChat }: ChatW
                     <AvatarFallback className="bg-gradient-to-br from-amber-400 to-amber-700 text-2xl font-bold text-white">{isGroup ? <Users className="h-8 w-8" /> : title?.[0]?.toUpperCase()}</AvatarFallback>
                   </Avatar>
                   <p className="text-[17px] font-semibold">{title}</p>
-                  <p className="text-[14px] text-neutral-500">Say hello 👋</p>
+                  <p className="text-[14px] text-white/50">Say hello 👋</p>
                 </div>
               )}
               {dayGroups.map((group) => (
                 // Each day is its own block, so only the day being read floats its date at the top.
                 <div key={group.key}>
                 <div className="sticky top-1 z-[5] my-2 flex justify-center">
-                  <span className="rounded-lg bg-neutral-100 px-2.5 py-1 text-[12px] font-medium text-neutral-500 shadow-sm ring-1 ring-black/[0.03]">{dayChipLabel(group.first)}</span>
+                  <span className="rounded-lg bg-[#1a1d24] px-2.5 py-1 text-[12px] font-medium text-white/70 shadow">{dayChipLabel(group.first)}</span>
                 </div>
                 {group.items.map(({ msg, idx }) => {
                 const prev = visible[idx - 1];
@@ -679,7 +679,7 @@ export const ChatWindow = ({ chatId, focusMessageId, onBack, onOpenChat }: ChatW
                 return (
                   <Fragment key={msg.id}>
                     {unreadAnchor?.id === msg.id && (
-                      <div data-unread-divider className="my-2 -mx-3 bg-amber-50 py-1.5 text-center text-[12.5px] font-semibold uppercase tracking-wide text-amber-700">
+                      <div data-unread-divider className="my-2 -mx-3 bg-white/[0.05] py-1.5 text-center text-[12.5px] font-semibold uppercase tracking-wide text-amber-300/90">
                         {unreadAnchor.count} unread message{unreadAnchor.count === 1 ? "" : "s"}
                       </div>
                     )}
@@ -732,7 +732,7 @@ export const ChatWindow = ({ chatId, focusMessageId, onBack, onOpenChat }: ChatW
 
       {/* Back to the newest message */}
       {!atBottom && !loading && (
-        <button type="button" aria-label="Scroll to newest" onClick={toBottom} className="absolute bottom-3 right-3 z-20 flex h-11 w-11 items-center justify-center rounded-full bg-white text-neutral-800 shadow-xl ring-1 ring-black/5 active:scale-95">
+        <button type="button" aria-label="Scroll to newest" onClick={toBottom} className="absolute bottom-3 right-3 z-20 flex h-11 w-11 items-center justify-center rounded-full bg-[#1f232b] text-white shadow-xl active:scale-95">
           <ChevronDown className="h-6 w-6" />
           {newBelow > 0 && <span className="absolute -right-1 -top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-400 px-1 text-[11px] font-bold text-[#1a1204]">{newBelow}</span>}
         </button>
@@ -839,19 +839,19 @@ export const ChatWindow = ({ chatId, focusMessageId, onBack, onOpenChat }: ChatW
       <Sheet open={selDelete} onClose={() => setSelDelete(false)} title={`Delete ${selectedMsgs.length} message${selectedMsgs.length === 1 ? "" : "s"}?`}>
         <div className="px-2 pb-2">
           {selectedMsgs.length > 0 && selectedMsgs.every(canDeleteForAll) && (
-            <button type="button" onClick={() => { deleteAll(selectedMsgs); setSelDelete(false); setSelecting(null); }} className="block w-full rounded-xl px-3 py-3.5 text-left text-[16px] text-red-600 active:bg-neutral-100">Delete for everyone</button>
+            <button type="button" onClick={() => { deleteAll(selectedMsgs); setSelDelete(false); setSelecting(null); }} className="block w-full rounded-xl px-3 py-3.5 text-left text-[16px] text-red-400 active:bg-white/10">Delete for everyone</button>
           )}
-          <button type="button" onClick={() => { hideForMe(selectedMsgs); setSelDelete(false); setSelecting(null); }} className="block w-full rounded-xl px-3 py-3.5 text-left text-[16px] text-red-600 active:bg-neutral-100">Delete for me</button>
-          <button type="button" onClick={() => setSelDelete(false)} className="block w-full rounded-xl px-3 py-3.5 text-left text-[16px] active:bg-neutral-100">Cancel</button>
+          <button type="button" onClick={() => { hideForMe(selectedMsgs); setSelDelete(false); setSelecting(null); }} className="block w-full rounded-xl px-3 py-3.5 text-left text-[16px] text-red-400 active:bg-white/10">Delete for me</button>
+          <button type="button" onClick={() => setSelDelete(false)} className="block w-full rounded-xl px-3 py-3.5 text-left text-[16px] active:bg-white/10">Cancel</button>
         </div>
       </Sheet>
 
       <Sheet open={!!confirm} onClose={() => setConfirm(null)} title={confirm?.title || ""}>
         {confirm && (
           <div className="px-4 pb-2">
-            {confirm.body && <p className="pb-3 text-center text-[14px] text-neutral-500">{confirm.body}</p>}
+            {confirm.body && <p className="pb-3 text-center text-[14px] text-white/55">{confirm.body}</p>}
             <button type="button" onClick={() => { confirm.run(); setConfirm(null); }} className="h-12 w-full rounded-full bg-red-500 text-[16px] font-bold text-white">{confirm.label}</button>
-            <button type="button" onClick={() => setConfirm(null)} className="mt-2 h-12 w-full rounded-full bg-neutral-100 text-[16px] font-semibold">Cancel</button>
+            <button type="button" onClick={() => setConfirm(null)} className="mt-2 h-12 w-full rounded-full bg-white/[0.08] text-[16px] font-semibold">Cancel</button>
           </div>
         )}
       </Sheet>
