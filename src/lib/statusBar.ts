@@ -21,25 +21,49 @@ import { setThemeColor, STATUS_BAR } from "./theme";
  *    12px, see-through, in the strip's colour — and **swaps it for a new one on every change**, which
  *    is exactly what makes the iPhone look again. Where an iPhone / iPad won't re-read a layer after
  *    the first touch, removing the old one drops it back to the page's background, which is right too.
+ *
+ * No fade (owner's request: the strip should change with the page, like TikTok). The iPhone paints a
+ * layer's colour with its own strip view, and cross-fades that view for 0.1s whenever its colour
+ * changes (WebKit `WKColorExtensionView`) — but shows it at once, with no fade, if it was hidden; and
+ * with no layer at the top the strip is simply the page's background, which changes at once too. So
+ * half a second after a change, while the page is at its top, the shield shrinks to a narrow one
+ * (`--rest`): too narrow to count as a layer, but still on top, so the phone finds no layer, hides its
+ * strip view and shows the page's background — the same colour. The next change then appears at once.
+ * As soon as the page is scrolled the full-width shield comes back (same colour, so nothing shows),
+ * because without it the iPhone lets the page's content scroll, blurred, under the clock.
  */
+/** Set to false to keep the full-width shield all the time (the strip then fades for 0.1s on a change). */
+const REST_AT_TOP = true;
 export const WHITE = "#ffffff";
 
 let lightPages = 0;
 let darkCovers = 0;
 let shown: boolean | null = null; // what the phone was last told: true = white
 let shield: HTMLElement | null = null;
+let resting = false; // the narrow shield is in place
 let queued = false;
-let again = 0;
+let settle = 0;
+
+/** The page (not a box inside it) is at its top, so nothing can scroll under the strip. */
+const atTop = () => (window.scrollY || document.documentElement.scrollTop || 0) <= 2;
 
 /** A fresh top layer in the strip's colour (see above). Above everything, never takes a tap. */
-function placeShield() {
+function placeShield(rest = false) {
   shield?.remove();
+  resting = rest;
   shield = document.createElement("div");
-  shield.className = shown ? "status-shield status-shield--light" : "status-shield";
+  shield.className = `status-shield${shown ? " status-shield--light" : ""}${rest ? " status-shield--rest" : ""}`;
   shield.setAttribute("aria-hidden", "true");
   // Beside <body>, not inside it: nothing the app does to the body (pop-ups making the rest of the
   // page inert, transforms) can hide it from the phone or put another layer above it.
   document.documentElement.appendChild(shield);
+}
+
+/** Once things are still and the page is at its top: the narrow shield, ready for a change with no fade. */
+function rest(after: number) {
+  window.clearTimeout(settle);
+  if (!REST_AT_TOP) return;
+  settle = window.setTimeout(() => { if (!resting && atTop()) placeShield(true); }, after);
 }
 
 function apply(force = false) {
@@ -52,10 +76,7 @@ function apply(force = false) {
   document.body.classList.toggle("light-page", light);
   setThemeColor(light ? WHITE : STATUS_BAR);
   placeShield();
-  // Once more when the new page has settled (its own layers have appeared): costs nothing if the
-  // phone already has the right colour.
-  window.clearTimeout(again);
-  again = window.setTimeout(placeShield, 350);
+  rest(500);
 }
 
 /** Several pages / screens can change in one go (leave Messages, open a profile): tell the phone once. */
@@ -71,6 +92,11 @@ if (typeof document !== "undefined") {
   const back = () => { if (document.visibilityState === "visible") apply(true); };
   document.addEventListener("visibilitychange", back);
   window.addEventListener("pageshow", back);
+  // Scrolled: the full-width shield keeps the strip solid over the page. Back at the top: rest again.
+  window.addEventListener("scroll", () => {
+    if (!atTop()) { window.clearTimeout(settle); if (resting) placeShield(); }
+    else if (!resting) rest(400);
+  }, { passive: true });
 }
 
 /** A white page: while it is shown, the status bar strip, the top bar and the bottom bar are white. */
