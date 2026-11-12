@@ -7,7 +7,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner, toast } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, useParams, useNavigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useParams, useNavigate, useLocation } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { AuthProvider } from "@/hooks/useAuth";
 import { MainLayout } from "@/components/layout/MainLayout";
@@ -66,6 +66,7 @@ import { startUpdateChecks } from "@/lib/appUpdate";
 
 import { queryClient } from "@/lib/react-query";
 import { startNoShakeUndo } from "@/lib/noShakeUndo";
+import { isLightRoute, useLightPage } from "@/lib/statusBar";
 
 
 /** Pop-up messages. During a call, and while Create (the camera) is open, they show at the top
@@ -81,6 +82,13 @@ const AppToasts = () => {
   return callState === "IDLE" && !creating
     ? <Sonner />
     : <Sonner position="top-center" mobileOffset={{ top: `calc(env(safe-area-inset-top, 0px) + ${creating ? 64 : 8}px)` }} />; // below Create's close / back row
+};
+
+/** White pages (all but Home and Discover): white status bar strip, bars and pop-ups — for every address,
+ *  including sign-in and "not found", which sit outside the main layout. */
+const StatusStrip = () => {
+  useLightPage(isLightRoute(useLocation().pathname));
+  return null;
 };
 
 /** /t/{id}?by=handle → open that TikTok first in For You (a full load, so the feed picks it up). */
@@ -140,6 +148,7 @@ const App = () => {
               <AppToasts />
               <BrowserRouter>
 <OfflineBanner />
+                <StatusStrip />
                 <AuthListener />
                 <AccountSync />
                 <NotificationManager />

@@ -9,7 +9,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { fetchForYouPage, FIRST_CURSOR, type FeedCursor } from "@/services/api/feed";
 import { cn } from "@/lib/utils";
 import { markChatsDelivered } from "@/services/api/chat";
-import { useLightPage } from "@/lib/statusBar";
+import { isLightRoute } from "@/lib/statusBar";
 
 export const MainLayout = () => {
     const { user } = useAuth();
@@ -17,11 +17,9 @@ export const MainLayout = () => {
     const { pathname } = useLocation();
     // The home feed is full-screen video, so it gets its own immersive layout.
     const isFeed = pathname === "/" || pathname === "/index";
-    // Profiles are white (owner's request): the app's colour names mean white there (.light-scope).
-    const isLight = pathname.startsWith("/profile");
-    // White pages get a white status bar strip (src/lib/statusBar.ts). Said here as well as in the
-    // pages themselves, so the strip is already white while a page is still loading.
-    useLightPage(isLight || pathname.startsWith("/chat"));
+    // Every page but Home and Discover is white (owner's request): the app's colour names mean white
+    // inside .light-scope. (The status bar strip follows the same rule — App's <StatusStrip />.)
+    const isLight = isLightRoute(pathname);
 
     useEffect(() => {
         if (!user) return;

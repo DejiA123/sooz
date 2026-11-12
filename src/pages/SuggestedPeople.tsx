@@ -94,7 +94,7 @@ export default function SuggestedPeople() {
                     profiles.map((profile) => (
                         <div key={profile.id} className="flex items-center justify-between">
                             <Link to={`/profile/${profile.username}`} className="flex items-center gap-3 group">
-                                <Avatar className="w-12 h-12 border border-white/10 group-hover:border-primary/50 transition-colors">
+                                <Avatar className="w-12 h-12 border border-border group-hover:border-primary/50 transition-colors">
                                     <AvatarImage src={profile.avatar_url || ""} />
                                     <AvatarFallback>{(profile.display_name || profile.username)[0].toUpperCase()}</AvatarFallback>
                                 </Avatar>
@@ -112,7 +112,7 @@ export default function SuggestedPeople() {
                                 className={cn(
                                     "font-semibold transition-all active:scale-95",
                                     followedIds.has(profile.id)
-                                        ? "bg-secondary text-foreground hover:bg-secondary/80 border border-white/10"
+                                        ? "bg-secondary text-foreground hover:bg-secondary/80 border border-border"
                                         : "bg-primary text-white hover:bg-primary/90"
                                 )}
                                 onClick={() => handleFollow(profile.id)}

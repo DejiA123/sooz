@@ -54,7 +54,7 @@ export default function UpdatePassword() {
                             onChange={(e) => setPassword(e.target.value)}
                             required
                             minLength={6}
-                            className="bg-background/50 border-white/10"
+                            className="bg-background/50 border-border"
                         />
                     </div>
                     <div className="space-y-2">
@@ -66,7 +66,7 @@ export default function UpdatePassword() {
                             onChange={(e) => setConfirmPassword(e.target.value)}
                             required
                             minLength={6}
-                            className="bg-background/50 border-white/10"
+                            className="bg-background/50 border-border"
                         />
                     </div>
                     <Button type="submit" className="w-full" disabled={loading}>

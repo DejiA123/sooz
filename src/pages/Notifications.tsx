@@ -108,7 +108,7 @@ export default function Notifications() {
 
     return (
         <div className="pb-20">
-            <div className="p-4 border-b border-white/5 bg-background/50 backdrop-blur-xl flex items-center justify-between">
+            <div className="p-4 border-b border-border/60 bg-background/50 backdrop-blur-xl flex items-center justify-between">
                 <h1 className="text-xl font-bold">Notifications</h1>
                 <Button variant="ghost" size="sm" onClick={handleMarkAllRead}>
                     <Check className="w-4 h-4 mr-1" /> Mark all read
@@ -133,11 +133,11 @@ export default function Notifications() {
                             key={n.id}
                             onClick={() => handleClick(n)}
                             className={cn(
-                                "flex items-start gap-4 p-4 hover:bg-white/5 cursor-pointer transition-colors",
+                                "flex items-start gap-4 p-4 hover:bg-muted/60 cursor-pointer transition-colors",
                                 !n.is_read && "bg-primary/5"
                             )}
                         >
-                            <Avatar className="w-10 h-10 border border-white/10">
+                            <Avatar className="w-10 h-10 border border-border">
                                 <AvatarImage src={n.actor?.avatar_url || undefined} className="object-cover" />
                                 <AvatarFallback>{n.actor?.username?.[0]}</AvatarFallback>
                             </Avatar>

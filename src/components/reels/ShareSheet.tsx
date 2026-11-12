@@ -124,7 +124,7 @@ export const ShareSheet = ({ item, open, onOpenChange, onShared, onRepostChange 
   return (
     <>
     <Drawer open={open && !reporting} onOpenChange={(o) => { if (!reporting) onOpenChange(o); }}>
-      <DrawerContent className="rounded-t-[20px] border-white/10 bg-[#121317] pb-[max(env(safe-area-inset-bottom),16px)] text-white">
+      <DrawerContent className="sheet-auto rounded-t-[20px] border-white/10 bg-[#121317] pb-[max(env(safe-area-inset-bottom),16px)] text-white">
         <div className="relative flex items-center justify-center px-4 pb-2 pt-1">
           <DrawerTitle className="text-[15px] font-bold">Share to</DrawerTitle>
           <button type="button" aria-label="Close" onClick={() => onOpenChange(false)} className="absolute right-3 top-0 flex h-9 w-9 items-center justify-center rounded-full text-white/70 active:bg-white/10"><X className="h-5 w-5" /></button>

@@ -54,7 +54,7 @@ export const NotificationManager = () => {
 
   return (
     <Drawer open={open} onOpenChange={(o) => { if (!o) notNow(); }}>
-      <DrawerContent overlayClassName="z-[90]" className="z-[90] border-white/10 bg-[#121318] px-6 pb-[calc(env(safe-area-inset-bottom,0px)+20px)] text-white">
+      <DrawerContent overlayClassName="z-[90]" className="sheet-auto z-[90] border-white/10 bg-[#121318] px-6 pb-[calc(env(safe-area-inset-bottom,0px)+20px)] text-white">
         <div className="mx-auto mt-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-400/15">
           <Bell className="h-8 w-8 text-amber-400" />
         </div>

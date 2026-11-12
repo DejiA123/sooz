@@ -2,8 +2,9 @@ import { useLayoutEffect } from "react";
 import { setThemeColor, STATUS_BAR } from "./theme";
 
 /**
- * The strip behind the phone's clock and battery (owner's request, like TikTok): **white on Messages,
- * open chats and profiles, black everywhere else** — in the Home Screen app and in any browser.
+ * The strip behind the phone's clock and battery (owner's request, like TikTok): **white on white
+ * pages (every page but Home and Discover), black on those two and under full-screen videos / camera /
+ * calls** — in the Home Screen app and in any browser.
  *
  * Nothing on a web page can paint that strip; each phone picks its colour from the page, and they
  * don't all read the same thing. So every one of these is kept in step, in one go, before the screen
@@ -35,6 +36,15 @@ import { setThemeColor, STATUS_BAR } from "./theme";
 /** Set to false to keep the full-width shield all the time (the strip then fades for 0.1s on a change). */
 const REST_AT_TOP = true;
 export const WHITE = "#ffffff";
+
+/**
+ * Which pages are white (owner's request): **every page except Home and Discover**, the two video
+ * pages. (A shared TikTok link, /t/…, only passes through on its way to Home.) App mounts `useLightPage` with
+ * this once for every address; the layout uses it to turn the page's colours white.
+ */
+export function isLightRoute(pathname: string) {
+  return !(pathname === "/" || pathname === "/index" || pathname.startsWith("/discover") || pathname.startsWith("/t/"));
+}
 
 let lightPages = 0;
 let darkCovers = 0;

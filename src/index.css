@@ -570,9 +570,12 @@ html.light-page, body.light-page { background: #fff; }
 html.light-page .app-shell { background: #fff; }
 html:not(.light-page) .app-shell.light-scope { background: #090c10; }
 body.light-page .app-topbar { background: rgba(255, 255, 255, 0.86); border-color: rgba(0, 0, 0, 0.06); color: #171717; }
-/* Profiles use the app's normal colour names (background, card, muted…): inside .light-scope those names
-   mean white and near-black instead of SOOZ's dark colours, so the page turns white as a whole. */
-.light-scope {
+/* White pages (every page but Home and Discover — isLightRoute in src/lib/statusBar.ts) use the app's
+   normal colour names (background, card, muted…): on a white page those names mean white and near-black
+   instead of SOOZ's dark colours. `html.light-page` covers the whole screen, pop-ups included (they are
+   drawn outside the page); `.light-scope` keeps the page itself white while a black full-screen screen
+   (video, camera, call) is over it and the rest has gone dark. */
+.light-scope, html.light-page {
   --background: 0 0% 100%;
   --foreground: 224 30% 9%;
   --card: 0 0% 100%;
@@ -588,20 +591,37 @@ body.light-page .app-topbar { background: rgba(255, 255, 255, 0.86); border-colo
   --border: 220 13% 90%;
   --input: 220 13% 88%;
   --primary-foreground: 222 47% 8%;
+  --glass: 0 0% 100%;
+  --glass-border: 220 13% 90%;
+  --shadow-premium: 0 24px 64px -16px rgba(15, 23, 42, 0.18);
+  --shadow-glass: 0 8px 32px 0 rgba(15, 23, 42, 0.10);
   color: hsl(var(--foreground));
   color-scheme: light;
 }
-/* Pop-up sheets opened from the light Messages list are light too (same components, colours swapped). */
-.sheet-light { background: #fff !important; color: #171717 !important; border-color: rgba(0, 0, 0, 0.06) !important; }
-.sheet-light .text-white { color: #171717 !important; }
-.sheet-light .text-white\/40, .sheet-light .text-white\/45, .sheet-light .placeholder\:text-white\/40::placeholder { color: rgba(23, 23, 23, 0.45) !important; }
-.sheet-light .text-white\/50, .sheet-light .text-white\/55, .sheet-light .text-white\/60 { color: rgba(23, 23, 23, 0.55) !important; }
-.sheet-light .text-white\/70, .sheet-light .text-white\/80 { color: rgba(23, 23, 23, 0.75) !important; }
-.sheet-light .text-red-400 { color: #dc2626 !important; }
-.sheet-light .bg-white\/\[0\.08\] { background-color: rgba(0, 0, 0, 0.05) !important; }
-.sheet-light .border-white\/30 { border-color: rgba(0, 0, 0, 0.25) !important; }
-.sheet-light .border-white\/\[0\.05\] { border-color: rgba(0, 0, 0, 0.06) !important; }
-.sheet-light .active\:bg-white\/10:active, .sheet-light .active\:bg-white\/5:active, .sheet-light .active\:bg-white\/\[0\.06\]:active { background-color: rgba(0, 0, 0, 0.05) !important; }
+/* (App sets "dark" on <html> itself; white pages get light keyboards, pickers and form controls.) */
+html.light-page { color-scheme: light !important; }
+/* Pop-up sheets written in dark colours turn light with the same components, colours swapped:
+   `.sheet-light` always (the Messages sheets), `.sheet-auto` whenever the page is white (share, report,
+   options, feedback, the notifications ask, "update ready") — on Home, Discover and over videos they
+   stay dark. */
+:is(.sheet-light, html.light-page .sheet-auto) { background: #fff !important; color: #171717 !important; border-color: rgba(0, 0, 0, 0.06) !important; }
+:is(.sheet-light, html.light-page .sheet-auto) .text-white { color: #171717 !important; }
+:is(.sheet-light, html.light-page .sheet-auto) :is(.text-white\/40, .text-white\/45), :is(.sheet-light, html.light-page .sheet-auto) .placeholder\:text-white\/40::placeholder { color: rgba(23, 23, 23, 0.45) !important; }
+:is(.sheet-light, html.light-page .sheet-auto) :is(.text-white\/50, .text-white\/55, .text-white\/60) { color: rgba(23, 23, 23, 0.55) !important; }
+:is(.sheet-light, html.light-page .sheet-auto) :is(.text-white\/70, .text-white\/75, .text-white\/80) { color: rgba(23, 23, 23, 0.75) !important; }
+:is(.sheet-light, html.light-page .sheet-auto) .text-red-400 { color: #dc2626 !important; }
+:is(.sheet-light, html.light-page .sheet-auto) .text-amber-400 { color: #d97706 !important; }
+:is(.sheet-light, html.light-page .sheet-auto) .text-emerald-300 { color: #059669 !important; }
+:is(.sheet-light, html.light-page .sheet-auto) .text-rose-300 { color: #e11d48 !important; }
+/* faint white panels / lines become faint grey ones (not the "while pressed" ones, handled below) */
+:is(.sheet-light, html.light-page .sheet-auto) :is([class^="bg-white/[0."], [class*=" bg-white/[0."]) { background-color: rgba(0, 0, 0, 0.05) !important; }
+:is(.sheet-light, html.light-page .sheet-auto) :is([class^="border-white/"], [class*=" border-white/"]) { border-color: rgba(0, 0, 0, 0.08) !important; }
+:is(.sheet-light, html.light-page .sheet-auto) .border-white\/30 { border-color: rgba(0, 0, 0, 0.25) !important; }
+:is(.sheet-light, html.light-page .sheet-auto) [class*=" border-[#12"] { border-color: #fff !important; }
+:is(.sheet-light, html.light-page .sheet-auto) :is(.active\:bg-white\/15, .active\:bg-white\/10, .active\:bg-white\/5, .active\:bg-white\/\[0\.06\]):active { background-color: rgba(0, 0, 0, 0.05) !important; }
+/* white stays white on a coloured badge or initials circle */
+:is(.sheet-light, html.light-page .sheet-auto) :is(.bg-gradient-to-br.text-white, .bg-emerald-500 .text-white, .bg-emerald-500.text-white, .bg-red-500.text-white, .bg-amber-500.text-white, .bg-neutral-900.text-white) { color: #fff !important; }
+html.light-page .sheet-auto.update-card { box-shadow: 0 16px 48px -14px rgba(15, 23, 42, 0.35); border-color: rgba(217, 119, 6, 0.3) !important; }
 .chat-header { padding-top: env(safe-area-inset-top, 0px); min-height: calc(58px + env(safe-area-inset-top, 0px)); }
 .chat-composer { padding-bottom: max(env(safe-area-inset-bottom, 0px), 10px); }
 .feed-sound-toggle { top: calc(env(safe-area-inset-top, 0px) + 62px); }

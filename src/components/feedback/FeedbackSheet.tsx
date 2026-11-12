@@ -30,7 +30,7 @@ export const FeedbackSheet = ({ open, onOpenChange }: { open: boolean; onOpenCha
 
   return (
     <Drawer open={open} onOpenChange={onOpenChange} repositionInputs={false}>
-      <DrawerContent className="border-white/10 bg-[#121318] pb-[calc(env(safe-area-inset-bottom,0px)+16px)] text-white">
+      <DrawerContent className="sheet-auto border-white/10 bg-[#121318] pb-[calc(env(safe-area-inset-bottom,0px)+16px)] text-white">
         <div className="mx-auto w-full max-w-md px-5 pt-3">
           <DrawerTitle className="text-center font-display text-[20px] font-bold">How's SOOZ for you?</DrawerTitle>
           <DrawerDescription className="mt-1 text-center text-[13.5px] text-white/60">Your feedback goes straight to the SOOZ team.</DrawerDescription>
