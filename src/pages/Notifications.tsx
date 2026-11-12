@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
-import { Bell, Check, Loader2 } from "lucide-react";
+import { ArrowLeft, Bell, Check, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { formatDistanceToNow } from "date-fns";
 import { useNavigate } from "react-router-dom";
+import { useGoBack } from "@/hooks/useGoBack";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -106,10 +107,15 @@ export default function Notifications() {
         }
     };
 
+    const goBack = useGoBack("/chat");
+
     return (
         <div className="pb-20">
             <div className="p-4 border-b border-border/60 bg-background/50 backdrop-blur-xl flex items-center justify-between">
-                <h1 className="text-xl font-bold">Notifications</h1>
+                <div className="flex items-center gap-1">
+                    <button type="button" aria-label="Back" onClick={goBack} className="-ml-2 flex h-10 w-10 items-center justify-center rounded-full active:bg-secondary"><ArrowLeft className="h-6 w-6" /></button>
+                    <h1 className="text-xl font-bold">Notifications</h1>
+                </div>
                 <Button variant="ghost" size="sm" onClick={handleMarkAllRead}>
                     <Check className="w-4 h-4 mr-1" /> Mark all read
                 </Button>

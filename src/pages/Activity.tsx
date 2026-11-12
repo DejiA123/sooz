@@ -2,10 +2,11 @@ import { useEffect, useRef, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Heart, UserPlus, Play } from "lucide-react";
+import { ArrowLeft, Heart, UserPlus, Play } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
+import { useGoBack } from "@/hooks/useGoBack";
 import { LazyImage } from "@/components/feed/LazyImage";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
@@ -73,9 +74,13 @@ export default function Activity() {
     return Object.entries(groups).filter(([_, items]) => items.length > 0);
   }, [activities]);
 
+  // Back to where they came from (usually the Messages inbox), or the inbox if opened directly.
+  const goBack = useGoBack("/chat");
+
   return (
     <div className="min-h-screen bg-background pb-32">
-      <header className="px-5 pt-2 pb-4">
+      <header className="flex items-center gap-1 px-2 pb-3 pt-1">
+        <button type="button" aria-label="Back" onClick={goBack} className="flex h-10 w-10 items-center justify-center rounded-full text-foreground active:bg-secondary"><ArrowLeft className="h-6 w-6" /></button>
         <h1 className="text-2xl font-display font-bold tracking-tight text-foreground">Activity</h1>
       </header>
 
