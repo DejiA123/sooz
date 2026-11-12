@@ -9,8 +9,11 @@ import { setThemeColor, STATUS_BAR } from "./theme";
  * Earlier work noted that changing it could make the installed iPhone app lay out one status-bar
  * height too short (the bottom bar floats up until the next page change). If that shows up, set
  * WHITE_STATUS_BAR to false: the pages stay white and the status bar stays black everywhere.
+ *
+ * Off (owner's choice, Nov 2026): the installed iPhone app ignored the change anyway — its strip stayed
+ * black on the white pages — so the strip is black everywhere and theme-color never changes.
  */
-export const WHITE_STATUS_BAR = true;
+export const WHITE_STATUS_BAR = false;
 export const WHITE = "#ffffff";
 
 let lightPages = 0;
