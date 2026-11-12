@@ -15,8 +15,10 @@ import { VideoPlayerModal } from "@/components/videoArchive/VideoPlayerModal";
 import { MobileDownloadModal } from "@/components/videoArchive/MobileDownloadModal";
 import { RefreshCw, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
+import { useIsAdmin } from "@/lib/admin";
 
 export default function VideoArchive() {
+    const { isAdmin } = useIsAdmin();
     const [videos, setVideos] = useState<VideoItem[]>([]);
     const [featuredVideos, setFeaturedVideos] = useState<VideoItem[]>([]);
     const [loading, setLoading] = useState(true);
@@ -145,7 +147,7 @@ export default function VideoArchive() {
                             you at the points of your need and beyond. 🔥
                         </p>
 
-                        <button
+                        {isAdmin && <button
                             onClick={handleSync}
                             disabled={isSyncing}
                             className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all duration-300 ${isSyncing
@@ -155,7 +157,7 @@ export default function VideoArchive() {
                         >
                             <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? "animate-spin" : ""}`} />
                             {isSyncing ? "Syncing..." : "Refresh Archive"}
-                        </button>
+                        </button>}
                     </div>
                 </div>
             </div>

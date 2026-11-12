@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { AnalyticsBridge, type ServiceReport } from "@/services/AnalyticsBridge";
 import { toast } from "sonner";
+import { useIsAdmin } from "@/lib/admin";
 import {
     BarChart,
     Bar,
@@ -29,21 +30,8 @@ import {
 export default function AnalyticsDashboard() {
     const [reports, setReports] = useState<ServiceReport[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [isAuthenticated, setIsAuthenticated] = useState(false);
-    const [password, setPassword] = useState("");
-    const [passwordError, setPasswordError] = useState(false);
-
-    const handlePasswordSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        if (password === "0902") {
-            setIsAuthenticated(true);
-            setPasswordError(false);
-            loadData();
-        } else {
-            setPasswordError(true);
-            toast.error("Incorrect Admin Password");
-        }
-    };
+    // Admins only, by account (src/lib/admin.ts) — a password in the app's code is readable by anyone.
+    const { isAdmin: isAuthenticated } = useIsAdmin();
 
     const loadData = async () => {
         setIsLoading(true);
@@ -67,30 +55,15 @@ export default function AnalyticsDashboard() {
     if (!isAuthenticated) {
         return (
             <div className="min-h-[80vh] flex items-center justify-center px-4">
-                <Card className="w-full max-w-md p-8 border-white/10 bg-white/5 backdrop-blur-xl shadow-2xl">
+                <Card className="w-full max-w-md p-8 border-border bg-card shadow-2xl">
                     <div className="text-center mb-8">
                         <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-primary/20">
                             <BarChart3 className="w-8 h-8 text-primary" />
                         </div>
                         <h2 className="text-2xl font-bold">Admin Access Required</h2>
-                        <p className="text-sm text-muted-foreground mt-2">Enter the authorization code to view app analytics</p>
+                        <p className="text-sm text-muted-foreground mt-2">Sign in with a SOOZ admin account to view app analytics.</p>
                     </div>
 
-                    <form onSubmit={handlePasswordSubmit} className="space-y-4">
-                        <div className="space-y-2">
-                            <input
-                                type="password"
-                                placeholder="Enter Admin Password"
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                className={`w-full bg-white/5 border ${passwordError ? 'border-destructive' : 'border-white/10'} rounded-xl px-4 py-3 text-center text-2xl tracking-[0.5em] focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all`}
-                                autoFocus
-                            />
-                        </div>
-                        <Button type="submit" className="w-full h-12 text-lg font-semibold rounded-xl">
-                            Unlock Dashboard
-                        </Button>
-                    </form>
                 </Card>
             </div>
         );

@@ -229,9 +229,27 @@ async function uploadToR2(
 
 // ── Main Handler ────────────────────────────────────────────
 
+/** Only the scheduled job (service key) or a SOOZ moderator may run this — it spends the YouTube
+ *  quota and storage. Everyone else gets 403. */
+async function mayRun(req: Request): Promise<boolean> {
+    const token = (req.headers.get("Authorization") ?? "").replace(/^Bearer\s+/i, "");
+    if (!token) return false;
+    if (token === Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")) return true;
+    const r = await fetch(`${Deno.env.get("SUPABASE_URL")}/rest/v1/rpc/is_moderator`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, apikey: Deno.env.get("SUPABASE_ANON_KEY") ?? "", "Content-Type": "application/json" },
+        body: "{}",
+    });
+    return r.ok && (await r.json().catch(() => false)) === true;
+}
+
 serve(async (req) => {
     if (req.method === "OPTIONS") {
         return new Response(null, { status: 204, headers: corsHeaders });
+    }
+
+    if (!(await mayRun(req))) {
+        return new Response(JSON.stringify({ error: "Not allowed" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     try {

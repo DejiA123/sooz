@@ -6,6 +6,26 @@ const corsHeaders = {
     'Access-Control-Max-Age': '86400',
 }
 
+/** The signed-in member making the request (checked with Supabase Auth), or null. */
+async function signedInUser(req: Request): Promise<string | null> {
+    const token = (req.headers.get('Authorization') ?? '').replace(/^Bearer\s+/i, '')
+    if (!token) return null
+    const r = await fetch(`${Deno.env.get('SUPABASE_URL')}/auth/v1/user`, {
+        headers: { Authorization: `Bearer ${token}`, apikey: Deno.env.get('SUPABASE_ANON_KEY') ?? '' },
+    })
+    if (!r.ok) return null
+    const user = await r.json().catch(() => null)
+    return typeof user?.id === 'string' ? user.id : null
+}
+
+/** Only photos, videos and sound can be uploaded — never web pages or scripts (they'd run on the
+ *  public media address). The file name's ending comes from the type, not from what the caller says. */
+const ALLOWED: Record<string, string> = {
+    'image/jpeg': 'jpg', 'image/jpg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/gif': 'gif', 'image/heic': 'heic', 'image/heif': 'heif', 'image/avif': 'avif',
+    'video/mp4': 'mp4', 'video/quicktime': 'mov', 'video/webm': 'webm', 'video/x-m4v': 'm4v', 'video/3gpp': '3gp',
+    'audio/mpeg': 'mp3', 'audio/mp4': 'm4a', 'audio/x-m4a': 'm4a', 'audio/aac': 'aac', 'audio/webm': 'weba', 'audio/ogg': 'ogg', 'audio/wav': 'wav',
+}
+
 function toHex(buffer: ArrayBuffer): string {
     return Array.from(new Uint8Array(buffer))
         .map(b => b.toString(16).padStart(2, '0'))
@@ -110,13 +130,21 @@ Deno.serve(async (req: Request) => {
             throw new Error('Missing R2 configuration in Supabase Secrets')
         }
 
-        const { fileName, fileType } = await req.json()
-        if (!fileName || !fileType) {
-            throw new Error('Missing fileName or fileType')
+        const me = await signedInUser(req)
+        if (!me) {
+            return new Response(JSON.stringify({ error: 'Sign in to upload' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
         }
 
-        const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`
-        const ext = fileName.split('.').pop()
+        const { fileName, fileType } = await req.json()
+        if (!fileName || typeof fileType !== 'string') {
+            throw new Error('Missing fileName or fileType')
+        }
+        const ext = ALLOWED[fileType.split(';')[0].trim().toLowerCase()]
+        if (!ext) {
+            return new Response(JSON.stringify({ error: 'Only photos, videos and sound can be uploaded' }), { status: 415, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+        }
+
+        const uniqueSuffix = `${Date.now()}-${crypto.randomUUID()}`
         const key = `uploads/${uniqueSuffix}.${ext}`
 
         const signedUrl = await getSignedUploadUrl(

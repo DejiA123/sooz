@@ -26,3 +26,7 @@ dist-ssr
 
 temp_*
 public/ffmpeg/
+
+# Never commit login cookies or keys (the repo is public)
+cookies.txt
+*.cookies

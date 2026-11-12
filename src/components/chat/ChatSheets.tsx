@@ -5,7 +5,7 @@ import { Drawer, DrawerContent, DrawerTitle } from "@/components/ui/drawer";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
-import { bubbleTime } from "@/lib/chat";
+import { bubbleTime, safeUrl } from "@/lib/chat";
 import { fetchChatList, isChatVisible, messageSummary, searchPeople, type Attachment, type ChatMember, type ChatMessage, type ChatSummary, type PersonResult } from "@/services/api/chat";
 import { useDarkCover } from "@/lib/statusBar";
 
@@ -215,7 +215,7 @@ export const MediaViewer = ({ msg, senderName, onClose, onForward }: { msg: Chat
           <p className="text-[12px] text-white/55">{new Date(msg.createdAt).toLocaleString([], { dateStyle: "medium", timeStyle: "short" })}</p>
         </div>
         <button type="button" aria-label="Forward" onClick={onForward} className="flex h-10 w-10 items-center justify-center rounded-full active:bg-white/10"><Send className="h-5 w-5" /></button>
-        <a href={a.url} download target="_blank" rel="noopener noreferrer" aria-label="Save" className="flex h-10 w-10 items-center justify-center rounded-full active:bg-white/10"><Download className="h-5 w-5" /></a>
+        <a href={safeUrl(a.url)} download target="_blank" rel="noopener noreferrer" aria-label="Save" className="flex h-10 w-10 items-center justify-center rounded-full active:bg-white/10"><Download className="h-5 w-5" /></a>
       </div>
       <div className="flex min-h-0 flex-1 items-center justify-center" onClick={onClose}>
         {a.type === "image"

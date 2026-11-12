@@ -1,8 +1,8 @@
 // Use Cloudflare API (not S3 API) to set CORS on R2 bucket
 const ACCOUNT_ID = "fd8da334e22fd77aac270568eec810bc";
 const BUCKET_NAME = "media";
-// User API Token (the one that starts with nOIyYD3...) - this is the Cloudflare API token
-const API_TOKEN = "nOIyYD3aNzzQ4KlLABNsLjlDEErEGNrZCc5bO59U";
+// Cloudflare API token from the environment — never write it in this public repo.
+const API_TOKEN = process.env.CLOUDFLARE_API_TOKEN;
 
 const corsPolicy = [
     {

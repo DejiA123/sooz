@@ -6,6 +6,11 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+/** Names, captions and addresses are written by members: escape them before they go into the page. */
+const esc = (v: unknown) => String(v ?? '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+/** Only web addresses for pictures / videos. */
+const webUrl = (u: string) => (/^https?:\/\//i.test(u) ? u : '');
+
 Deno.serve(async (req) => {
   // Handle CORS
   if (req.method === 'OPTIONS') {
@@ -15,7 +20,8 @@ Deno.serve(async (req) => {
   const { searchParams } = new URL(req.url)
   const id = searchParams.get('id')
 
-  if (!id) {
+  // Only a real post id (it goes into the page and its addresses).
+  if (!id || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
     return new Response('Missing id', { status: 400, headers: corsHeaders })
   }
 
@@ -103,10 +109,10 @@ Deno.serve(async (req) => {
     let videoMetaTags = '';
     if (isVideoPost && post?.media_url) {
       videoMetaTags = `
-        <meta property="og:video" content="${post.media_url}" />
-        <meta property="og:video:secure_url" content="${post.media_url}" />
+        <meta property="og:video" content="${esc(webUrl(post.media_url))}" />
+        <meta property="og:video:secure_url" content="${esc(webUrl(post.media_url))}" />
         <meta property="og:video:type" content="video/mp4" />
-        <meta name="twitter:player" content="${post.media_url}" />
+        <meta name="twitter:player" content="${esc(webUrl(post.media_url))}" />
         <meta name="twitter:player:width" content="1280" />
         <meta name="twitter:player:height" content="720" />`;
     }
@@ -118,21 +124,21 @@ Deno.serve(async (req) => {
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 
 <!-- Standard Meta Tags -->
-<title>${title}</title>
-<meta name="description" content="${description.replace(/"/g, '&quot;')}" />
+<title>${esc(title)}</title>
+<meta name="description" content="${esc(description)}" />
 
 <!-- Schema.org for Google+ / WhatsApp -->
-<meta itemprop="name" content="${title.replace(/"/g, '&quot;')}" />
-<meta itemprop="description" content="${description.replace(/"/g, '&quot;')}" />
-<meta itemprop="image" content="${image}" />
+<meta itemprop="name" content="${esc(title)}" />
+<meta itemprop="description" content="${esc(description)}" />
+<meta itemprop="image" content="${esc(image)}" />
 
 <!-- Open Graph / Facebook / WhatsApp -->
 <meta property="og:type" content="${ogType}" />
-${staticMode ? '' : `<meta property="og:url" content="${shareUrl}" />`}
-<meta property="og:title" content="${title.replace(/"/g, '&quot;')}" />
-<meta property="og:description" content="${description.replace(/"/g, '&quot;')}" />
-<meta property="og:image" content="${image}" />
-<meta property="og:image:secure_url" content="${image}" />
+${staticMode ? '' : `<meta property="og:url" content="${esc(shareUrl)}" />`}
+<meta property="og:title" content="${esc(title)}" />
+<meta property="og:description" content="${esc(description)}" />
+<meta property="og:image" content="${esc(image)}" />
+<meta property="og:image:secure_url" content="${esc(image)}" />
 <meta property="og:image:type" content="${imageType}" />
 <meta property="og:image:alt" content="SOOZ Post Preview" />
 <meta property="og:site_name" content="SOOZ" />
@@ -141,18 +147,18 @@ ${videoMetaTags}
 
 <!-- Twitter -->
 <meta name="twitter:card" content="summary_large_image" />
-<meta name="twitter:title" content="${title.replace(/"/g, '&quot;')}" />
-<meta name="twitter:description" content="${description.replace(/"/g, '&quot;')}" />
-<meta name="twitter:image" content="${image}" />
+<meta name="twitter:title" content="${esc(title)}" />
+<meta name="twitter:description" content="${esc(description)}" />
+<meta name="twitter:image" content="${esc(image)}" />
 
 </head>
 <body style="background: #030303; color: white; display: flex; align-items: center; justify-content: center; height: 100vh; font-family: sans-serif;">
   <div style="text-align: center;">
     <h1>SOOZ</h1>
     <p>Opening post...</p>
-    <a href="${redirectUrl}" style="color:#9ab">Tap here if nothing happens</a>
-    <script>location.replace(${JSON.stringify(redirectUrl)})</script>
-    <img src="${image}" alt="Preview" style="max-width: 300px; border-radius: 12px; margin-top: 20px;" />
+    <a href="${esc(redirectUrl)}" style="color:#9ab">Tap here if nothing happens</a>
+    <script>location.replace(${JSON.stringify(redirectUrl).replace(/</g, '\\u003c')})</script>
+    <img src="${esc(image)}" alt="Preview" style="max-width: 300px; border-radius: 12px; margin-top: 20px;" />
   </div>
 </body>
 </html>`;
