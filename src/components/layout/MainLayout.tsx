@@ -88,7 +88,8 @@ export const MainLayout = () => {
                     : "min-h-screen bg-background pb-[var(--bottom-nav-height)] pt-[calc(3.2rem+env(safe-area-inset-top,0px))] md:pt-0 md:pb-16"
             )}
         >
-            <div className={cn("md:hidden", isFeed && "hidden")}>
+            {/* Messages has its own header (like TikTok's inbox), so the app bar steps aside there. */}
+            <div className={cn("md:hidden", (isFeed || pathname.startsWith("/chat")) && "hidden")}>
                 <TopBar />
             </div>
 

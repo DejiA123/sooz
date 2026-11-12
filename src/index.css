@@ -539,7 +539,29 @@ input, textarea { -webkit-user-select: text; user-select: text; }
 .call-controls { padding-bottom: max(calc(env(safe-area-inset-bottom, 0px) + 12px), 24px); }
 .call-pip { top: calc(env(safe-area-inset-top, 0px) + 70px); }
 /* Messages: the list sits between the top bar and the tab bar; an open conversation is full screen. */
-.chat-page { top: calc(3.75rem + env(safe-area-inset-top, 0px)); bottom: var(--bottom-nav-height); }
+.chat-page { top: env(safe-area-inset-top, 0px); bottom: 0; }
+/* Messages list (light, like TikTok's inbox): a white page with softly rounded top corners under the
+   dark status bar, running under the floating bottom bar (which turns light here). */
+@media (display-mode: standalone) { .chat-list-panel { border-radius: 18px 18px 0 0; } }
+.messages-scroll { padding-bottom: calc(var(--bottom-nav-height) + 8px); }
+body.messages-light-page .mobile-bottom-nav .glass-tabbar {
+  --tabbar-fg: 0 0% 9%;
+  background: rgba(255, 255, 255, 0.86);
+  border-color: rgba(0, 0, 0, 0.08);
+  box-shadow: 0 12px 34px -14px rgba(0, 0, 0, 0.28), 0 3px 10px -4px rgba(0, 0, 0, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+body.messages-light-page .mobile-bottom-nav .glass-tabbar__lens { background: rgba(0, 0, 0, 0.07); box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.03); }
+/* Pop-up sheets opened from the light Messages list are light too (same components, colours swapped). */
+.sheet-light { background: #fff !important; color: #171717 !important; border-color: rgba(0, 0, 0, 0.06) !important; }
+.sheet-light .text-white { color: #171717 !important; }
+.sheet-light .text-white\/40, .sheet-light .text-white\/45, .sheet-light .placeholder\:text-white\/40::placeholder { color: rgba(23, 23, 23, 0.45) !important; }
+.sheet-light .text-white\/50, .sheet-light .text-white\/55, .sheet-light .text-white\/60 { color: rgba(23, 23, 23, 0.55) !important; }
+.sheet-light .text-white\/70, .sheet-light .text-white\/80 { color: rgba(23, 23, 23, 0.75) !important; }
+.sheet-light .text-red-400 { color: #dc2626 !important; }
+.sheet-light .bg-white\/\[0\.08\] { background-color: rgba(0, 0, 0, 0.05) !important; }
+.sheet-light .border-white\/30 { border-color: rgba(0, 0, 0, 0.25) !important; }
+.sheet-light .border-white\/\[0\.05\] { border-color: rgba(0, 0, 0, 0.06) !important; }
+.sheet-light .active\:bg-white\/10:active, .sheet-light .active\:bg-white\/5:active, .sheet-light .active\:bg-white\/\[0\.06\]:active { background-color: rgba(0, 0, 0, 0.05) !important; }
 .chat-header { padding-top: env(safe-area-inset-top, 0px); min-height: calc(58px + env(safe-area-inset-top, 0px)); }
 .chat-composer { padding-bottom: max(env(safe-area-inset-bottom, 0px), 10px); }
 .feed-sound-toggle { top: calc(env(safe-area-inset-top, 0px) + 62px); }
@@ -581,6 +603,8 @@ body.reels-viewer-open .mobile-bottom-nav .glass-tabbar {
   .creator-swipe-hint { bottom: 22px; }
   .tiktok-stage { top: 0; bottom: 0; }
   .chat-page { top: 0; bottom: 0; }
+  .chat-list-panel { border-radius: 0; }
+  .messages-scroll { padding-bottom: 16px; }
   .chat-header { padding-top: 0; min-height: 64px; }
   .chat-composer { padding-bottom: 16px; }
   .tiktok-player { --clear-top: 0px; --clear-bottom: 160px; }

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Archive, ArchiveRestore, ArrowLeft, Ban, Bell, BellOff, CheckCheck, Heart, HeartOff, LogOut, MailOpen, MessageCircle, MoreHorizontal, MoreVertical, Pin, PinOff, Plus, Search, Star, Trash2, Users, X, XCircle } from "lucide-react";
+import { Archive, ArchiveRestore, ArrowLeft, Ban, Bell, BellOff, CheckCheck, ChevronRight, Heart, HeartOff, LogOut, MailOpen, MessageCircle, MoreHorizontal, Pin, PinOff, Plus, Search, Star, Trash2, UserPlus, Users, X, XCircle } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { usePresence } from "@/hooks/usePresence";
@@ -20,6 +21,7 @@ import { Ticks } from "./MessageBubble";
 import { chatDraft } from "./Composer";
 import { PeoplePicker, Sheet } from "./ChatSheets";
 import { MUTE_OPTIONS } from "./ChatInfoPanel";
+import { fetchInboxSummary, markInboxSeen } from "@/services/api/inbox";
 
 interface ChatListProps {
   selectedId?: string;
@@ -90,20 +92,20 @@ const ChatRow = ({ chat, me, selected, online, typing, isOpen, onOpenSwipe, onSe
   const act = (fn: () => void) => () => { setX(0); onOpenSwipe(null); fn(); };
 
   const preview = (() => {
-    if (typing) return <span className="text-amber-300">{typing}</span>;
-    if (draft && !selected) return <><span className="text-red-400">Draft: </span>{draft}</>;
+    if (typing) return <span className="font-medium text-amber-600">{typing}</span>;
+    if (draft && !selected) return <><span className="text-red-500">Draft: </span>{draft}</>;
     if (!chat.last) return chat.isGroup ? "Group created" : "Say hello 👋";
     const who = chat.isGroup && !chat.last.isDeleted ? (mine ? "You: " : chat.last.senderName ? `${chat.last.senderName.split(" ")[0]}: ` : "") : "";
     return (
       <>
-        {mine && !chat.last.isDeleted && <Ticks state={lastDelivery(chat)} className="mr-1 inline -mt-0.5 text-white/45" />}
+        {mine && !chat.last.isDeleted && <Ticks state={lastDelivery(chat)} className="mr-1 inline -mt-0.5 text-neutral-400" />}
         {who}{chat.last.isDeleted ? <span className="italic">{mine ? "You deleted this message" : "This message was deleted"}</span> : messageSummary(chat.last)}
       </>
     );
   })();
 
   return (
-    <div className="relative overflow-hidden rounded-2xl">
+    <div className="relative overflow-hidden">
       {/* Swipe right: Unread / Pin */}
       {x > 0 && <div className="absolute inset-y-0 left-0 flex" style={{ width: 2 * ACTION_W }}>
         <button type="button" onClick={act(() => (unread ? onMarkRead() : onPatch({ marked_unread: true })))} className="flex w-20 flex-col items-center justify-center gap-1 bg-sky-600 text-[12px] font-semibold text-white">
@@ -133,30 +135,30 @@ const ChatRow = ({ chat, me, selected, online, typing, isOpen, onOpenSwipe, onSe
         onClick={click}
         onContextMenu={(e) => { e.preventDefault(); onMenu(); }}
         style={{ transform: `translateX(${x}px)`, transition: g.current?.dir === "h" ? "none" : "transform 0.22s ease", touchAction: "pan-y" }}
-        className={cn("relative flex w-full select-none items-center gap-3 bg-[#05070b] px-2 py-2.5 text-left active:bg-[#0c0f15]", selected && "bg-[#11141a]")}
+        className={cn("relative flex w-full select-none items-center gap-3 bg-white px-4 py-2.5 text-left active:bg-neutral-100", selected && "bg-neutral-100")}
       >
         <span className="relative shrink-0">
           <Avatar className="h-14 w-14">
             <AvatarImage src={chat.avatar || ""} className="object-cover" />
             <AvatarFallback className="bg-gradient-to-br from-amber-400 to-amber-700 text-[20px] font-bold text-white">{chat.isGroup ? <Users className="h-6 w-6" /> : chat.name[0]?.toUpperCase()}</AvatarFallback>
           </Avatar>
-          {online && <span className="absolute bottom-0.5 right-0.5 h-3.5 w-3.5 rounded-full border-[2.5px] border-[#05070b] bg-emerald-500" />}
+          {online && <span className="absolute bottom-0.5 right-0.5 h-3.5 w-3.5 rounded-full border-[2.5px] border-white bg-emerald-500" />}
         </span>
         <span className="min-w-0 flex-1">
           <span className="flex items-baseline justify-between gap-2">
             <span className="flex min-w-0 items-center gap-1">
-              <span className="truncate text-[16px] font-semibold text-white">{chat.name}</span>
+              <span className="truncate text-[16px] font-semibold text-neutral-900">{chat.name}</span>
               {chat.favourite && <Heart className="h-3.5 w-3.5 shrink-0 fill-rose-500 text-rose-500" />}
             </span>
-            <span className={cn("shrink-0 text-[12.5px]", unread && !isMuted(chat.mutedUntil) ? "font-semibold text-amber-400" : "text-white/40")}>{chat.last ? shortChatTime(chat.last.createdAt) : ""}</span>
+            <span className={cn("shrink-0 text-[12.5px]", unread && !isMuted(chat.mutedUntil) ? "font-semibold text-neutral-900" : "text-neutral-400")}>{chat.last ? shortChatTime(chat.last.createdAt) : ""}</span>
           </span>
           <span className="mt-0.5 flex items-center gap-2">
-            <span className={cn("min-w-0 flex-1 truncate text-[14px]", unread ? "text-white/80" : "text-white/55")}>{preview}</span>
-            {isMuted(chat.mutedUntil) && <BellOff className="h-4 w-4 shrink-0 text-white/35" />}
-            {chat.pinnedAt && <Pin className="h-4 w-4 shrink-0 rotate-45 text-white/35" />}
+            <span className={cn("min-w-0 flex-1 truncate text-[14px]", unread ? "font-medium text-neutral-800" : "text-neutral-500")}>{preview}</span>
+            {isMuted(chat.mutedUntil) && <BellOff className="h-4 w-4 shrink-0 text-neutral-300" />}
+            {chat.pinnedAt && <Pin className="h-4 w-4 shrink-0 rotate-45 text-neutral-300" />}
             {chat.unread > 0 ? (
-              <span className={cn("flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full px-1.5 text-[11.5px] font-bold", isMuted(chat.mutedUntil) ? "bg-white/25 text-white" : "bg-amber-400 text-[#1a1204]")}>{chat.unread > 999 ? "999+" : chat.unread}</span>
-            ) : chat.markedUnread ? <span className="h-3.5 w-3.5 shrink-0 rounded-full bg-amber-400" /> : null}
+              <span className={cn("flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full px-1.5 text-[11.5px] font-bold", isMuted(chat.mutedUntil) ? "bg-neutral-300 text-white" : "bg-red-500 text-white")}>{chat.unread > 999 ? "999+" : chat.unread}</span>
+            ) : chat.markedUnread ? <span className="h-3 w-3 shrink-0 rounded-full bg-red-500" /> : null}
           </span>
         </span>
       </button>
@@ -180,10 +182,21 @@ export const ChatList = ({ selectedId, onSelect }: ChatListProps) => {
   const [newChat, setNewChat] = useState(false);
   const [newGroup, setNewGroup] = useState(false);
   const [starredOpen, setStarredOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => { const t = setTimeout(() => setDebouncedQ(q), 300); return () => clearTimeout(t); }, [q]);
 
   const chatsQ = useQuery({ queryKey: ["chats", me], queryFn: fetchChatList, enabled: !!me, staleTime: 30_000 });
+  // Top of the list, like TikTok's inbox: my photo (new chat) and the people I chat with, then
+  // New followers and Activity.
+  const meQ = useQuery({
+    queryKey: ["nav-profile", me],
+    queryFn: async () => (await supabase.from("profiles").select("avatar_url, username").eq("id", me).maybeSingle()).data,
+    enabled: !!me,
+    staleTime: 1000 * 60 * 10,
+  });
+  const inboxQ = useQuery({ queryKey: ["inbox-summary", me], queryFn: () => fetchInboxSummary(me), enabled: !!me, staleTime: 30_000, refetchInterval: 60_000 });
   const chats = useMemo(() => (chatsQ.data ?? []).filter(isChatVisible), [chatsQ.data]);
 
   // Live: new messages, ticks, settings — refresh the list (and tell senders their messages arrived).
@@ -254,74 +267,146 @@ export const ChatList = ({ selectedId, onSelect }: ChatListProps) => {
   const loading = chatsQ.isLoading || authLoading;
   const chips: [Filter, string][] = [["all", "All"], ["unread", `Unread${chats.some((c) => !c.archived && (c.unread || c.markedUnread)) ? ` ${chats.filter((c) => !c.archived && (c.unread || c.markedUnread)).length}` : ""}`], ["favourites", "Favourites"], ["groups", "Groups"]];
 
+  // People to show along the top: one-to-one chats, online first, then most recent.
+  const people = useMemo(() => sortChats(chats.filter((c) => !c.isGroup && !c.archived && c.otherUserId))
+    .sort((a, b) => Number(onlineUsers.has(b.otherUserId!)) - Number(onlineUsers.has(a.otherUserId!)))
+    .slice(0, 20), [chats, onlineUsers]);
+  const inbox = inboxQ.data;
+  const followersLine = (() => {
+    const f = inbox?.followers;
+    if (!f || !f.people.length) return "When people follow you, you'll see them here";
+    const first = f.people[0].name.split(" ")[0];
+    const others = Math.max(0, (f.newCount || f.people.length) - 1);
+    return others > 0 ? `${first} and ${others} other${others > 1 ? "s" : ""} followed you` : `${first} followed you`;
+  })();
+  const closeSearch = () => { setQ(""); setSearchOpen(false); };
+
   return (
-    <div className="flex h-full flex-col bg-[#05070b] text-white" onClick={() => openSwipe && setOpenSwipe(null)}>
-      <div className="shrink-0 space-y-3 px-4 pb-2 pt-3">
+    <div className="messages-light flex h-full flex-col bg-white text-neutral-900" onClick={() => openSwipe && setOpenSwipe(null)}>
+      <div className="shrink-0 border-b border-neutral-100">
         {archivedView ? (
-          <div className="flex items-center gap-2">
-            <button type="button" aria-label="Back" onClick={() => setArchivedView(false)} className="-ml-2 flex h-10 w-10 items-center justify-center rounded-full active:bg-white/10"><ArrowLeft className="h-6 w-6" /></button>
-            <h1 className="text-[22px] font-bold">Archived</h1>
+          <div className="flex h-14 items-center gap-1 px-2">
+            <button type="button" aria-label="Back" onClick={() => setArchivedView(false)} className="flex h-10 w-10 items-center justify-center rounded-full active:bg-neutral-100"><ArrowLeft className="h-6 w-6" /></button>
+            <h1 className="text-[18px] font-bold">Archived</h1>
+          </div>
+        ) : searchOpen ? (
+          <div className="flex h-14 items-center gap-2 px-3">
+            <div className="relative flex-1">
+              <Search className="pointer-events-none absolute left-3.5 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-neutral-400" />
+              <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search chats and messages" enterKeyHint="search"
+                className="h-10 w-full rounded-full bg-neutral-100 pl-11 pr-9 text-[16px] text-neutral-900 outline-none placeholder:text-neutral-400" />
+              {q && <button type="button" aria-label="Clear search" onClick={() => setQ("")} className="absolute right-1.5 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full text-neutral-400"><X className="h-4 w-4" /></button>}
+            </div>
+            <button type="button" onClick={closeSearch} className="px-1 text-[15px] font-semibold text-neutral-900">Cancel</button>
           </div>
         ) : (
-          <div className="flex items-center justify-between">
-            <h1 className="text-[28px] font-bold leading-none tracking-tight">Messages</h1>
-            <div className="flex items-center gap-1.5">
+          <div className="relative flex h-14 items-center px-2">
+            <Link to="/friends" aria-label="Add friends" className="flex h-10 w-10 items-center justify-center rounded-full active:bg-neutral-100"><UserPlus className="h-[25px] w-[25px]" strokeWidth={1.9} /></Link>
+            <h1 className="pointer-events-none absolute left-1/2 -translate-x-1/2 text-[18px] font-bold tracking-tight">Messages</h1>
+            <div className="ml-auto flex items-center">
+              <button type="button" aria-label="Search" onClick={() => setSearchOpen(true)} className="flex h-10 w-10 items-center justify-center rounded-full active:bg-neutral-100"><Search className="h-[24px] w-[24px]" strokeWidth={2} /></button>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <button type="button" aria-label="More" className="flex h-10 w-10 items-center justify-center rounded-full bg-white/[0.08] active:bg-white/15"><MoreVertical className="h-5 w-5" /></button>
+                  <button type="button" aria-label="More" className="flex h-10 w-10 items-center justify-center rounded-full active:bg-neutral-100"><MoreHorizontal className="h-6 w-6" /></button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-52 rounded-2xl border-white/10 bg-[#14171d] p-1 text-white">
-                  <DropdownMenuItem onClick={() => setNewGroup(true)} className="rounded-xl py-2.5 text-[15px] focus:bg-white/10"><Users className="mr-2 h-4 w-4" /> New group</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setStarredOpen(true)} className="rounded-xl py-2.5 text-[15px] focus:bg-white/10"><Star className="mr-2 h-4 w-4" /> Starred messages</DropdownMenuItem>
-                  <DropdownMenuItem onClick={readAll} className="rounded-xl py-2.5 text-[15px] focus:bg-white/10"><CheckCheck className="mr-2 h-4 w-4" /> Read all</DropdownMenuItem>
+                <DropdownMenuContent align="end" className="w-52 rounded-2xl border-neutral-200 bg-white p-1 text-neutral-900 shadow-xl">
+                  <DropdownMenuItem onClick={() => setNewChat(true)} className="rounded-xl py-2.5 text-[15px] focus:bg-neutral-100 focus:text-neutral-900"><MessageCircle className="mr-2 h-4 w-4" /> New chat</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setNewGroup(true)} className="rounded-xl py-2.5 text-[15px] focus:bg-neutral-100 focus:text-neutral-900"><Users className="mr-2 h-4 w-4" /> New group</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setStarredOpen(true)} className="rounded-xl py-2.5 text-[15px] focus:bg-neutral-100 focus:text-neutral-900"><Star className="mr-2 h-4 w-4" /> Starred messages</DropdownMenuItem>
+                  <DropdownMenuItem onClick={readAll} className="rounded-xl py-2.5 text-[15px] focus:bg-neutral-100 focus:text-neutral-900"><CheckCheck className="mr-2 h-4 w-4" /> Read all</DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-              <button type="button" aria-label="New chat" onClick={() => setNewChat(true)} className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-400 text-[#1a1204] active:scale-95">
-                <Plus className="h-5 w-5" strokeWidth={2.5} />
-              </button>
             </div>
-          </div>
-        )}
-
-        <div className="relative">
-          <Search className="pointer-events-none absolute left-3.5 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-white/40" />
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search"
-            className="h-11 w-full rounded-full bg-white/[0.08] pl-11 pr-10 text-[16px] text-white outline-none placeholder:text-white/40 focus:ring-1 focus:ring-amber-400/40" />
-          {q && <button type="button" aria-label="Clear search" onClick={() => setQ("")} className="absolute right-2 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full text-white/50"><X className="h-4 w-4" /></button>}
-        </div>
-
-        {!archivedView && !needle && (
-          <div className="flex gap-2 overflow-x-auto hide-scrollbar">
-            {chips.map(([key, label]) => (
-              <button key={key} type="button" onClick={() => setFilter(key)}
-                className={cn("h-8 shrink-0 rounded-full px-4 text-[14px] font-semibold transition-colors", filter === key ? "bg-amber-400 text-[#1a1204]" : "bg-white/[0.08] text-white/75 active:bg-white/15")}>
-                {label}
-              </button>
-            ))}
           </div>
         )}
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-2 pb-4">
+      <div className="messages-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain">
+        {!archivedView && !needle && !searchOpen && (
+          <>
+            {/* People */}
+            <div className="flex gap-4 overflow-x-auto px-4 pb-3 pt-3 hide-scrollbar" aria-label="People">
+              <button type="button" onClick={() => setNewChat(true)} className="flex w-[72px] shrink-0 flex-col items-center gap-1.5">
+                <span className="relative">
+                  <Avatar className="h-[68px] w-[68px] ring-1 ring-neutral-200">
+                    <AvatarImage src={meQ.data?.avatar_url || ""} className="object-cover" />
+                    <AvatarFallback className="bg-neutral-100 text-[22px] font-bold text-neutral-500">{(meQ.data?.username || "Y")[0]?.toUpperCase()}</AvatarFallback>
+                  </Avatar>
+                  <span className="absolute -bottom-0.5 -right-0.5 flex h-6 w-6 items-center justify-center rounded-full border-2 border-white bg-amber-400 text-[#1a1204]"><Plus className="h-4 w-4" strokeWidth={3} /></span>
+                </span>
+                <span className="w-full truncate text-center text-[12.5px] font-medium text-neutral-700">New chat</span>
+              </button>
+              {people.map((c) => {
+                const online = onlineUsers.has(c.otherUserId!);
+                return (
+                  <button key={c.id} type="button" onClick={() => onSelect(c.id)} className="flex w-[72px] shrink-0 flex-col items-center gap-1.5">
+                    <span className="relative">
+                      <Avatar className="h-[68px] w-[68px]">
+                        <AvatarImage src={c.avatar || ""} className="object-cover" />
+                        <AvatarFallback className="bg-gradient-to-br from-amber-400 to-amber-700 text-[22px] font-bold text-white">{c.name[0]?.toUpperCase()}</AvatarFallback>
+                      </Avatar>
+                      {online && <span className="absolute bottom-0.5 right-0.5 h-4 w-4 rounded-full border-[3px] border-white bg-emerald-500" />}
+                    </span>
+                    <span className="w-full truncate text-center text-[12.5px] font-medium text-neutral-700">{c.name.split(" ")[0]}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* New followers / Activity */}
+            <button type="button" onClick={() => { markInboxSeen("followers"); queryClient.invalidateQueries({ queryKey: ["inbox-summary", me] }); navigate("/friends"); }}
+              className="flex w-full items-center gap-3 px-4 py-2.5 text-left active:bg-neutral-100">
+              <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-sky-500 text-white"><UserPlus className="h-6 w-6" strokeWidth={2.2} /></span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-[16px] font-semibold">New followers</span>
+                <span className="mt-0.5 block truncate text-[14px] text-neutral-500">{followersLine}</span>
+              </span>
+              {inbox?.followers.newCount ? <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-[11.5px] font-bold text-white">{inbox.followers.newCount > 99 ? "99+" : inbox.followers.newCount}</span> : <ChevronRight className="h-5 w-5 text-neutral-300" />}
+            </button>
+            <button type="button" onClick={() => { markInboxSeen("activity"); queryClient.invalidateQueries({ queryKey: ["inbox-summary", me] }); navigate("/activity"); }}
+              className="flex w-full items-center gap-3 px-4 py-2.5 text-left active:bg-neutral-100">
+              <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-amber-400 text-[#1a1204]"><Bell className="h-6 w-6" strokeWidth={2.2} /></span>
+              <span className="min-w-0 flex-1">
+                <span className="flex items-baseline justify-between gap-2">
+                  <span className="text-[16px] font-semibold">Activity</span>
+                  {inbox?.activity.at && <span className="shrink-0 text-[12.5px] text-neutral-400">{shortChatTime(inbox.activity.at)}</span>}
+                </span>
+                <span className="mt-0.5 block truncate text-[14px] text-neutral-500">{inbox?.activity.text || "Likes, comments and mentions show up here"}</span>
+              </span>
+              {inbox?.activity.newCount ? <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-[11.5px] font-bold text-white">{inbox.activity.newCount > 99 ? "99+" : inbox.activity.newCount}</span> : <ChevronRight className="h-5 w-5 text-neutral-300" />}
+            </button>
+
+            {/* Filters */}
+            <div className="flex gap-2 overflow-x-auto px-4 pb-1 pt-3 hide-scrollbar">
+              {chips.map(([key, label]) => (
+                <button key={key} type="button" onClick={() => setFilter(key)}
+                  className={cn("h-8 shrink-0 rounded-full px-4 text-[14px] font-semibold transition-colors", filter === key ? "bg-neutral-900 text-white" : "bg-neutral-100 text-neutral-600 active:bg-neutral-200")}>
+                  {label}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+
         {!archivedView && !needle && archived.length > 0 && (
-          <button type="button" onClick={() => setArchivedView(true)} className="flex w-full items-center gap-3 rounded-2xl px-2 py-2.5 text-left active:bg-white/[0.05]">
-            <span className="flex h-14 w-14 items-center justify-center"><Archive className="h-6 w-6 text-white/60" /></span>
+          <button type="button" onClick={() => setArchivedView(true)} className="flex w-full items-center gap-3 px-4 py-2.5 text-left active:bg-neutral-100">
+            <span className="flex h-14 w-14 items-center justify-center rounded-full bg-neutral-100"><Archive className="h-6 w-6 text-neutral-500" /></span>
             <span className="flex-1 text-[16px] font-semibold">Archived</span>
-            {archivedUnread > 0 && <span className="pr-2 text-[13px] font-semibold text-amber-400">{archivedUnread}</span>}
+            {archivedUnread > 0 && <span className="text-[13px] font-semibold text-red-500">{archivedUnread}</span>}
           </button>
         )}
-        {archivedView && <p className="px-3 pb-2 text-center text-[13px] text-white/45">Archived chats stay here when new messages arrive.</p>}
+        {archivedView && <p className="px-4 pb-2 pt-3 text-center text-[13px] text-neutral-500">Archived chats stay here when new messages arrive.</p>}
 
         {loading ? (
           [1, 2, 3, 4, 5].map((i) => (
-            <div key={i} className="flex items-center gap-3 px-2 py-2.5">
-              <Skeleton className="h-14 w-14 rounded-full bg-white/[0.06]" />
-              <div className="flex-1 space-y-2"><Skeleton className="h-4 w-1/2 bg-white/[0.06]" /><Skeleton className="h-3 w-3/4 bg-white/[0.06]" /></div>
+            <div key={i} className="flex items-center gap-3 px-4 py-2.5">
+              <Skeleton className="h-14 w-14 rounded-full bg-neutral-100" />
+              <div className="flex-1 space-y-2"><Skeleton className="h-4 w-1/2 bg-neutral-100" /><Skeleton className="h-3 w-3/4 bg-neutral-100" /></div>
             </div>
           ))
         ) : (
           <>
-            {needle && listed.length > 0 && <p className="px-3 pb-1 pt-2 text-[13px] font-semibold text-white/45">Chats</p>}
+            {needle && listed.length > 0 && <p className="px-4 pb-1 pt-3 text-[13px] font-semibold text-neutral-500">Chats</p>}
             {listed.map((chat) => (
               <ChatRow
                 key={chat.id}
@@ -340,19 +425,19 @@ export const ChatList = ({ selectedId, onSelect }: ChatListProps) => {
             ))}
             {needle && (msgHits.data?.length ?? 0) > 0 && (
               <>
-                <p className="px-3 pb-1 pt-4 text-[13px] font-semibold text-white/45">Messages</p>
+                <p className="px-4 pb-1 pt-4 text-[13px] font-semibold text-neutral-500">Messages</p>
                 {msgHits.data!.map((h) => (
-                  <button key={h.id} type="button" onClick={() => onSelect(h.conversationId, h.id)} className="block w-full rounded-2xl px-3 py-2.5 text-left active:bg-white/[0.05]">
-                    <span className="flex justify-between gap-2"><span className="truncate text-[15px] font-semibold">{chatName(h.conversationId)}</span><span className="shrink-0 text-[12.5px] text-white/40">{shortChatTime(h.createdAt)}</span></span>
-                    <span className="mt-0.5 line-clamp-2 block text-[14px] text-white/60">{h.senderId === me ? "You: " : ""}{h.content}</span>
+                  <button key={h.id} type="button" onClick={() => onSelect(h.conversationId, h.id)} className="block w-full px-4 py-2.5 text-left active:bg-neutral-100">
+                    <span className="flex justify-between gap-2"><span className="truncate text-[15px] font-semibold">{chatName(h.conversationId)}</span><span className="shrink-0 text-[12.5px] text-neutral-400">{shortChatTime(h.createdAt)}</span></span>
+                    <span className="mt-0.5 line-clamp-2 block text-[14px] text-neutral-500">{h.senderId === me ? "You: " : ""}{h.content}</span>
                   </button>
                 ))}
               </>
             )}
             {listed.length === 0 && !(needle && msgHits.data?.length) && (
-              <div className="py-20 text-center">
-                <MessageCircle className="mx-auto mb-3 h-10 w-10 text-white/20" />
-                <p className="text-[15px] font-medium text-white/60">
+              <div className="py-16 text-center">
+                <MessageCircle className="mx-auto mb-3 h-10 w-10 text-neutral-200" />
+                <p className="text-[15px] font-medium text-neutral-500">
                   {needle ? "No results" : archivedView ? "No archived chats" : filter === "unread" ? "No unread chats" : filter === "favourites" ? "No favourites yet — long-press a chat to add it" : filter === "groups" ? "No groups yet" : "No messages yet"}
                 </p>
                 {!needle && filter === "all" && !archivedView && (
@@ -365,7 +450,7 @@ export const ChatList = ({ selectedId, onSelect }: ChatListProps) => {
       </div>
 
       {/* Long-press / More */}
-      <Sheet open={!!menuChat} onClose={() => setMenuChat(null)} title={menuChat?.name || ""}>
+      <Sheet light open={!!menuChat} onClose={() => setMenuChat(null)} title={menuChat?.name || ""}>
         {menuChat && (() => {
           const c = menuChat;
           const unread = c.unread > 0 || c.markedUnread;
@@ -393,7 +478,7 @@ export const ChatList = ({ selectedId, onSelect }: ChatListProps) => {
         })()}
       </Sheet>
 
-      <Sheet open={!!muteChat} onClose={() => setMuteChat(null)} title="Mute notifications">
+      <Sheet light open={!!muteChat} onClose={() => setMuteChat(null)} title="Mute notifications">
         <div className="px-2 pb-2">
           <p className="px-3 pb-2 text-[13.5px] text-white/50">Others won't see that you muted this chat. You'll still be told if you're @mentioned.</p>
           {MUTE_OPTIONS.map((o) => (
@@ -402,7 +487,7 @@ export const ChatList = ({ selectedId, onSelect }: ChatListProps) => {
         </div>
       </Sheet>
 
-      <Sheet open={!!confirm} onClose={() => setConfirm(null)} title={confirm?.title || ""}>
+      <Sheet light open={!!confirm} onClose={() => setConfirm(null)} title={confirm?.title || ""}>
         {confirm && (
           <div className="px-4 pb-2">
             {confirm.body && <p className="pb-3 text-center text-[14px] text-white/55">{confirm.body}</p>}
@@ -412,7 +497,7 @@ export const ChatList = ({ selectedId, onSelect }: ChatListProps) => {
         )}
       </Sheet>
 
-      <Sheet open={starredOpen} onClose={() => setStarredOpen(false)} title="Starred messages" tall>
+      <Sheet light open={starredOpen} onClose={() => setStarredOpen(false)} title="Starred messages" tall>
         <div className="min-h-0 flex-1 overflow-y-auto">
           {starred.isLoading && <p className="py-10 text-center text-[14px] text-white/40">Loading…</p>}
           {starred.data?.length === 0 && (
@@ -427,7 +512,7 @@ export const ChatList = ({ selectedId, onSelect }: ChatListProps) => {
         </div>
       </Sheet>
 
-      <PeoplePicker open={newChat} title="New chat" meId={me} onClose={() => setNewChat(false)}
+      <PeoplePicker light open={newChat} title="New chat" meId={me} onClose={() => setNewChat(false)}
         onDone={([p]) => p && openDirectChat(p.id).then((id) => { queryClient.invalidateQueries({ queryKey: ["chats", me] }); onSelect(id); }, () => toast.error("Couldn't start that chat"))} />
 
       {newGroup && <CreateGroupModal onClose={() => setNewGroup(false)} onCreate={() => queryClient.invalidateQueries({ queryKey: ["chats", me] })} />}

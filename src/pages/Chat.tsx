@@ -31,6 +31,12 @@ export default function Chat() {
     else setParams(new URLSearchParams(), { replace: true });
   };
 
+  // The Messages list is light (like TikTok's inbox): the bottom bar turns light with it.
+  useEffect(() => {
+    document.body.classList.toggle("messages-light-page", !selectedChatId);
+    return () => document.body.classList.remove("messages-light-page");
+  }, [selectedChatId]);
+
   // iPhone keyboard: keep the open conversation exactly the visible height, so the typing bar sits
   // right above the keyboard and the header stays at the top.
   useEffect(() => {
@@ -50,7 +56,7 @@ export default function Chat() {
 
   return (
     <div className={cn("chat-page fixed inset-x-0 bottom-0 flex bg-[#05070b] md:left-64 md:top-0", selectedChatId && "z-[60] md:z-auto")}>
-      <div className={cn("h-full w-full shrink-0 border-white/[0.06] md:w-80 md:border-r lg:w-96", selectedChatId ? "hidden md:block" : "block")}>
+      <div className={cn("chat-list-panel h-full w-full shrink-0 overflow-hidden bg-white md:w-80 md:border-r md:border-neutral-200 lg:w-96", selectedChatId ? "hidden md:block" : "block")}>
         <ChatList selectedId={selectedChatId || undefined} onSelect={openChat} />
       </div>
 
