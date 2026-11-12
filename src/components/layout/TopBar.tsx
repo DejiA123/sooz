@@ -40,7 +40,7 @@ export const TopBar = () => {
           restDelta: 0.001
         }}
         className={cn(
-          "fixed top-0 left-0 right-0 z-50 px-4 pt-[calc(0.25rem+env(safe-area-inset-top,0px))] pb-2 md:px-8",
+          "app-topbar fixed top-0 left-0 right-0 z-50 px-4 pt-[calc(0.25rem+env(safe-area-inset-top,0px))] pb-2 md:px-8",
           "bg-background/70 backdrop-blur-2xl border-b border-white/5"
         )}
         style={{ pointerEvents: shouldHide ? "none" : "auto" }}

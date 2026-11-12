@@ -59,54 +59,54 @@ export const MessageMenu = ({ msg, rect, mine, starred, pinned, myReaction, canE
 
   return (
     <div className={cn("fixed inset-0 z-[90]", !armed && "pointer-events-none")} role="dialog" aria-label="Message options">
-      <button type="button" aria-label="Close" className="absolute inset-0 bg-black/60 backdrop-blur-[3px] animate-fade-in" onClick={onClose} />
+      <button type="button" aria-label="Close" className="absolute inset-0 bg-black/30 backdrop-blur-[3px] animate-fade-in" onClick={onClose} />
 
       {stage === "emoji" ? (
         <div className="absolute inset-x-0 bottom-0 flex justify-center pb-[env(safe-area-inset-bottom)]">
-          <Suspense fallback={<div className="h-[380px] w-full max-w-md animate-pulse rounded-t-3xl bg-[#14171d]" />}>
+          <Suspense fallback={<div className="h-[380px] w-full max-w-md animate-pulse rounded-t-3xl bg-white" />}>
             {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-            <EmojiPicker theme={"dark" as any} width="100%" height={380} onEmojiClick={(e) => { onReact(e.emoji); onClose(); }} style={{ maxWidth: 448 }} />
+            <EmojiPicker theme={"light" as any} width="100%" height={380} onEmojiClick={(e) => { onReact(e.emoji); onClose(); }} style={{ maxWidth: 448 }} />
           </Suspense>
         </div>
       ) : (
         <>
           {!msg.isDeleted && stage === "main" && (
-            <div className="absolute flex items-center gap-1 rounded-full bg-[#1f232b] px-2 py-1.5 shadow-2xl animate-scale-in" style={{ top: Math.max(12, reactTop), ...side }}>
+            <div className="absolute flex items-center gap-1 rounded-full bg-white px-2 py-1.5 shadow-2xl animate-scale-in" style={{ top: Math.max(12, reactTop), ...side }}>
               {QUICK_REACTIONS.map((e) => (
                 <button key={e} type="button" onClick={() => { onReact(myReaction === e ? null : e); onClose(); }}
-                  className={cn("flex h-10 w-10 items-center justify-center rounded-full text-[25px] transition-transform active:scale-125", myReaction === e && "bg-white/15")}>
+                  className={cn("flex h-10 w-10 items-center justify-center rounded-full text-[25px] transition-transform active:scale-125", myReaction === e && "bg-neutral-200")}>
                   {e}
                 </button>
               ))}
-              <button type="button" aria-label="More reactions" onClick={() => setStage("emoji")} className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white/80">
+              <button type="button" aria-label="More reactions" onClick={() => setStage("emoji")} className="flex h-9 w-9 items-center justify-center rounded-full bg-neutral-100 text-neutral-600">
                 <Plus className="h-5 w-5" />
               </button>
             </div>
           )}
 
           {/* The message, lifted above the dimmed chat */}
-          <div className={cn("absolute max-w-[80%] overflow-hidden rounded-[18px] px-3 py-2 text-[15px] shadow-2xl", mine ? "bg-gradient-to-b from-amber-400 to-amber-500 text-[#1a1204]" : "bg-[#1c1f26] text-white")}
+          <div className={cn("absolute max-w-[80%] overflow-hidden rounded-[18px] px-3 py-2 text-[15px] shadow-2xl", mine ? "bg-gradient-to-b from-amber-400 to-amber-500 text-[#1a1204]" : "bg-neutral-100 text-neutral-900")}
             style={{ top, ...side, maxHeight: previewH, minWidth: 80 }}>
             <span className="line-clamp-6 whitespace-pre-wrap break-words">{messageSummary(msg) || "Message"}</span>
           </div>
 
-          <div className="absolute w-[230px] overflow-hidden rounded-2xl bg-[#1f232b] py-1.5 text-white shadow-2xl animate-scale-in" style={{ top: menuTop, ...side }}>
+          <div className="absolute w-[230px] overflow-hidden rounded-2xl bg-white py-1.5 text-neutral-900 shadow-2xl animate-scale-in" style={{ top: menuTop, ...side }}>
             {stage === "main" ? (
               shown.map(({ a, label, icon: Icon, danger }) => (
                 <button key={a} type="button" onClick={() => (a === "deleteMe" ? setStage("delete") : (onAction(a), onClose()))}
-                  className={cn("flex h-[46px] w-full items-center justify-between px-4 text-[15.5px] active:bg-white/10", danger && "text-red-400")}>
+                  className={cn("flex h-[46px] w-full items-center justify-between px-4 text-[15.5px] active:bg-neutral-100", danger && "text-red-600")}>
                   {label}
                   <Icon className="h-[19px] w-[19px] opacity-80" />
                 </button>
               ))
             ) : (
               <div className="px-1">
-                <p className="px-3 pb-1 pt-2 text-[13px] text-white/50">Delete message?</p>
+                <p className="px-3 pb-1 pt-2 text-[13px] text-neutral-500">Delete message?</p>
                 {canDeleteForAll && (
-                  <button type="button" onClick={() => { onAction("deleteAll"); onClose(); }} className="flex h-[46px] w-full items-center px-3 text-[15.5px] text-red-400 active:bg-white/10">Delete for everyone</button>
+                  <button type="button" onClick={() => { onAction("deleteAll"); onClose(); }} className="flex h-[46px] w-full items-center px-3 text-[15.5px] text-red-600 active:bg-neutral-100">Delete for everyone</button>
                 )}
-                <button type="button" onClick={() => { onAction("deleteMe"); onClose(); }} className="flex h-[46px] w-full items-center px-3 text-[15.5px] text-red-400 active:bg-white/10">Delete for me</button>
-                <button type="button" onClick={onClose} className="flex h-[46px] w-full items-center px-3 text-[15.5px] active:bg-white/10">Cancel</button>
+                <button type="button" onClick={() => { onAction("deleteMe"); onClose(); }} className="flex h-[46px] w-full items-center px-3 text-[15.5px] text-red-600 active:bg-neutral-100">Delete for me</button>
+                <button type="button" onClick={onClose} className="flex h-[46px] w-full items-center px-3 text-[15.5px] active:bg-neutral-100">Cancel</button>
               </div>
             )}
           </div>

@@ -23,6 +23,7 @@ import type { TikTokVideo } from "@/services/api/tiktok";
 import { useVideoCache } from "@/store/useVideoCache";
 import { Skeleton } from "@/components/ui/skeleton";
 import { motion } from "framer-motion";
+import { useDarkCover, useLightPage } from "@/lib/statusBar";
 
 // Optimized video component for grid view with hover-to-play
 const GridVideo = ({ src, poster, className, priority = false }: { src: string, poster?: string, className?: string, priority?: boolean }) => {
@@ -107,6 +108,9 @@ const Profile = () => {
   const watching = watchParam !== null && /^\d+$/.test(watchParam) ? Number(watchParam) : null;
   const [showEditModal, setShowEditModal] = useState(false);
   const [showAvatarModal, setShowAvatarModal] = useState(false);
+  // Profiles are white, with a white status bar (src/lib/statusBar.ts); the photo viewer is black.
+  useLightPage();
+  useDarkCover(showAvatarModal);
 
   useEffect(() => { window.scrollTo(0, 0); }, []);
 

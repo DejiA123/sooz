@@ -6,6 +6,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Check, Mic, MicOff, Phone, PhoneOff, RefreshCcw, Search, UserPlus, Users, Video, VideoOff, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { fetchChatList, searchPeople } from "@/services/api/chat";
+import { useDarkCover } from "@/lib/statusBar";
 
 /** A video element showing a live stream (always muted: sound plays through <PeerAudio>). */
 const LiveVideo = ({ stream, mirror, className }: { stream: MediaStream; mirror?: boolean; className?: string }) => {
@@ -182,6 +183,7 @@ export const CallOverlay = () => {
   const elapsed = useElapsed(call?.connectedAt);
 
   useEffect(() => { if (callState === "IDLE") { setAudioBlocked(false); setAdding(false); } }, [callState]);
+  useDarkCover(callState !== "IDLE"); // call screens are full-screen black: so is the status bar
 
   if (callState === "IDLE") return null;
 

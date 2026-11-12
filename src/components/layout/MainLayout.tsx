@@ -16,6 +16,8 @@ export const MainLayout = () => {
     const { pathname } = useLocation();
     // The home feed is full-screen video, so it gets its own immersive layout.
     const isFeed = pathname === "/" || pathname === "/index";
+    // Profiles are white (owner's request): the app's colour names mean white there (.light-scope).
+    const isLight = pathname.startsWith("/profile");
 
     useEffect(() => {
         if (!user) return;
@@ -83,6 +85,7 @@ export const MainLayout = () => {
         <>
         <div
             className={cn(
+                isLight && "light-scope",
                 isFeed
                     ? "h-[100dvh] overflow-hidden bg-black"
                     : "min-h-screen bg-background pb-[var(--bottom-nav-height)] pt-[calc(3.2rem+env(safe-area-inset-top,0px))] md:pt-0 md:pb-16"

@@ -5,6 +5,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { formatDuration } from "@/lib/chat";
 import { messageSummary, type ChatMessage } from "@/services/api/chat";
+import { useDarkCover } from "@/lib/statusBar";
 
 const EmojiPicker = lazy(() => import("emoji-picker-react"));
 
@@ -159,9 +160,9 @@ export const Composer = (p: ComposerProps) => {
 
   if (p.disabled) {
     return (
-      <footer className="chat-composer shrink-0 border-t border-white/[0.06] bg-[#05070b] px-4 pt-3 text-center text-[14px] text-white/55">
+      <footer className="chat-composer shrink-0 border-t border-neutral-200/80 bg-white px-4 pt-3 text-center text-[14px] text-neutral-500">
         {p.disabled.text}
-        {p.disabled.action && <button type="button" onClick={p.disabled.action.run} className="ml-1.5 font-semibold text-amber-300">{p.disabled.action.label}</button>}
+        {p.disabled.action && <button type="button" onClick={p.disabled.action.run} className="ml-1.5 font-semibold text-amber-600">{p.disabled.action.label}</button>}
       </footer>
     );
   }
@@ -170,14 +171,14 @@ export const Composer = (p: ComposerProps) => {
   const recording = rec !== "idle";
 
   return (
-    <footer className="chat-composer relative shrink-0 border-t border-white/[0.06] bg-[#05070b] px-2 pt-2">
+    <footer className="chat-composer relative shrink-0 border-t border-neutral-200/80 bg-white px-2 pt-2">
       {/* @mention suggestions */}
       {suggestions.length > 0 && (
-        <div className="absolute inset-x-2 bottom-full mb-1 overflow-hidden rounded-2xl border border-white/10 bg-[#171a21] shadow-2xl">
+        <div className="absolute inset-x-2 bottom-full mb-1 overflow-hidden rounded-2xl border border-neutral-200 bg-white text-neutral-900 shadow-2xl">
           {suggestions.map((m) => (
-            <button key={m.username} type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => pickMention(m.username)} className="flex w-full items-center gap-3 px-3 py-2 text-left active:bg-white/10">
-              <Avatar className="h-8 w-8"><AvatarImage src={m.avatar || ""} className="object-cover" /><AvatarFallback className="bg-white/10 text-[12px]">{m.name[0]?.toUpperCase()}</AvatarFallback></Avatar>
-              <span className="min-w-0"><span className="block truncate text-[14.5px] font-semibold">{m.name}</span><span className="block truncate text-[12.5px] text-white/50">@{m.username}</span></span>
+            <button key={m.username} type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => pickMention(m.username)} className="flex w-full items-center gap-3 px-3 py-2 text-left active:bg-neutral-100">
+              <Avatar className="h-8 w-8"><AvatarImage src={m.avatar || ""} className="object-cover" /><AvatarFallback className="bg-neutral-200 text-[12px]">{m.name[0]?.toUpperCase()}</AvatarFallback></Avatar>
+              <span className="min-w-0"><span className="block truncate text-[14.5px] font-semibold">{m.name}</span><span className="block truncate text-[12.5px] text-neutral-500">@{m.username}</span></span>
             </button>
           ))}
         </div>
@@ -185,38 +186,38 @@ export const Composer = (p: ComposerProps) => {
 
       {/* Replying to / editing */}
       {(p.replyTo || p.editing) && !recording && (
-        <div className="mx-1 mb-2 flex items-center gap-2 overflow-hidden rounded-xl bg-white/[0.06] pr-1">
+        <div className="mx-1 mb-2 flex items-center gap-2 overflow-hidden rounded-xl bg-neutral-100 pr-1">
           <span className="w-1 self-stretch bg-amber-400" />
-          {p.editing ? <Pencil className="h-4 w-4 shrink-0 text-amber-300" /> : <Reply className="h-4 w-4 shrink-0 text-amber-300" />}
+          {p.editing ? <Pencil className="h-4 w-4 shrink-0 text-amber-600" /> : <Reply className="h-4 w-4 shrink-0 text-amber-600" />}
           <span className="min-w-0 flex-1 py-1.5">
-            <span className="block truncate text-[13px] font-semibold text-amber-300">{p.editing ? "Edit message" : p.replyTo!.senderName}</span>
-            <span className="block truncate text-[13px] text-white/60">{messageSummary(p.editing ?? p.replyTo!.msg)}</span>
+            <span className="block truncate text-[13px] font-semibold text-amber-600">{p.editing ? "Edit message" : p.replyTo!.senderName}</span>
+            <span className="block truncate text-[13px] text-neutral-500">{messageSummary(p.editing ?? p.replyTo!.msg)}</span>
           </span>
-          <button type="button" aria-label="Cancel" onClick={() => { if (p.editing) { p.onCancelEdit(); setText(""); } else p.onCancelReply(); }} className="flex h-8 w-8 items-center justify-center rounded-full text-white/60 active:bg-white/10"><X className="h-4 w-4" /></button>
+          <button type="button" aria-label="Cancel" onClick={() => { if (p.editing) { p.onCancelEdit(); setText(""); } else p.onCancelReply(); }} className="flex h-8 w-8 items-center justify-center rounded-full text-neutral-500 active:bg-neutral-100"><X className="h-4 w-4" /></button>
         </div>
       )}
 
       <div className="mx-auto flex max-w-4xl items-end gap-1.5">
         {recording ? (
-          <div className="flex min-h-[46px] flex-1 items-center gap-3 rounded-[23px] bg-white/[0.08] px-3">
+          <div className="flex min-h-[46px] flex-1 items-center gap-3 rounded-[23px] bg-neutral-100 px-3">
             {rec === "locked" ? (
-              <button type="button" aria-label="Delete recording" onClick={() => stopRec(false)} className="flex h-9 w-9 items-center justify-center rounded-full text-red-400 active:bg-white/10"><Trash2 className="h-5 w-5" /></button>
+              <button type="button" aria-label="Delete recording" onClick={() => stopRec(false)} className="flex h-9 w-9 items-center justify-center rounded-full text-red-600 active:bg-neutral-100"><Trash2 className="h-5 w-5" /></button>
             ) : <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-red-500" />}
-            <span className="text-[15px] tabular-nums text-white">{formatDuration(recSecs)}</span>
+            <span className="text-[15px] tabular-nums text-neutral-900">{formatDuration(recSecs)}</span>
             {rec === "holding" ? (
-              <span className="flex flex-1 items-center justify-center gap-1 text-[14px] text-white/50" style={{ transform: `translateX(${slide.x * 0.6}px)`, opacity: 1 + slide.x / 160 }}>
+              <span className="flex flex-1 items-center justify-center gap-1 text-[14px] text-neutral-500" style={{ transform: `translateX(${slide.x * 0.6}px)`, opacity: 1 + slide.x / 160 }}>
                 <ChevronLeft className="h-4 w-4" /> Slide to cancel
               </span>
-            ) : <span className="flex-1 text-[14px] text-white/50">Recording…</span>}
+            ) : <span className="flex-1 text-[14px] text-neutral-500">Recording…</span>}
           </div>
         ) : (
           <>
             <button type="button" aria-label="Attach" onClick={() => { setAttachOpen((v) => !v); setEmojiOpen(false); }}
-              className={cn("mb-[3px] flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white/75 transition-transform active:bg-white/10", attachOpen && "rotate-45 text-amber-300")}>
+              className={cn("mb-[3px] flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-neutral-600 transition-transform active:bg-neutral-100", attachOpen && "rotate-45 text-amber-600")}>
               <Plus className="h-6 w-6" />
             </button>
-            <div className="flex min-h-[46px] flex-1 items-end rounded-[23px] bg-white/[0.08] pl-1">
-              <button type="button" aria-label="Emoji" onClick={() => { setEmojiOpen((v) => !v); setAttachOpen(false); }} className="mb-[3px] flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white/55 active:bg-white/10">
+            <div className="flex min-h-[46px] flex-1 items-end rounded-[23px] bg-neutral-100 pl-1">
+              <button type="button" aria-label="Emoji" onClick={() => { setEmojiOpen((v) => !v); setAttachOpen(false); }} className="mb-[3px] flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-neutral-500 active:bg-neutral-100">
                 <Smile className="h-[22px] w-[22px]" />
               </button>
               <textarea
@@ -232,10 +233,10 @@ export const Composer = (p: ComposerProps) => {
                   if (e.key === "Enter" && !e.shiftKey && !("ontouchstart" in window)) { e.preventDefault(); if (suggestions.length) pickMention(suggestions[0].username); else send(); }
                   if (e.key === "Escape" && p.editing) { p.onCancelEdit(); setText(""); }
                 }}
-                className="max-h-[140px] min-h-[46px] flex-1 resize-none border-0 bg-transparent py-[12px] pr-1 text-[16px] leading-[22px] text-white placeholder:text-white/40 focus:outline-none focus:ring-0"
+                className="max-h-[140px] min-h-[46px] flex-1 resize-none border-0 bg-transparent py-[12px] pr-1 text-[16px] leading-[22px] text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-0"
               />
               {!hasText && (
-                <button type="button" aria-label="Camera" onClick={() => cameraRef.current?.click()} className="mb-[3px] mr-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white/60 active:bg-white/10">
+                <button type="button" aria-label="Camera" onClick={() => cameraRef.current?.click()} className="mb-[3px] mr-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-neutral-500 active:bg-neutral-100">
                   <Camera className="h-[21px] w-[21px]" />
                 </button>
               )}
@@ -254,7 +255,7 @@ export const Composer = (p: ComposerProps) => {
         ) : (
           <div className="relative mb-[1px] shrink-0">
             {rec === "holding" && (
-              <span className="absolute bottom-14 left-1/2 flex -translate-x-1/2 flex-col items-center gap-1 rounded-full bg-[#1f232b] px-2 py-3 text-white/70 shadow-xl" style={{ transform: `translate(-50%, ${slide.y * 0.5}px)` }}>
+              <span className="absolute bottom-14 left-1/2 flex -translate-x-1/2 flex-col items-center gap-1 rounded-full bg-white px-2 py-3 text-neutral-500 shadow-xl ring-1 ring-black/5" style={{ transform: `translate(-50%, ${slide.y * 0.5}px)` }}>
                 <Lock className="h-4 w-4" />
                 <ChevronLeft className="h-4 w-4 rotate-90" />
               </span>
@@ -272,16 +273,16 @@ export const Composer = (p: ComposerProps) => {
       {/* Emoji keyboard */}
       {emojiOpen && (
         <div className="mt-2 overflow-hidden rounded-2xl">
-          <Suspense fallback={<div className="h-[300px] animate-pulse bg-white/5" />}>
+          <Suspense fallback={<div className="h-[300px] animate-pulse bg-neutral-100" />}>
             {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-            <EmojiPicker theme={"dark" as any} width="100%" height={300} previewConfig={{ showPreview: false }} onEmojiClick={(e) => { setText((v) => v + e.emoji); p.onTyping("typing"); }} />
+            <EmojiPicker theme={"light" as any} width="100%" height={300} previewConfig={{ showPreview: false }} onEmojiClick={(e) => { setText((v) => v + e.emoji); p.onTyping("typing"); }} />
           </Suspense>
         </div>
       )}
 
       {/* Attach menu */}
       {attachOpen && (
-        <div className="mt-2 grid grid-cols-3 gap-y-4 rounded-2xl bg-[#14171d] px-2 py-4">
+        <div className="mt-2 grid grid-cols-3 gap-y-4 rounded-2xl bg-neutral-50 px-2 py-4">
           {[
             { label: "Photos & videos", icon: ImageIcon, color: "from-sky-400 to-blue-600", run: () => mediaRef.current?.click() },
             { label: "Camera", icon: Camera, color: "from-rose-400 to-pink-600", run: () => cameraRef.current?.click() },
@@ -292,7 +293,7 @@ export const Composer = (p: ComposerProps) => {
           ].map(({ label, icon: Icon, color, run }) => (
             <button key={label} type="button" onClick={() => { setAttachOpen(false); run(); }} className="flex flex-col items-center gap-1.5">
               <span className={cn("flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br text-white", color)}><Icon className="h-6 w-6" /></span>
-              <span className="text-[12.5px] text-white/75">{label}</span>
+              <span className="text-[12.5px] text-neutral-600">{label}</span>
             </button>
           ))}
         </div>
@@ -312,6 +313,7 @@ const MediaPreview = ({ files, onClose, onSend }: { files: File[]; onClose: () =
   const [i, setI] = useState(0);
   const [caption, setCaption] = useState("");
   const [urls] = useState(() => files.map((f) => URL.createObjectURL(f)));
+  useDarkCover(); // photos to send are shown on black: so is the status bar
   useEffect(() => () => urls.forEach((u) => URL.revokeObjectURL(u)), [urls]);
   const f = files[i];
   return (
