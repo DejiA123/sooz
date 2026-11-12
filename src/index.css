@@ -552,7 +552,7 @@ body.light-page .mobile-bottom-nav .glass-tabbar {
 body.light-page .mobile-bottom-nav .glass-tabbar__lens { background: rgba(0, 0, 0, 0.07); box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.03); }
 /* White pages (Messages, chats, profiles — src/lib/statusBar.ts): white behind everything, so no dark
    edge shows when the page is pulled past its top or bottom, and the app's top bar turns white. */
-body.light-page { background: #fff; }
+html.light-page, body.light-page { background: #fff; }
 body.light-page .app-topbar { background: rgba(255, 255, 255, 0.86); border-color: rgba(0, 0, 0, 0.06); color: #171717; }
 /* Profiles use the app's normal colour names (background, card, muted…): inside .light-scope those names
    mean white and near-black instead of SOOZ's dark colours, so the page turns white as a whole. */

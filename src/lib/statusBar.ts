@@ -20,6 +20,9 @@ function apply() {
   if (typeof document === "undefined") return;
   // A full-screen dark screen on top (videos, camera, call, photo viewer) wins over a white page.
   const light = lightPages > 0 && darkCovers === 0;
+  // The page behind everything turns white too, so the top of the screen is white even where the phone
+  // takes its colour from the page instead of theme-color (newer Safari) or when pulled past the top.
+  document.documentElement.classList.toggle("light-page", light);
   document.body.classList.toggle("light-page", light);
   setThemeColor(light && WHITE_STATUS_BAR ? WHITE : STATUS_BAR);
 }
