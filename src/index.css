@@ -542,7 +542,6 @@ input, textarea { -webkit-user-select: text; user-select: text; }
 .chat-page { top: env(safe-area-inset-top, 0px); bottom: 0; }
 /* Messages list (light, like TikTok's inbox): a white page with softly rounded top corners under the
    dark status bar, running under the floating bottom bar (which turns light here). */
-@media (display-mode: standalone) { .chat-list-panel { border-radius: 18px 18px 0 0; } }
 .messages-scroll { padding-bottom: calc(var(--bottom-nav-height) + 8px); }
 body.messages-light-page .mobile-bottom-nav .glass-tabbar {
   --tabbar-fg: 0 0% 9%;
@@ -564,13 +563,6 @@ body.messages-light-page .mobile-bottom-nav .glass-tabbar__lens { background: rg
 .sheet-light .active\:bg-white\/10:active, .sheet-light .active\:bg-white\/5:active, .sheet-light .active\:bg-white\/\[0\.06\]:active { background-color: rgba(0, 0, 0, 0.05) !important; }
 .chat-header { padding-top: env(safe-area-inset-top, 0px); min-height: calc(58px + env(safe-area-inset-top, 0px)); }
 .chat-composer { padding-bottom: max(env(safe-area-inset-bottom, 0px), 10px); }
-/* The open conversation is light too, but the strip under the iPhone status bar stays dark (its clock is
-   white and theme-color must not change): the dark frame holds that strip and the white chat sits below it,
-   with rounded top corners in the installed app, like the Messages list. */
-.chat-open { background: #05070b; padding-top: env(safe-area-inset-top, 0px); }
-.chat-open .chat-header { padding-top: 0; min-height: 58px; }
-.chat-open .chat-info-header { padding-top: 8px; }
-@media (display-mode: standalone) { .chat-open > .chat-window { border-radius: 18px 18px 0 0; overflow: hidden; } }
 .feed-sound-toggle { top: calc(env(safe-area-inset-top, 0px) + 62px); }
 /* Full-screen viewer opened from a profile grid: Home's player with a back button. The tab bar
    stays on top, as on Home. */
@@ -610,11 +602,8 @@ body.reels-viewer-open .mobile-bottom-nav .glass-tabbar {
   .creator-swipe-hint { bottom: 22px; }
   .tiktok-stage { top: 0; bottom: 0; }
   .chat-page { top: 0; bottom: 0; }
-  .chat-list-panel { border-radius: 0; }
   .messages-scroll { padding-bottom: 16px; }
   .chat-header { padding-top: 0; min-height: 64px; }
-  .chat-open .chat-header { min-height: 64px; }
-  .chat-open > .chat-window { border-radius: 0; }
   .chat-composer { padding-bottom: 16px; }
   .tiktok-player { --clear-top: 0px; --clear-bottom: 160px; }
   .tiktok-player--fill { --w: min(max(100cqw, calc(100cqh * var(--ar))), calc(100cqw + 24px)); }
