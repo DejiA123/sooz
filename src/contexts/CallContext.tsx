@@ -108,7 +108,8 @@ const loadTurn = () => {
     } catch { /* keep STUN only */ }
   })();
 };
-loadTurn();
+// Not needed until a call: fetched a little after the app has opened, so it doesn't slow the first video.
+setTimeout(loadTurn, 6000);
 setInterval(loadTurn, 12 * 60 * 60 * 1000);
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
