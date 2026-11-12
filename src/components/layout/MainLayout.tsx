@@ -89,6 +89,7 @@ export const MainLayout = () => {
         <>
         <div
             className={cn(
+                "app-shell",
                 isLight && "light-scope",
                 isFeed
                     ? "h-[100dvh] overflow-hidden bg-black"
