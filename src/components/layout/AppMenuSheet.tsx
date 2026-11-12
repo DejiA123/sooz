@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { BarChart3, Bookmark, History, Inbox, LogOut, Settings, ShieldCheck, Sparkles, ThumbsUp, UserPlus, Video } from "lucide-react";
+import { ArrowLeft, BarChart3, Bookmark, ChevronRight, FileText, History, Inbox, Info, LifeBuoy, Lock, LogOut, Settings, ShieldCheck, Sparkles, ThumbsUp, UserPlus, Video, type LucideIcon } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { openReportCount } from "@/services/api/safety";
 import { openFeedbackCount } from "@/services/api/feedback";
@@ -8,10 +8,11 @@ import { FeedbackSheet } from "@/components/feedback/FeedbackSheet";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useIsAdmin } from "@/lib/admin";
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { Sheet, SheetClose, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { appVersionLabel } from "@/lib/appUpdate";
 import { forgetPushOnThisPhone } from "@/lib/push";
 
-/** The app's side menu (archive, settings, log out; Christian TikTok for admins only). */
+/** The app's menu (activity, settings, log out; the admin pages for admins only). */
 export const AppMenuSheet = ({ trigger }: { trigger: ReactNode }) => {
   const [open, setOpen] = useState(false);
   const close = () => setOpen(false);
@@ -20,56 +21,79 @@ export const AppMenuSheet = ({ trigger }: { trigger: ReactNode }) => {
   const feedback = useQuery({ queryKey: ["feedback-count"], queryFn: openFeedbackCount, enabled: isAdmin && open, staleTime: 30_000 });
   const [feedbackOpen, setFeedbackOpen] = useState(false);
 
+  type Row = { label: string; icon: LucideIcon; to?: string; run?: () => void; badge?: number };
+  const groups: { title: string; rows: Row[] }[] = [
+    ...(isAdmin ? [{ title: "Admin", rows: [
+      { to: "/tiktok", icon: Sparkles, label: "Christian TikTok" },
+      { to: "/moderation", icon: ShieldCheck, label: "Moderation", badge: reports.data || 0 },
+      { to: "/feedback", icon: Inbox, label: "Feedback", badge: feedback.data || 0 },
+      { to: "/analytics", icon: BarChart3, label: "Analytics" },
+    ] }] : [{ title: "Insights", rows: [{ to: "/analytics", icon: BarChart3, label: "Analytics" }] }]),
+    { title: "Your activity", rows: [
+      { to: "/profile/me?tab=saved", icon: Bookmark, label: "Saved" },
+      { to: "/history", icon: History, label: "Watch history" },
+      { to: "/archive", icon: Video, label: "Video Archive" },
+    ] },
+    { title: "People", rows: [{ to: "/friends", icon: UserPlus, label: "Add friends" }] },
+    { title: "Settings and support", rows: [
+      { to: "/settings", icon: Settings, label: "Settings" },
+      { icon: ThumbsUp, label: "Send feedback", run: () => { close(); setFeedbackOpen(true); } },
+      { to: "/help", icon: LifeBuoy, label: "Help" },
+    ] },
+    // Who owns the videos, and how a creator asks for removal, live on these pages.
+    { title: "About", rows: [
+      { to: "/about", icon: Info, label: "About SOOZ" },
+      { to: "/terms", icon: FileText, label: "Terms" },
+      { to: "/privacy", icon: Lock, label: "Privacy" },
+    ] },
+  ];
+
   return (
     <>
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>{trigger}</SheetTrigger>
-      <SheetContent side="right" className="w-[85%] max-w-sm border-l border-border/10 bg-background/95 p-0 backdrop-blur-2xl">
-        <SheetHeader className="border-b border-border/10 p-8 pt-[calc(2.5rem+env(safe-area-inset-top,0px))]">
-          <SheetTitle className="text-left font-display text-2xl font-bold leading-none">Menu</SheetTitle>
+      {/* A full page that slides in, like the settings page of other social apps: plain rows in grouped
+          cards, one quiet icon colour, an arrow on each row. */}
+      <SheetContent side="right" className="flex w-full max-w-none flex-col gap-0 border-0 bg-background p-0 sm:max-w-md [&>button.absolute]:hidden">
+        <SheetHeader className="relative flex h-[calc(52px+env(safe-area-inset-top,0px))] shrink-0 flex-row items-center justify-center space-y-0 border-b border-foreground/[0.07] px-2 pt-[env(safe-area-inset-top,0px)]">
+          <SheetClose aria-label="Back" className="absolute bottom-1.5 left-1.5 flex h-10 w-10 items-center justify-center rounded-full active:bg-foreground/10">
+            <ArrowLeft className="h-6 w-6" />
+          </SheetClose>
+          <SheetTitle className="text-[17px] font-bold leading-none">Menu</SheetTitle>
           <SheetDescription className="sr-only">Access app settings, analytics, and more.</SheetDescription>
         </SheetHeader>
-        <div className="flex flex-col gap-1 p-6">
-          {[
-            ...(isAdmin ? [
-              { to: "/tiktok", icon: Sparkles, label: "Christian TikTok", color: "text-amber-400" },
-              { to: "/moderation", icon: ShieldCheck, label: "Moderation", color: "text-emerald-400", badge: reports.data || 0 },
-              { to: "/feedback", icon: Inbox, label: "Feedback", color: "text-sky-400", badge: feedback.data || 0 },
-            ] : []),
-            { to: "/friends", icon: UserPlus, label: "Add friends", color: "text-emerald-400" },
-            { to: "/history", icon: History, label: "Watch history", color: "text-amber-400" },
-            { to: "/archive", icon: Video, label: "Video Archive", color: "text-violet-500" },
-            { to: "/settings", icon: Settings, label: "Settings", color: "text-blue-500" },
-            { to: "/analytics", icon: BarChart3, label: "Analytics", color: "text-emerald-500" },
-          ].map((item) => (
-            <Link key={item.to} to={item.to} onClick={close} className="group flex items-center gap-4 rounded-2xl p-4 transition-all hover:bg-secondary/40">
-              <item.icon className={cn("h-5 w-5 transition-transform group-hover:scale-110", item.color)} />
-              <span className="flex-1 text-[15px] font-semibold">{item.label}</span>
-              {"badge" in item && item.badge ? <span className="rounded-full bg-red-500 px-2 py-0.5 text-[12px] font-bold text-white">{item.badge}</span> : null}
-            </Link>
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-[calc(env(safe-area-inset-bottom,0px)+24px)] pt-2">
+          {groups.map((g) => (
+            <section key={g.title} className="mt-4">
+              <h3 className="px-1 pb-2 text-[13px] font-semibold text-muted-foreground">{g.title}</h3>
+              <div className="overflow-hidden rounded-2xl bg-foreground/[0.045]">
+                {g.rows.map((r, i) => {
+                  const inner = (
+                    <>
+                      <r.icon className="h-[22px] w-[22px] shrink-0 opacity-80" strokeWidth={1.8} />
+                      <span className={cn("flex min-h-[52px] min-w-0 flex-1 items-center gap-2 pr-3", i > 0 && "border-t border-foreground/[0.07]")}>
+                        <span className="min-w-0 flex-1 truncate text-[15.5px]">{r.label}</span>
+                        {r.badge ? <span className="rounded-full bg-red-500 px-2 py-0.5 text-[12px] font-bold text-white">{r.badge}</span> : null}
+                        <ChevronRight className="h-[18px] w-[18px] shrink-0 text-muted-foreground/70" />
+                      </span>
+                    </>
+                  );
+                  const cls = "flex w-full items-center gap-3.5 pl-4 text-left active:bg-foreground/[0.06]";
+                  return r.to
+                    ? <Link key={r.label} to={r.to} onClick={close} className={cls}>{inner}</Link>
+                    : <button key={r.label} type="button" onClick={r.run} className={cls}>{inner}</button>;
+                })}
+              </div>
+            </section>
           ))}
-          <Link to="/profile/me?tab=saved" onClick={close} className="group flex items-center gap-4 rounded-2xl p-4 text-left transition-all hover:bg-secondary/40">
-            <Bookmark className="h-5 w-5 text-amber-500 transition-transform group-hover:scale-110" />
-            <span className="text-[15px] font-semibold">Saved</span>
-          </Link>
-          <button onClick={() => { close(); setFeedbackOpen(true); }} className="group flex items-center gap-4 rounded-2xl p-4 text-left transition-all hover:bg-secondary/40">
-            <ThumbsUp className="h-5 w-5 text-sky-400 transition-transform group-hover:scale-110" />
-            <span className="text-[15px] font-semibold">Send feedback</span>
-          </button>
-          <div className="mx-2 my-4 h-px bg-border/20" />
           <button
+            type="button"
             onClick={async () => { close(); await forgetPushOnThisPhone(); await supabase.auth.signOut(); window.location.href = "/auth"; }}
-            className="group flex items-center gap-4 rounded-2xl p-4 text-left text-destructive transition-all hover:bg-destructive/10"
+            className="mt-6 flex h-[52px] w-full items-center gap-3.5 rounded-2xl bg-foreground/[0.045] pl-4 text-left text-[15.5px] font-semibold text-red-500 active:bg-foreground/[0.08]"
           >
-            <LogOut className="h-5 w-5 transition-transform group-hover:scale-110" />
-            <span className="text-[15px] font-bold">Log out</span>
+            <LogOut className="h-[22px] w-[22px]" strokeWidth={1.8} /> Log out
           </button>
-          {/* Who owns the videos, and how a creator asks for removal, live on these pages. */}
-          <nav aria-label="About SOOZ" className="mt-3 flex flex-wrap justify-center gap-x-4 gap-y-1 px-2 text-[12.5px] text-muted-foreground">
-            {[["/about", "About"], ["/terms", "Terms"], ["/privacy", "Privacy"], ["/help", "Help"]].map(([to, label]) => (
-              <Link key={to} to={to} onClick={close} className="py-1 hover:text-foreground">{label}</Link>
-            ))}
-          </nav>
+          <p className="mt-5 text-center text-[12px] text-muted-foreground/80">SOOZ {appVersionLabel()}</p>
         </div>
       </SheetContent>
     </Sheet>
