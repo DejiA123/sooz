@@ -23,12 +23,12 @@ function useVisibleHeight(on: boolean) {
   return h;
 }
 
-export const Sheet = ({ open, onClose, title, children, tall }: { open: boolean; onClose: () => void; title: string; children: ReactNode; tall?: boolean }) => {
+export const Sheet = ({ open, onClose, title, children, tall, light }: { open: boolean; onClose: () => void; title: string; children: ReactNode; tall?: boolean; light?: boolean }) => {
   // Tall sheets shrink to fit above the keyboard instead of being pushed up off the screen.
   const visible = useVisibleHeight(open && !!tall);
   return (
   <Drawer open={open} onOpenChange={(o) => { if (!o) onClose(); }} repositionInputs={!tall}>
-    <DrawerContent overlayClassName="z-[85]" style={tall && visible ? { height: `min(88dvh, ${Math.round(visible - 16)}px)` } : undefined} className={cn("z-[85] rounded-t-[20px] border-white/10 bg-[#121317] pb-[max(env(safe-area-inset-bottom),12px)] text-white", tall && "h-[88dvh]")}>
+    <DrawerContent overlayClassName="z-[85]" style={tall && visible ? { height: `min(88dvh, ${Math.round(visible - 16)}px)` } : undefined} className={cn("z-[85] rounded-t-[20px] border-white/10 bg-[#121317] pb-[max(env(safe-area-inset-bottom),12px)] text-white", tall && "h-[88dvh]", light && "sheet-light")}>
       <div className="relative flex items-center justify-center px-4 pb-2 pt-1">
         <DrawerTitle className="text-[16px] font-bold">{title}</DrawerTitle>
         <button type="button" aria-label="Close" onClick={onClose} className="absolute right-3 top-0 flex h-9 w-9 items-center justify-center rounded-full text-white/70 active:bg-white/10"><X className="h-5 w-5" /></button>
@@ -274,7 +274,8 @@ export const PollCreator = ({ open, onClose, onSend }: { open: boolean; onClose:
 
 // ── Pick a person (share contact, start a chat, add to group) ────────────────────────────────
 
-export const PeoplePicker = ({ open, title, meId, multiple, exclude, actionLabel, onClose, onDone }: {
+export const PeoplePicker = ({ open, title, meId, multiple, exclude, actionLabel, onClose, onDone, light }: {
+  light?: boolean;
   open: boolean;
   title: string;
   meId: string;
@@ -292,7 +293,7 @@ export const PeoplePicker = ({ open, title, meId, multiple, exclude, actionLabel
   const people = useQuery({ queryKey: ["people-search", debounced], queryFn: () => searchPeople(debounced, meId), enabled: open, staleTime: 60_000 });
   const list = (people.data ?? []).filter((p) => !exclude?.has(p.id));
   return (
-    <Sheet open={open} onClose={onClose} title={title} tall>
+    <Sheet open={open} onClose={onClose} title={title} tall light={light}>
       <div className="px-4 pb-2">
         <div className="relative">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/40" />
