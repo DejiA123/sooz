@@ -4,6 +4,7 @@
 //     posted there, titled with the sender's real name (and the group's real name), linking to the chat
 //   • a call: only fixed wording with the caller's real name
 //   • a new post: only for a post the caller has just made, to their followers
+//   • likes, comments, replies, follows: only the caller's own, as the database recorded them (once each)
 // People who blocked the sender (or were blocked) get nothing, links always stay inside SOOZ, and each
 // member can only send so many a minute.
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -60,7 +61,45 @@ serve(async (req) => {
         let recipients: string[] = [];
         let payload: { title: string; body: string; url: string };
 
-        if (type === "chat_message") {
+        if (type === "activity") {
+            // Likes, comments, replies and follows: the database records them (triggers), and the
+            // person who did it asks for their own recent ones to be sent. Each row is claimed once.
+            const { data: rows, error: claimError } = await supabase.from("notifications")
+                .update({ pushed_at: new Date().toISOString() })
+                .eq("actor_id", me).is("pushed_at", null).in("type", ["like", "comment", "reply", "follow"])
+                .gt("created_at", new Date(Date.now() - 5 * 60_000).toISOString())
+                .select("user_id, type, reference_id, content");
+            if (claimError) throw claimError;
+            const handle = clip(profile?.username, 60);
+            const items = (rows ?? []).slice(0, 20).map((n) => {
+                const said = clip(n.content, 120);
+                switch (n.type) {
+                    case "like": return { to: n.user_id, title: "SOOZ", body: `${myName} liked your post`, url: `/post/${n.reference_id}` };
+                    case "comment": return { to: n.user_id, title: `${myName} commented`, body: said || "on your post", url: `/post/${n.reference_id}` };
+                    case "reply": return { to: n.user_id, title: `${myName} replied to your comment`, body: said || "Tap to see it", url: "/activity" };
+                    default: return { to: n.user_id, title: "SOOZ", body: `${myName} started following you`, url: handle ? `/profile/${handle}` : "/activity" };
+                }
+            });
+            if (!items.length) return reply(200, { message: "Notification processed", subscriptionCount: 0, sent: 0 });
+            const { data: subs, error: subsError } = await supabase.from("push_subscriptions").select("*").in("user_id", [...new Set(items.map((i) => i.to))]);
+            if (subsError) throw subsError;
+            webpush.setVapidDetails("mailto:admin@sooz.app", vapidPublicKey, vapidPrivateKey);
+            let sent = 0;
+            // deno-lint-ignore no-explicit-any
+            await Promise.all(items.flatMap((item) => (subs ?? []).filter((s: any) => s.user_id === item.to).map(async (s: any) => {
+                try {
+                    await webpush.sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
+                        JSON.stringify({ title: item.title, body: item.body, url: item.url }), { TTL: 86400, urgency: "normal" });
+                    sent++;
+                // deno-lint-ignore no-explicit-any
+                } catch (err: any) {
+                    if (err?.statusCode === 404 || err?.statusCode === 410 || err?.statusCode === 403) {
+                        await supabase.from("push_subscriptions").delete().eq("endpoint", s.endpoint);
+                    }
+                }
+            })));
+            return reply(200, { message: "Notification processed", subscriptionCount: subs?.length ?? 0, sent });
+        } else if (type === "chat_message") {
             if (typeof toUserId !== "string" || !UUID.test(toUserId) || toUserId === me) return reply(400, { message: "Missing chat parameters" });
 
             // Blocked either way: nothing is sent (and the sender isn't told).

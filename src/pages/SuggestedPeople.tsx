@@ -7,6 +7,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { notifyActivity } from "@/lib/push";
 
 interface Profile {
     id: string;
@@ -64,6 +65,7 @@ export default function SuggestedPeople() {
                 following_id: profileId
             });
             if (error) throw error;
+            notifyActivity();
 
             setFollowedIds(prev => new Set(prev).add(profileId));
         } catch (error) {

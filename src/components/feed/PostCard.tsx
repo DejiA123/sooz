@@ -19,6 +19,7 @@ import { EditPostDialog } from "./EditPostDialog";
 import { LazyVideo } from "./LazyVideo";
 import { LazyImage } from "./LazyImage";
 import { motion } from "framer-motion";
+import { notifyActivity } from "@/lib/push";
 
 interface PostCardProps {
   id: string;
@@ -98,7 +99,7 @@ export const PostCard = ({
     setIsLiked(newState);
     setLikes(prev => newState ? prev + 1 : prev - 1);
     try {
-      if (newState) { const { error } = await supabase.from("likes").insert({ post_id: id, user_id: currentUser.id }); if (error) throw error; }
+      if (newState) { const { error } = await supabase.from("likes").insert({ post_id: id, user_id: currentUser.id }); if (error) throw error; notifyActivity(); }
       else { const { error } = await supabase.from("likes").delete().eq("post_id", id).eq("user_id", currentUser.id); if (error) throw error; }
     } catch { setIsLiked(!newState); setLikes(prev => !newState ? prev + 1 : prev - 1); toast.error("Failed to update like"); }
     finally { setIsLikeLoading(false); }
