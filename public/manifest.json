@@ -1,6 +1,15 @@
 {
+    "id": "/",
     "name": "SOOZ - Sound Out Of Zion",
     "short_name": "SOOZ",
+    "description": "Christian videos, nothing else \u2014 worship, preaching, gospel and Bible from vetted creators, with chat and calls. Free, no ads, family-safe.",
+    "categories": [
+        "social",
+        "entertainment",
+        "lifestyle"
+    ],
+    "lang": "en",
+    "dir": "ltr",
     "theme_color": "#05070b",
     "background_color": "#05070b",
     "display": "standalone",
@@ -28,6 +37,40 @@
             "src": "/apple-touch-icon.png",
             "sizes": "180x180",
             "type": "image/png"
+        }
+    ],
+    "prefer_related_applications": false,
+    "related_applications": [
+        {
+            "platform": "webapp",
+            "url": "https://sooz.vercel.app/manifest.json"
+        },
+        {
+            "platform": "webapp",
+            "url": "https://sooz.lovable.app/manifest.json"
+        }
+    ],
+    "screenshots": [
+        {
+            "src": "/screens/feed.jpg",
+            "sizes": "786x1596",
+            "type": "image/jpeg",
+            "form_factor": "narrow",
+            "label": "Christian videos, nothing else"
+        },
+        {
+            "src": "/screens/messages.jpg",
+            "sizes": "786x1596",
+            "type": "image/jpeg",
+            "form_factor": "narrow",
+            "label": "Messages, groups and calls"
+        },
+        {
+            "src": "/screens/chat.jpg",
+            "sizes": "786x1596",
+            "type": "image/jpeg",
+            "form_factor": "narrow",
+            "label": "Share videos with friends"
         }
     ]
 }
