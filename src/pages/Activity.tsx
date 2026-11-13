@@ -35,7 +35,7 @@ export default function Activity() {
       if (!user) return [];
       const [notificationsResult, followsResult, likesResult] = await Promise.all([
         supabase.from('notifications').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(50),
-        supabase.from("follows").select(`id, created_at, follower:follower_id(username, avatar_url)`).eq("following_id", user.id).order("created_at", { ascending: false }).limit(20),
+        supabase.from("follows").select(`id, created_at, follower:profiles!follows_follower_id_fkey(username, avatar_url)`).eq("following_id", user.id).order("created_at", { ascending: false }).limit(20),
         supabase.from("likes").select(`id, created_at, post_id, user:user_id(username, avatar_url), posts!inner(user_id, media_url, media_type)`).eq("posts.user_id", user.id).neq("user_id", user.id).order("created_at", { ascending: false }).limit(20)
       ]);
       const notifications = notificationsResult.data;
