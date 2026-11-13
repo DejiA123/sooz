@@ -59,6 +59,7 @@ import { useAccountSync } from "./lib/tasteSync";
 const AccountSync = () => { useAccountSync(); return null; };
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { NotificationManager } from "./components/NotificationManager";
+import { InstallPrompt } from "./components/InstallPrompt";
 import { CallProvider, useCall } from "@/contexts/CallContext";
 import { CallOverlay } from "@/components/video/CallOverlay";
 import { UpdatePrompt } from "@/components/layout/UpdatePrompt";
@@ -152,6 +153,7 @@ const App = () => {
                 <AuthListener />
                 <AccountSync />
                 <NotificationManager />
+                <InstallPrompt />
                 <Routes>
                   <Route path="/auth" element={<Suspense fallback={null}><Auth /></Suspense>} />
                   <Route path="/email-confirmation" element={<Suspense fallback={null}><EmailConfirmation /></Suspense>} />

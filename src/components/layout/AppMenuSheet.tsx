@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { ArrowLeft, BarChart3, Bookmark, ChevronRight, FileText, History, Inbox, Info, LifeBuoy, Lock, LogOut, Settings, ShieldCheck, Sparkles, ThumbsUp, UserPlus, Video, type LucideIcon } from "lucide-react";
+import { ArrowLeft, BarChart3, Download, Bookmark, ChevronRight, FileText, History, Inbox, Info, LifeBuoy, Lock, LogOut, Settings, ShieldCheck, Sparkles, ThumbsUp, UserPlus, Video, type LucideIcon } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { openReportCount } from "@/services/api/safety";
 import { openFeedbackCount } from "@/services/api/feedback";
@@ -13,6 +13,7 @@ import { appVersionLabel } from "@/lib/appUpdate";
 import { forgetPushOnThisPhone } from "@/lib/push";
 
 /** The app's menu (activity, settings, log out; the admin pages for admins only). */
+import { openInstallCard, useInstallKind } from "@/components/InstallPrompt";
 export const AppMenuSheet = ({ trigger }: { trigger: ReactNode }) => {
   const [open, setOpen] = useState(false);
   const close = () => setOpen(false);
@@ -20,6 +21,7 @@ export const AppMenuSheet = ({ trigger }: { trigger: ReactNode }) => {
   const reports = useQuery({ queryKey: ["moderation-count"], queryFn: openReportCount, enabled: isAdmin && open, staleTime: 30_000 });
   const feedback = useQuery({ queryKey: ["feedback-count"], queryFn: openFeedbackCount, enabled: isAdmin && open, staleTime: 30_000 });
   const [feedbackOpen, setFeedbackOpen] = useState(false);
+  const kind = useInstallKind();
 
   type Row = { label: string; icon: LucideIcon; to?: string; run?: () => void; badge?: number };
   const groups: { title: string; rows: Row[] }[] = [
@@ -37,6 +39,7 @@ export const AppMenuSheet = ({ trigger }: { trigger: ReactNode }) => {
     { title: "People", rows: [{ to: "/friends", icon: UserPlus, label: "Add friends" }] },
     { title: "Settings and support", rows: [
       { to: "/settings", icon: Settings, label: "Settings" },
+      ...(kind !== "installed" && kind !== "has-app" ? [{ icon: Download, label: "Get the app", run: () => { close(); setTimeout(openInstallCard, 250); } }] : []),
       { icon: ThumbsUp, label: "Send feedback", run: () => { close(); setFeedbackOpen(true); } },
       { to: "/help", icon: LifeBuoy, label: "Help" },
     ] },

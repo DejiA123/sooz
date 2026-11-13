@@ -12,6 +12,13 @@
   <meta name="theme-color" content="#05070b" />
   <meta name="color-scheme" content="dark light" />
   <script>
+    // Android / desktop: keep the browser's "install this app" offer for SOOZ's own Install button
+    // (it can arrive before the app's code has loaded) — src/lib/install.ts.
+    window.__soozInstall = { event: null, installed: false };
+    window.addEventListener("beforeinstallprompt", function (e) { e.preventDefault(); window.__soozInstall.event = e; window.dispatchEvent(new Event("sooz:install-change")); });
+    window.addEventListener("appinstalled", function () { window.__soozInstall.event = null; window.__soozInstall.installed = true; try { localStorage.setItem("sooz-app", JSON.stringify({ at: Date.now() })); } catch (e) {} window.dispatchEvent(new Event("sooz:install-change")); });
+  </script>
+  <script>
     // SOOZ is dark only.
     try { localStorage.removeItem("sooz-mode"); } catch (e) {}
   </script>
