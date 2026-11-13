@@ -623,6 +623,7 @@ export type Database = {
           created_at: string
           id: string
           is_read: boolean | null
+          pushed_at: string | null
           reference_id: string | null
           type: string
           user_id: string
@@ -633,6 +634,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_read?: boolean | null
+          pushed_at?: string | null
           reference_id?: string | null
           type: string
           user_id: string
@@ -643,6 +645,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_read?: boolean | null
+          pushed_at?: string | null
           reference_id?: string | null
           type?: string
           user_id?: string
@@ -1314,6 +1317,16 @@ export type Database = {
       }
     }
     Functions: {
+      add_activity: {
+        Args: {
+          actor: string
+          body: string
+          kind: string
+          ref: string
+          target: string
+        }
+        Returns: undefined
+      }
       admin_delete_message: {
         Args: { target_message_id: string }
         Returns: undefined
