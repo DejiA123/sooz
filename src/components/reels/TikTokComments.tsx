@@ -10,6 +10,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
 import { ReportSheet } from "@/components/safety/ReportSheet";
 import { useSafeFilter } from "@/components/safety/useSafeFilter";
+import { notifyActivity } from "@/lib/push";
 
 interface CommentRow {
   id: string;
@@ -98,6 +99,7 @@ export const TikTokComments = ({ tiktokId, tiktokUrl, open, onOpenChange, onCoun
     setText("");
     setReplyTo(null);
     const { data, error } = await supabase.from("tiktok_comments").insert({ tiktok_id: tiktokId, user_id: user.id, content, parent_id: parent }).select(SELECT).single();
+    if (parent) notifyActivity();
     if (error || !data) {
       setRows((r) => r.filter((x) => x.id !== temp.id));
       setText(content);

@@ -9,6 +9,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/hooks/useAuth";
 import { LazyVideo } from "./LazyVideo";
 import { LazyImage } from "./LazyImage";
+import { notifyActivity } from "@/lib/push";
 
 interface VideoFeedModalProps {
     initialPost?: any; // kept for legacy or single-post usage
@@ -83,6 +84,7 @@ export const VideoFeedModal = ({ initialPost, posts: externalPosts, initialIndex
         } else {
             newPosts[postIndex].likes = [...(newPosts[postIndex].likes || []), { user_id: user.id }];
             await supabase.from('likes').insert({ post_id: post.id, user_id: user.id });
+            notifyActivity();
         }
         setPosts(newPosts);
     };

@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { fetchFollowingIds } from "@/services/api/posts";
+import { notifyActivity } from "@/lib/push";
 
 /** Who the viewer follows, shared across every slide so follow buttons stay in sync. */
 export function useFollowing() {
@@ -23,6 +24,7 @@ export function useFollowing() {
     if (!user || targetId === user.id) return;
     queryClient.setQueryData<string[]>(key, (prev = []) => [...new Set([...prev, targetId])]);
     const { error } = await supabase.from("follows").insert({ follower_id: user.id, following_id: targetId });
+    notifyActivity();
     if (error && error.code !== "23505") {
       queryClient.setQueryData<string[]>(key, (prev = []) => prev.filter((id) => id !== targetId));
       toast.error("Couldn't follow right now");

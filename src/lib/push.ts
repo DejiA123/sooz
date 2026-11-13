@@ -116,3 +116,16 @@ export function setIconBadge(count: number) {
     else nav.clearAppBadge?.()?.catch(() => {});
   } catch { /* not supported */ }
 }
+
+/**
+ * After a like, comment, reply or follow: the database records it in the other person's Activity, and
+ * this asks the notification service to send them the phone notification. It only ever sends this
+ * person's own recent activity, each once, so it's safe to call often (calls close together are merged).
+ */
+let activityTimer: ReturnType<typeof setTimeout> | undefined;
+export function notifyActivity() {
+  clearTimeout(activityTimer);
+  activityTimer = setTimeout(() => {
+    supabase.functions.invoke("push-notifications", { body: { type: "activity" } }).catch(() => { /* Activity still shows it */ });
+  }, 1500);
+}

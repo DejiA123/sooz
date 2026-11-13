@@ -8,6 +8,7 @@ import { X } from "lucide-react";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { notifyActivity } from "@/lib/push";
 
 interface Profile {
     id: string;
@@ -63,6 +64,7 @@ export const SuggestedUsersRail = () => {
                 following_id: profileId
             });
             if (error) throw error;
+            notifyActivity();
             // Update button state to show following
             setFollowedIds(prev => new Set(prev).add(profileId));
         } catch (error) {

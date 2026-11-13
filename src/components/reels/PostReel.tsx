@@ -17,6 +17,7 @@ import { useFollowing } from "./useFollowing";
 import { engage, tasteOfPost, useTasteWatch } from "@/lib/taste";
 import { resetForYou } from "@/services/api/feed";
 import { refreshProfiles } from "@/lib/profileRefresh";
+import { notifyActivity } from "@/lib/push";
 
 // Only needed once someone taps comments/edit, so they load on demand.
 const ReportSheet = lazy(() => import("@/components/safety/ReportSheet").then((m) => ({ default: m.ReportSheet })));
@@ -159,6 +160,7 @@ export const PostReel = memo(function PostReel({ post, active, mounted, reposted
     const { error } = next
       ? await supabase.from("likes").insert({ post_id: post.id, user_id: user!.id })
       : await supabase.from("likes").delete().eq("post_id", post.id).eq("user_id", user!.id);
+    if (next) notifyActivity();
     if (error && !(next && error.code === "23505")) {
       setLiked(!next);
       setLikes((c) => Math.max(0, c + (next ? -1 : 1)));

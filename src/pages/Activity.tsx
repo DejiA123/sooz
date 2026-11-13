@@ -47,7 +47,9 @@ export default function Activity() {
         const actorIds = [...new Set(notifications.map(n => n.actor_id).filter(Boolean))];
         const { data: actors } = await supabase.from('profiles').select('id, username, avatar_url').in('id', actorIds);
         const actorMap = Object.fromEntries(actors?.map(a => [a.id, a]) || []);
-        notifItems = notifications.map(n => ({ id: n.id, type: n.type as any, created_at: n.created_at, user: { username: actorMap[n.actor_id!]?.username || 'Unknown', avatar_url: actorMap[n.actor_id!]?.avatar_url || null }, post_id: n.reference_id || undefined, content: n.content }));
+        notifItems = notifications.map(n => ({ id: n.id, type: n.type as any, created_at: n.created_at, user: { username: actorMap[n.actor_id!]?.username || 'Unknown', avatar_url: actorMap[n.actor_id!]?.avatar_url || null }, post_id: n.type === "follow" || n.type === "reply" ? undefined : n.reference_id || undefined,
+          content: n.type === "comment" ? `commented: ${n.content ?? ""}` : n.type === "reply" ? `replied to your comment: ${n.content ?? ""}`
+            : n.type === "follow" ? "started following you." : n.type === "like" ? "liked your post." : n.content }));
       }
       const followActivities = (follows || []).map(f => ({ id: f.id, type: "follow" as const, created_at: f.created_at, // @ts-ignore
         user: f.follower, content: "started following you." }));
@@ -56,7 +58,8 @@ export default function Activity() {
           url: l.posts?.media_url, // @ts-ignore
           type: l.posts?.media_type }, content: "liked your post." }));
       return [...notifItems, ...followActivities, ...likeActivities]
-        .filter((v, i, a) => a.findIndex(t => t.id === v.id) === i)
+        // The same like / follow can come from Activity and from the likes / follows lists: show it once.
+        .filter((v, i, a) => a.findIndex(t => t.id === v.id || (t.type === v.type && (t.type === "like" || t.type === "follow") && t.user?.username === v.user?.username && (t.type === "follow" || ((t as ActivityItem).post_id ?? null) === ((v as ActivityItem).post_id ?? null)))) === i)
         .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()) as ActivityItem[];
     },
     enabled: !!user,

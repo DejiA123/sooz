@@ -13,6 +13,7 @@ import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import { ReportSheet } from "@/components/safety/ReportSheet";
 import { useSafeFilter } from "@/components/safety/useSafeFilter";
+import { notifyActivity } from "@/lib/push";
 
 interface Comment {
     id: string;
@@ -91,6 +92,7 @@ export const CommentDrawer = ({ postId, postOwnerUsername, trigger, open: contro
                 post_id: postId,
                 user_id: user.id
             });
+        notifyActivity();
 
         if (error) {
             toast.error("Failed to post comment");

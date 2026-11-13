@@ -24,6 +24,7 @@ import { useVideoCache } from "@/store/useVideoCache";
 import { Skeleton } from "@/components/ui/skeleton";
 import { motion } from "framer-motion";
 import { useDarkCover } from "@/lib/statusBar";
+import { notifyActivity } from "@/lib/push";
 
 // Optimized video component for grid view with hover-to-play
 const GridVideo = ({ src, poster, className, priority = false }: { src: string, poster?: string, className?: string, priority?: boolean }) => {
@@ -194,7 +195,7 @@ const Profile = () => {
     if (!user || !profile) { navigate("/auth"); return; }
     queryClient.setQueryData(['profile', username], (old: any) => ({ ...old, isFollowing: !old.isFollowing, followersCount: old.isFollowing ? old.followersCount - 1 : old.followersCount + 1 }));
     if (profileData?.isFollowing) await supabase.from("follows").delete().eq("follower_id", user.id).eq("following_id", profile.id);
-    else await supabase.from("follows").insert({ follower_id: user.id, following_id: profile.id });
+    else { await supabase.from("follows").insert({ follower_id: user.id, following_id: profile.id }); notifyActivity(); }
     queryClient.invalidateQueries({ queryKey: ['profile', username] });
   };
 
