@@ -1,134 +1,60 @@
-import { useEffect, useState } from "react";
-import { Helmet } from 'react-helmet-async';
-import { useParams, useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
-import { PostCard } from "@/components/feed/PostCard";
-import { Button } from "@/components/ui/button";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { useMemo } from "react";
+import { Helmet } from "react-helmet-async";
+import { useParams } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { Loader2 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { useGoBack } from "@/hooks/useGoBack";
+import { ReelsViewer } from "@/components/reels/ReelsViewer";
+import { fetchPostsByIds } from "@/services/api/posts";
+import { postItem } from "@/services/api/feed";
 
+/**
+ * One post (from Activity, a notification or a shared link): shown in the same full-screen player
+ * as Home and profile videos — same buttons, comments and share — instead of an old-style card.
+ */
 export default function PostDetails() {
-    const { id } = useParams<{ id: string }>();
-    const navigate = useNavigate();
-    const { user } = useAuth();
-    const [post, setPost] = useState<any>(null);
-    const [loading, setLoading] = useState(true);
+  const { id } = useParams<{ id: string }>();
+  const { user, loading: authLoading } = useAuth();
+  const goBack = useGoBack("/");
 
-    useEffect(() => {
-        if (id) {
-            fetchPost();
-        }
-    }, [id, user]);
+  const q = useQuery({
+    queryKey: ["post", id, user?.id ?? null],
+    queryFn: async () => (await fetchPostsByIds([id!], user?.id))[0] ?? null,
+    enabled: !!id && !authLoading,
+    staleTime: 30_000,
+  });
+  const items = useMemo(() => (q.data ? [postItem(q.data)] : []), [q.data]);
 
-    const fetchPost = async () => {
-        try {
-            setLoading(true);
-            const { data: postData, error } = await supabase
-                .from("posts")
-                .select(`
-          *,
-          profiles:user_id (id, username, avatar_url, display_name),
-          likes (count),
-          comments (count)
-        `)
-                .eq("id", id)
-                .single();
+  const post = q.data;
+  const who = post?.profiles?.display_name || post?.profiles?.username;
+  const pageTitle = who ? `Post by ${who} on SOOZ` : "Post | SOOZ";
+  const meta = (
+    <Helmet>
+      <title>{pageTitle}</title>
+      <meta property="og:title" content={pageTitle} />
+      <meta property="og:description" content={post?.caption || "Check out this post on SOOZ"} />
+      {post?.media_url && <meta property="og:image" content={post.thumbnail_url || post.media_url} />}
+    </Helmet>
+  );
 
-            if (error) throw error;
-
-            if (postData) {
-                let isLiked = false;
-                if (user) {
-                    const { data: likeData } = await supabase
-                        .from("likes")
-                        .select("id")
-                        .eq("post_id", id)
-                        .eq("user_id", user.id)
-                        .single();
-
-                    if (likeData) isLiked = true;
-                }
-
-                setPost({
-                    ...postData,
-                    // @ts-ignore
-                    likes_count: postData.likes[0]?.count || 0,
-                    // @ts-ignore
-                    comments_count: postData.comments[0]?.count || 0,
-                    is_liked_by_user: isLiked
-                });
-            }
-        } catch (error) {
-            console.error("Error fetching post:", error);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    if (loading) {
-        return (
-            <div className="flex justify-center pt-20">
-                <Loader2 className="w-8 h-8 animate-spin text-primary" />
-            </div>
-        );
-    }
-
-    if (!post) {
-        return (
-            <div className="flex flex-col items-center justify-center pt-20 gap-4">
-                <p className="text-muted-foreground">Post not found</p>
-                <Button variant="outline" onClick={() => navigate(-1)}>
-                    Go Back
-                </Button>
-            </div>
-        );
-    }
-
-    const pageTitle = post ? `Post by ${post.profiles.display_name || post.profiles.username} on SOOZ` : "Post | SOOZ";
-    const pageDescription = post?.caption || "Check out this post on SOOZ";
-    const pageImage = post?.media_url || "/sooz-logo-v3.png";
-
+  if (q.isLoading || authLoading) {
+    return <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black">{meta}<Loader2 className="h-8 w-8 animate-spin text-white/60" /></div>;
+  }
+  if (!post) {
     return (
-        <div className="pb-20">
-            <Helmet>
-                <title>{pageTitle}</title>
-                <meta property="og:title" content={pageTitle} />
-                <meta property="og:description" content={pageDescription} />
-                <meta property="og:image" content={pageImage} />
-                <meta name="twitter:title" content={pageTitle} />
-                <meta name="twitter:description" content={pageDescription} />
-                <meta name="twitter:image" content={pageImage} />
-            </Helmet>
-
-            <div className="sticky top-0 z-40 bg-background/80 backdrop-blur-md border-b border-border/60 px-4 h-14 flex items-center gap-4">
-                <Button variant="ghost" size="icon" onClick={() => {
-                    if (window.history.state && window.history.state.idx > 0) {
-                        navigate(-1);
-                    } else {
-                        navigate("/");
-                    }
-                }}>
-                    <ArrowLeft className="w-5 h-5" />
-                </Button>
-                <h1 className="font-semibold text-lg">Post</h1>
-            </div>
-
-            <div className="p-4 max-w-xl mx-auto">
-                <PostCard
-                    id={post.id}
-                    user={post.profiles}
-                    caption={post.caption}
-                    media_url={post.media_url}
-                    media_type={post.media_type}
-                    created_at={post.created_at}
-                    // @ts-ignore
-                    likes_count={post.likes_count}
-                    // @ts-ignore
-                    comments_count={post.comments_count}
-                    // @ts-ignore
-                    is_liked_by_user={post.is_liked_by_user}
-                />
-            </div>
-        </div>
+      <div className="flex flex-col items-center justify-center gap-4 px-8 pt-24 text-center">
+        {meta}
+        <p className="text-[17px] font-semibold">This post isn't available</p>
+        <p className="text-[14px] text-muted-foreground">It may have been deleted.</p>
+        <button type="button" onClick={goBack} className="mt-2 h-10 rounded-full bg-foreground/[0.07] px-6 text-[15px] font-semibold active:bg-foreground/10">Go back</button>
+      </div>
     );
+  }
+  return (
+    <>
+      {meta}
+      <ReelsViewer items={items} startIndex={0} onClose={goBack} />
+    </>
+  );
 }
