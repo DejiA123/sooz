@@ -63,7 +63,7 @@ import { NotificationManager } from "./components/NotificationManager";
 import { InstallPrompt } from "./components/InstallPrompt";
 import { CallProvider, useCall } from "@/contexts/CallContext";
 import { CallOverlay } from "@/components/video/CallOverlay";
-import { UpdatePrompt } from "@/components/layout/UpdatePrompt";
+import { AutoUpdate } from "@/components/layout/AutoUpdate";
 import { startUpdateChecks } from "@/lib/appUpdate";
 
 import { queryClient } from "@/lib/react-query";
@@ -144,13 +144,13 @@ const App = () => {
         <AuthProvider>
           <CallProvider>
             <CallOverlay />
-            <UpdatePrompt />
             <TooltipProvider>
               <Toaster />
               <AppToasts />
               <BrowserRouter>
 <OfflineBanner />
                 <StatusStrip />
+                <AutoUpdate />
                 <AuthListener />
                 <AccountSync />
                 <NotificationManager />

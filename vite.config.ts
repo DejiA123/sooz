@@ -28,6 +28,8 @@ export default defineConfig(({ mode }) => ({
       generateBundle() {
         this.emitFile({ type: "asset", fileName: "version.json", source: JSON.stringify({ build: BUILD_ID }) });
       },
+      // index.html's opening check compares this copy's build with /version.json.
+      transformIndexHtml: { order: "pre", handler: (html: string) => html.replace(/\{\{SOOZ_BUILD\}\}/g, BUILD_ID) },
     },
     {
       // Home is the first screen almost everyone opens: fetch its code together with the app's core

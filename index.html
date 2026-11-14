@@ -66,6 +66,11 @@
     html:not(.dark) .boot i { background: linear-gradient(170deg, #d97706, #b45309 55%, #92400e); }
     @keyframes boot-pulse { 0%, 100% { opacity: 0.6; transform: scale(0.97); } 50% { opacity: 1; transform: scale(1); } }
     @media (prefers-reduced-motion: reduce) { .boot i { animation: none; } }
+    /* Switching to a new version (src/lib/appUpdate.ts): the same splash with a quiet "Updating…". */
+    .boot--updating { flex-direction: column; gap: 22px; }
+    .boot--updating span { font: 600 13px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; letter-spacing: 0.02em; color: rgba(255, 255, 255, 0.55); }
+    /* A page change that loaded a new version: no splash, the page's own colour until it draws. */
+    html.boot-light, html.boot-light body { background: #fff; }
   </style>
 </head>
 
@@ -79,16 +84,36 @@
     (function () {
       var standalone = (window.matchMedia && matchMedia("(display-mode: standalone)").matches) || navigator.standalone === true;
       var boot = document.getElementById("boot");
+      // A page change that switched to a new version (src/lib/appUpdate.ts): open without the splash,
+      // on the page's own colour (white pages are white), so it looks like an ordinary page change.
+      try {
+        var quietAt = +sessionStorage.getItem("sooz-quiet-boot") || 0;
+        sessionStorage.removeItem("sooz-quiet-boot");
+        if (Date.now() - quietAt < 15000) {
+          window.__soozQuiet = true;
+          boot.parentNode.removeChild(boot);
+          boot = null;
+          var p = location.pathname;
+          if (!(p === "/" || p === "/index" || p.indexOf("/discover") === 0 || p.indexOf("/t/") === 0)) {
+            document.documentElement.classList.add("boot-light");
+            var tc = document.querySelector('meta[name="theme-color"]');
+            if (tc) tc.setAttribute("content", "#ffffff");
+          }
+        }
+      } catch (e) {}
       function nudge() {
         try { window.scrollTo(0, 1); requestAnimationFrame(function () { window.scrollTo(0, 0); }); } catch (e) {}
       }
       function hide() {
+        document.documentElement.classList.remove("boot-light");
         if (!boot) return;
         var b = boot; boot = null;
         b.style.opacity = "0";
         setTimeout(function () { b.remove(); }, 220);
       }
       window.__soozHideBoot = function () {
+        // Opening the app may first switch to a newer version (next script): the splash waits for that.
+        if (window.__soozBootHold) { var h = window.__soozBootHold; window.__soozBootHold = null; return h.then(window.__soozHideBoot); }
         if (!standalone) return hide();
         nudge();
         var start = Date.now(), last = window.innerHeight, stableSince = start;
@@ -104,6 +129,74 @@
         document.addEventListener("DOMContentLoaded", nudge);
         setTimeout(nudge, 150);
       }
+    })();
+  </script>
+  <script>
+    // Opening the app: if a newer SOOZ is out, switch to it before showing anything, so people always
+    // open the latest version (owner's request) — the splash stays up with "Updating…" for a moment.
+    // The app keeps loading meanwhile; with nothing new the splash waits for this at most 1.5s (it's
+    // one tiny file). Details and the in-app part: src/lib/appUpdate.ts.
+    (function () {
+      var BUILD = "{{SOOZ_BUILD}}";
+      var sw = navigator.serviceWorker;
+      var release, go, done = false, updating = false, start = Date.now();
+      window.__soozBootHold = new Promise(function (r) { release = r; });
+      // The app itself waits too (at most 0.7s — the check usually takes a fraction of that): while
+      // switching, the old version must have nothing to download, or it hands over late.
+      window.__soozStart = new Promise(function (r) { go = r; });
+      function finish() { if (!done) { done = true; go(); release(); } }
+      setTimeout(function () { if (!updating) go(); }, 700);
+      setTimeout(function () { if (!updating) finish(); }, 1500);
+      if (!sw || !sw.controller || !/\/sw\.js$/.test(sw.controller.scriptURL) || !window.fetch) return finish();
+      try { if (Date.now() - (+sessionStorage.getItem("sooz-launch-update") || 0) < 120000) return finish(); } catch (e) {} // never loop
+      function label() {
+        var b = document.getElementById("boot");
+        if (b && !b.querySelector("span")) { b.classList.add("boot--updating"); b.appendChild(document.createElement("span")).textContent = "Updating\u2026"; }
+      }
+      function swap(reg) {
+        updating = true;
+        label();
+        try { sessionStorage.setItem("sooz-launch-update", String(Date.now())); } catch (e) {}
+        // Reload once the new version is in charge (never back into the old one). If that takes too
+        // long, open as normal: the app reloads into the new version at the next quiet moment.
+        sw.addEventListener("controllerchange", function () {
+          if (done) return;
+          if (window.__soozQuiet) { try { sessionStorage.setItem("sooz-quiet-boot", String(Date.now())); } catch (e) {} } // stays quiet
+          location.reload();
+        });
+        setTimeout(finish, Math.max(3000, 8000 - (Date.now() - start)));
+        // Hand over only once this page has finished loading its files (the app itself hasn't started):
+        // asking while the old version is still answering requests can leave Chrome stuck.
+        function go() { if (reg.waiting && !done) reg.waiting.postMessage({ type: "SKIP_WAITING" }); }
+        if (document.readyState === "complete") go(); else window.addEventListener("load", go);
+      }
+      sw.getRegistration().then(function (reg) {
+        if (!reg) return finish();
+        if (reg.waiting) return swap(reg); // downloaded last time, never switched to
+        fetch("/version.json?t=" + Date.now(), { cache: "no-store" })
+          .then(function (r) { return r.ok ? r.json() : null; })
+          .then(function (v) {
+            if (!v || !v.build || v.build === BUILD || done) return finish();
+            // A newer version is out: download it now (usually a second or two) and switch. If that
+            // didn't work last time for this same version, don't keep people waiting again.
+            var slow = "";
+            try { slow = localStorage.getItem("sooz-update-slow") || ""; } catch (e) {}
+            var parts = slow.split("|");
+            if (parts[0] === v.build && Date.now() - (+parts[1] || 0) < 30 * 60000) { reg.update().catch(function () {}); return finish(); }
+            updating = true;
+            label();
+            reg.update().catch(function () {});
+            (function wait() {
+              if (reg.waiting) return swap(reg);
+              if (Date.now() - start > 7000) {
+                try { localStorage.setItem("sooz-update-slow", v.build + "|" + Date.now()); } catch (e) {}
+                return finish(); // the app switches by itself at the next quiet moment
+              }
+              setTimeout(wait, 120);
+            })();
+          })
+          .catch(finish);
+      }).catch(finish);
     })();
   </script>
   <script type="module" src="/src/main.tsx"></script>

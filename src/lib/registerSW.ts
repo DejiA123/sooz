@@ -1,6 +1,6 @@
 import { watchServiceWorker } from "./appUpdate";
 
-// Single place that registers the service worker (offline + push notifications + "new update" popup).
+// Single place that registers the service worker (offline + push notifications + silent app updates).
 // Never registers in dev, Lovable preview, or iframes.
 export function registerServiceWorker() {
   if (!("serviceWorker" in navigator)) return;

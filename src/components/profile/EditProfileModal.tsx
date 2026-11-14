@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { useLocation, useNavigate } from "react-router-dom";
 import { usernameTaken } from "@/lib/authProviders";
 import { ImageCropperModal } from "@/components/ui/ImageCropperModal";
+import { holdUpdates } from "@/lib/appUpdate";
 
 interface Profile {
   id: string;
@@ -69,6 +70,7 @@ const EditProfileModal = ({ profile, onClose, onUpdate }: EditProfileModalProps)
 
     if (type === 'avatar') setUploadingAvatar(true);
     else setUploadingCover(true);
+    const release = holdUpdates("upload"); // an app update never cuts an upload short
 
     try {
       const fileExt = "jpg";
@@ -91,6 +93,7 @@ const EditProfileModal = ({ profile, onClose, onUpdate }: EditProfileModalProps)
       console.error(error);
       toast.error(`Failed to upload ${type}`);
     } finally {
+      release();
       if (type === 'avatar') setUploadingAvatar(false);
       else setUploadingCover(false);
     }
