@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { isImageMessage } from "@/lib/chat";
+import { holdUpdates } from "@/lib/appUpdate";
 
 /**
  * SOOZ messaging (WhatsApp-style): replies, forwards, edits, reactions, stars, pins, polls, read
@@ -326,8 +327,11 @@ export async function setVote(userId: string, msg: { id: string; conversationId:
 export async function uploadChatFile(file: Blob, name: string): Promise<string> {
   const ext = (name.split(".").pop() || "bin").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 8) || "bin";
   const path = `chat-files/${crypto.randomUUID()}.${ext}`;
-  const { error } = await supabase.storage.from("media").upload(path, file, { contentType: file.type || undefined, upsert: false });
-  if (error) throw error;
+  const release = holdUpdates("upload"); // an app update never cuts an upload short
+  try {
+    const { error } = await supabase.storage.from("media").upload(path, file, { contentType: file.type || undefined, upsert: false });
+    if (error) throw error;
+  } finally { release(); }
   return supabase.storage.from("media").getPublicUrl(path).data.publicUrl;
 }
 

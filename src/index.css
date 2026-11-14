@@ -529,8 +529,6 @@ input, textarea { -webkit-user-select: text; user-select: text; }
   html[data-reel-ui="float"] .reel-dock:not(.reel-dock--keep) .reel-dock-avatar { width: 48px; height: 48px; }
 }
 /* "New update" card: just above the tab bar (bottom of the screen on desktop). */
-.update-prompt { bottom: calc(var(--bottom-nav-height) + 10px); }
-@media (min-width: 768px) { .update-prompt { bottom: 24px; } }
 /* Live viewer: clear of the notch and the home indicator. */
 .live-top { padding-top: calc(env(safe-area-inset-top, 0px) + 10px); }
 .live-share { bottom: calc(max(env(safe-area-inset-bottom, 0px), 12px) + 64px); }
@@ -621,7 +619,6 @@ html.light-page { color-scheme: light !important; }
 :is(.sheet-light, html.light-page .sheet-auto) :is(.active\:bg-white\/15, .active\:bg-white\/10, .active\:bg-white\/5, .active\:bg-white\/\[0\.06\]):active { background-color: rgba(0, 0, 0, 0.05) !important; }
 /* white stays white on a coloured badge or initials circle */
 :is(.sheet-light, html.light-page .sheet-auto) :is(.bg-gradient-to-br.text-white, .bg-emerald-500 .text-white, .bg-emerald-500.text-white, .bg-red-500.text-white, .bg-amber-500.text-white, .bg-neutral-900.text-white) { color: #fff !important; }
-html.light-page .sheet-auto.update-card { box-shadow: 0 16px 48px -14px rgba(15, 23, 42, 0.35); border-color: rgba(217, 119, 6, 0.3) !important; }
 .chat-header { padding-top: env(safe-area-inset-top, 0px); min-height: calc(58px + env(safe-area-inset-top, 0px)); }
 .chat-composer { padding-bottom: max(env(safe-area-inset-bottom, 0px), 10px); }
 .feed-sound-toggle { top: calc(env(safe-area-inset-top, 0px) + 62px); }

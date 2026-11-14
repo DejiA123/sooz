@@ -26,6 +26,7 @@ import { LocationAttachment } from "./AttachmentView";
 import { supabase } from "@/integrations/supabase/client";
 import { ReportSheet } from "@/components/safety/ReportSheet";
 import type { ReportTarget } from "@/services/api/safety";
+import { holdUpdates } from "@/lib/appUpdate";
 
 interface ChatWindowProps {
   chatId: string;
@@ -343,6 +344,7 @@ export const ChatWindow = ({ chatId, focusMessageId, onBack, onOpenChat }: ChatW
 
   const deliver = async (temp: ChatMessage) => {
     setMessages((prev) => prev.map((m) => (m.id === temp.id ? { ...m, status: "sending" } : m)));
+    const release = holdUpdates("send"); // an app update waits until the message is sent
     try {
       let attachment = temp.attachment;
       const file = files.current.get(temp.id);
@@ -361,6 +363,8 @@ export const ChatWindow = ({ chatId, focusMessageId, onBack, onOpenChat }: ChatW
     } catch (e) {
       console.warn("Message not sent:", e);
       setMessages((prev) => prev.map((m) => (m.id === temp.id ? { ...m, status: "failed" } : m)));
+    } finally {
+      release();
     }
   };
 
