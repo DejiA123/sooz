@@ -82,6 +82,7 @@ export const MainLayout = () => {
         };
     }, [isFeed]);
 
+    const ownHeader = pathname.startsWith("/chat") || pathname.startsWith("/activity");
     // One tree for both layouts so the bottom nav (and its glass lens animation) never remounts.
     return (
         <>
@@ -91,11 +92,11 @@ export const MainLayout = () => {
                 isLight && "light-scope",
                 isFeed
                     ? "h-[100dvh] overflow-hidden bg-black"
-                    : "min-h-screen bg-background pb-[var(--bottom-nav-height)] pt-[calc(3.2rem+env(safe-area-inset-top,0px))] md:pt-0 md:pb-16"
+                    : cn("min-h-screen bg-background pb-[var(--bottom-nav-height)] md:pt-0 md:pb-16", ownHeader ? "pt-[env(safe-area-inset-top,0px)]" : "pt-[calc(3.2rem+env(safe-area-inset-top,0px))]")
             )}
         >
-            {/* Messages has its own header (like TikTok's inbox), so the app bar steps aside there. */}
-            <div className={cn("md:hidden", (isFeed || pathname.startsWith("/chat")) && "hidden")}>
+            {/* Messages and Activity have their own headers (like TikTok / Instagram), so the app bar steps aside there. */}
+            <div className={cn("md:hidden", (isFeed || ownHeader) && "hidden")}>
                 <TopBar />
             </div>
 

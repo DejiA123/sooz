@@ -1,173 +1,189 @@
-import { useEffect, useRef, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { ArrowLeft, Heart, UserPlus, Play } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { ArrowLeft, AtSign, Bell, Heart, MessageCircle, Phone, Play, Repeat2, UserPlus } from "lucide-react";
+import { differenceInCalendarDays, formatDistanceToNowStrict } from "date-fns";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useAuth } from "@/hooks/useAuth";
 import { useGoBack } from "@/hooks/useGoBack";
-import { LazyImage } from "@/components/feed/LazyImage";
-import { Skeleton } from "@/components/ui/skeleton";
+import { useFollowing } from "@/components/reels/useFollowing";
 import { cn } from "@/lib/utils";
-import { formatDistanceToNow, isToday, isThisWeek } from "date-fns";
+import { fetchActivity, takeActivitySeen, type ActivityKind, type ActivityRow, type Person } from "@/services/api/activity";
 
-interface ActivityItem {
-  id: string;
-  type: "like" | "comment" | "follow" | "missed_call" | "message" | "incoming_call" | "outgoing_call";
-  created_at: string;
-  user: { username: string; avatar_url: string | null; };
-  post_id?: string;
-  post_media?: { url: string | null; type: string | null; };
-  content?: string;
+type Filter = "all" | "likes" | "comments" | "follows";
+const FILTERS: { key: Filter; label: string; kinds?: ActivityKind[] }[] = [
+  { key: "all", label: "All" },
+  { key: "likes", label: "Likes", kinds: ["like"] },
+  { key: "comments", label: "Comments", kinds: ["comment", "reply", "mention"] },
+  { key: "follows", label: "Followers", kinds: ["follow"] },
+];
+
+/** "3h", "2d", "5w" — short times like Instagram. */
+function ago(at: string): string {
+  const s = formatDistanceToNowStrict(new Date(at));
+  const [n, unit] = s.split(" ");
+  if (unit.startsWith("second")) return "now";
+  if (unit.startsWith("minute")) return `${n}m`;
+  if (unit.startsWith("hour")) return `${n}h`;
+  if (unit.startsWith("day")) return Number(n) >= 7 ? `${Math.floor(Number(n) / 7)}w` : `${n}d`;
+  if (unit.startsWith("month")) return `${Math.round(Number(n) * 4.3)}w`;
+  return `${n}y`;
 }
 
-export default function Activity() {
-  const { user } = useAuth();
+const BADGE: Record<ActivityKind, { icon: typeof Heart; className: string }> = {
+  like: { icon: Heart, className: "bg-rose-500 [&_svg]:fill-white" },
+  comment: { icon: MessageCircle, className: "bg-sky-500" },
+  reply: { icon: MessageCircle, className: "bg-sky-500" },
+  mention: { icon: AtSign, className: "bg-violet-500" },
+  follow: { icon: UserPlus, className: "bg-amber-500" },
+  repost: { icon: Repeat2, className: "bg-emerald-500" },
+  missed_call: { icon: Phone, className: "bg-red-500" },
+};
+
+function sentence(row: ActivityRow): string {
+  const others = row.total - 1;
+  switch (row.kind) {
+    case "like": return others > 0 ? `and ${others === 1 ? `${row.people[1]?.username ?? "1 other"}` : `${others} others`} liked your post.` : "liked your post.";
+    case "comment": return "commented:";
+    case "reply": return "replied to your comment:";
+    case "mention": return "mentioned you:";
+    case "repost": return "reposted your post.";
+    case "missed_call": return "tried to call you.";
+    default: return "started following you.";
+  }
+}
+
+const Face = ({ p, className }: { p: Person; className?: string }) => (
+  <Avatar className={className}>
+    <AvatarImage src={p.avatar || ""} alt="" className="object-cover" />
+    <AvatarFallback className="bg-amber-500/15 text-[15px] font-semibold text-amber-700">{p.name[0]?.toUpperCase() || "?"}</AvatarFallback>
+  </Avatar>
+);
+
+function Row({ row, isNew }: { row: ActivityRow; isNew: boolean }) {
   const navigate = useNavigate();
-  const scrollRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => { window.scrollTo(0, 0); }, []);
-
-  const { data: activities = [], isLoading } = useQuery({
-    queryKey: ['activity', user?.id],
-    queryFn: async () => {
-      if (!user) return [];
-      const [notificationsResult, followsResult, likesResult] = await Promise.all([
-        supabase.from('notifications').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(50),
-        supabase.from("follows").select(`id, created_at, follower:profiles!follows_follower_id_fkey(username, avatar_url)`).eq("following_id", user.id).order("created_at", { ascending: false }).limit(20),
-        supabase.from("likes").select(`id, created_at, post_id, user:user_id(username, avatar_url), posts!inner(user_id, media_url, media_type)`).eq("posts.user_id", user.id).neq("user_id", user.id).order("created_at", { ascending: false }).limit(20)
-      ]);
-      const notifications = notificationsResult.data;
-      const follows = followsResult.data;
-      const likes = likesResult.data;
-      if (notificationsResult.error) throw notificationsResult.error;
-      let notifItems: ActivityItem[] = [];
-      if (notifications && notifications.length > 0) {
-        const actorIds = [...new Set(notifications.map(n => n.actor_id).filter(Boolean))];
-        const { data: actors } = await supabase.from('profiles').select('id, username, avatar_url').in('id', actorIds);
-        const actorMap = Object.fromEntries(actors?.map(a => [a.id, a]) || []);
-        notifItems = notifications.map(n => ({ id: n.id, type: n.type as any, created_at: n.created_at, user: { username: actorMap[n.actor_id!]?.username || 'Unknown', avatar_url: actorMap[n.actor_id!]?.avatar_url || null }, post_id: n.type === "follow" || n.type === "reply" ? undefined : n.reference_id || undefined,
-          content: n.type === "comment" ? `commented: ${n.content ?? ""}` : n.type === "reply" ? `replied to your comment: ${n.content ?? ""}`
-            : n.type === "follow" ? "started following you." : n.type === "like" ? "liked your post." : n.content }));
-      }
-      const followActivities = (follows || []).map(f => ({ id: f.id, type: "follow" as const, created_at: f.created_at, // @ts-ignore
-        user: f.follower, content: "started following you." }));
-      const likeActivities = (likes || []).map(l => ({ id: l.id, type: "like" as const, created_at: l.created_at, // @ts-ignore
-        user: l.user, post_id: l.post_id, post_media: { // @ts-ignore
-          url: l.posts?.media_url, // @ts-ignore
-          type: l.posts?.media_type }, content: "liked your post." }));
-      return [...notifItems, ...followActivities, ...likeActivities]
-        // The same like / follow can come from Activity and from the likes / follows lists: show it once.
-        .filter((v, i, a) => a.findIndex(t => t.id === v.id || (t.type === v.type && (t.type === "like" || t.type === "follow") && t.user?.username === v.user?.username && (t.type === "follow" || ((t as ActivityItem).post_id ?? null) === ((v as ActivityItem).post_id ?? null)))) === i)
-        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()) as ActivityItem[];
-    },
-    enabled: !!user,
-    staleTime: 1000 * 60 * 5,
-  });
-
-  const groupedActivities = useMemo(() => {
-    const groups: Record<string, ActivityItem[]> = { "Today": [], "This Week": [], "Earlier": [] };
-    activities.forEach(activity => {
-      const date = new Date(activity.created_at);
-      if (isToday(date)) groups["Today"].push(activity);
-      else if (isThisWeek(date)) groups["This Week"].push(activity);
-      else groups["Earlier"].push(activity);
-    });
-    return Object.entries(groups).filter(([_, items]) => items.length > 0);
-  }, [activities]);
-
-  // Back to where they came from (usually the Messages inbox), or the inbox if opened directly.
-  const goBack = useGoBack("/chat");
+  const { isFollowing, canFollow, follow, unfollow } = useFollowing();
+  const lead = row.people[0];
+  const badge = BADGE[row.kind];
+  const open = () => {
+    if (row.kind === "follow" || row.kind === "missed_call" || row.kind === "reply" || !row.post) navigate(`/profile/${lead.username}`);
+    else navigate(`/post/${row.post.id}`);
+  };
+  const showFollow = row.kind === "follow" && canFollow(lead.id);
+  const following = showFollow && isFollowing(lead.id);
 
   return (
-    <div className="min-h-screen bg-background pb-32">
-      <header className="flex items-center gap-1 px-2 pb-3 pt-1">
-        <button type="button" aria-label="Back" onClick={goBack} className="flex h-10 w-10 items-center justify-center rounded-full text-foreground active:bg-secondary"><ArrowLeft className="h-6 w-6" /></button>
-        <h1 className="text-2xl font-display font-bold tracking-tight text-foreground">Activity</h1>
-      </header>
+    <div role="button" tabIndex={0} onClick={open} onKeyDown={(e) => { if (e.key === "Enter") open(); }}
+      className={cn("flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors active:bg-foreground/[0.05]", isNew && "bg-amber-500/[0.06]")}>
+      {/* Photo (two overlapping for grouped likes) with a small badge saying what happened */}
+      <button type="button" aria-label={`Open ${lead.name}'s profile`} onClick={(e) => { e.stopPropagation(); navigate(`/profile/${lead.username}`); }}
+        className="relative h-12 w-12 shrink-0">
+        {row.people.length > 1 ? (
+          <>
+            <Face p={row.people[1]} className="absolute right-0 top-0 h-9 w-9" />
+            <Face p={lead} className="absolute bottom-0 left-0 h-9 w-9 ring-2 ring-background" />
+          </>
+        ) : <Face p={lead} className="h-12 w-12" />}
+        <span className={cn("absolute -bottom-0.5 -right-0.5 flex h-5 w-5 items-center justify-center rounded-full text-white ring-2 ring-background", badge.className)}>
+          <badge.icon className="h-[11px] w-[11px]" strokeWidth={2.6} />
+        </span>
+      </button>
 
-      <ScrollArea className="h-[calc(100vh-120px)]">
-        <div ref={scrollRef} className="px-4">
-          {isLoading ? (
-            <div className="space-y-4 pt-2">
-              {[1, 2, 3, 4, 5].map((i) => (
-                <div key={i} className="flex items-center gap-3 p-3">
-                  <Skeleton className="w-10 h-10 rounded-full" />
-                  <div className="flex-1 space-y-2"><Skeleton className="h-4 w-3/4" /><Skeleton className="h-3 w-1/4" /></div>
-                </div>
-              ))}
-            </div>
-          ) : activities.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-24 text-center">
-              <Heart className="w-10 h-10 text-muted-foreground/20 mb-4" />
-              <h3 className="text-lg font-bold">No activity yet</h3>
-              <p className="text-sm text-muted-foreground max-w-[220px] mt-1">When people interact with your posts, you'll see them here.</p>
-            </div>
-          ) : (
-            <div className="space-y-6">
-              {groupedActivities.map(([groupName, items]) => (
-                <section key={groupName}>
-                  {/* Sticky time marker */}
-                  <div className="sticky top-0 z-10 bg-background/80 backdrop-blur-md py-2 px-1">
-                    <h2 className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/50">{groupName}</h2>
-                  </div>
+      <p className="min-w-0 flex-1 text-[14.5px] leading-[1.35] text-foreground">
+        <span className="font-semibold">{lead.username}</span>{" "}
+        <span>{sentence(row)}</span>
+        {row.text && (row.kind === "comment" || row.kind === "reply" || row.kind === "mention") && <span className="text-foreground/80"> {row.text}</span>}
+        <span className="whitespace-nowrap text-muted-foreground"> {ago(row.at)}</span>
+      </p>
 
-                  {/* Timeline */}
-                  <div className="relative pl-6">
-                    {/* Vertical line */}
-                    <div className="absolute left-[11px] top-0 bottom-0 w-[1.5px] bg-border/30" />
+      {showFollow ? (
+        <button type="button" onClick={(e) => { e.stopPropagation(); (following ? unfollow : follow)(lead.id); }}
+          className={cn("h-8 shrink-0 rounded-lg px-4 text-[13.5px] font-semibold transition-colors active:scale-95",
+            following ? "bg-foreground/[0.07] text-foreground" : "bg-amber-400 text-[#1a1204]")}>
+          {following ? "Following" : "Follow back"}
+        </button>
+      ) : row.post ? (
+        <span className="relative h-12 w-12 shrink-0 overflow-hidden rounded-md bg-foreground/[0.06]">
+          {row.post.image
+            ? <img src={row.post.image} alt="" loading="lazy" className="h-full w-full object-cover" />
+            : <span className="flex h-full w-full items-center justify-center p-1 text-center text-[8.5px] font-medium leading-tight text-muted-foreground line-clamp-4">{row.post.caption || "Post"}</span>}
+          {row.post.video && <Play className="absolute right-1 top-1 h-3 w-3 fill-white text-white drop-shadow" />}
+        </span>
+      ) : null}
+    </div>
+  );
+}
 
-                    <div className="space-y-1">
-                      {items.map((item) => (
-                        <div
-                          key={item.id}
-                          onClick={() => {
-                            if (item.type === 'follow') navigate(`/profile/${item.user.username}`);
-                            else if (item.post_id) navigate(`/post/${item.post_id}`);
-                          }}
-                          className="relative flex items-center gap-3 py-3 cursor-pointer group"
-                        >
-                          {/* Timeline dot */}
-                          <div className={cn(
-                            "absolute -left-6 w-[9px] h-[9px] rounded-full border-2 border-background z-10",
-                            item.type === 'like' ? "bg-destructive" :
-                            item.type === 'follow' ? "bg-primary" :
-                            item.type === 'comment' ? "bg-accent-foreground" : "bg-muted-foreground"
-                          )} style={{ top: "50%", transform: "translateY(-50%) translateX(7px)" }} />
+/** Likes, comments, replies and new followers — laid out like other social apps' activity pages. */
+export default function Activity() {
+  const { user } = useAuth();
+  const goBack = useGoBack("/chat");
+  const [filter, setFilter] = useState<Filter>("all");
+  const [seenBefore] = useState(takeActivitySeen); // anything newer than the last visit is "New"
 
-                          <Avatar className="w-9 h-9 shrink-0">
-                            <AvatarImage src={item.user.avatar_url || ""} className="object-cover" />
-                            <AvatarFallback className="bg-primary/5 text-primary text-xs font-bold">{item.user.username[0].toUpperCase()}</AvatarFallback>
-                          </Avatar>
+  const q = useQuery({ queryKey: ["activity", user?.id], queryFn: () => fetchActivity(user!.id), enabled: !!user, staleTime: 30_000, refetchOnMount: "always" });
 
-                          <div className="flex-1 min-w-0">
-                            <p className="text-[13px]">
-                              <span className="font-bold">{item.user.username}</span>
-                              <span className="text-muted-foreground ml-1">{item.content || item.type}</span>
-                            </p>
-                            <span className="text-[11px] text-muted-foreground/50">{formatDistanceToNow(new Date(item.created_at), { addSuffix: true })}</span>
-                          </div>
+  const sections = useMemo(() => {
+    const kinds = FILTERS.find((f) => f.key === filter)?.kinds;
+    const rows = (q.data ?? []).filter((r) => !kinds || kinds.includes(r.kind));
+    const out: { title: string; rows: ActivityRow[] }[] = [];
+    const put = (title: string, r: ActivityRow) => {
+      const last = out[out.length - 1];
+      if (last?.title === title) last.rows.push(r); else out.push({ title, rows: [r] });
+    };
+    for (const r of rows) {
+      const days = differenceInCalendarDays(new Date(), new Date(r.at));
+      const title = seenBefore && Date.parse(r.at) > seenBefore ? "New"
+        : days === 0 ? "Today" : days === 1 ? "Yesterday" : days < 7 ? "This week" : days < 30 ? "This month" : "Earlier";
+      put(title, r);
+    }
+    return out;
+  }, [q.data, filter, seenBefore]);
 
-                          {item.post_media?.url && (
-                            <div className="w-10 h-10 rounded-lg overflow-hidden bg-muted flex-shrink-0">
-                              {item.post_media.type === 'video' ? (
-                                <div className="w-full h-full bg-secondary flex items-center justify-center"><Play className="w-3 h-3 text-muted-foreground fill-current" /></div>
-                              ) : (
-                                <LazyImage src={item.post_media.url} className="w-full h-full object-cover" alt="Post" priority />
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </section>
-              ))}
-            </div>
-          )}
+  return (
+    <div className="min-h-screen bg-background pb-[calc(var(--bottom-nav-height)+24px)] text-foreground">
+      <div className="sticky top-[env(safe-area-inset-top,0px)] z-10 bg-background/95 backdrop-blur-xl md:top-0">
+        <header className="relative flex h-12 items-center justify-center px-2">
+          <button type="button" aria-label="Back" onClick={goBack} className="absolute left-1.5 flex h-10 w-10 items-center justify-center rounded-full active:bg-foreground/10"><ArrowLeft className="h-6 w-6" /></button>
+          <h1 className="text-[17px] font-bold">Activity</h1>
+        </header>
+        <div className="flex gap-2 overflow-x-auto px-4 pb-3 pt-1 scrollbar-hide" role="tablist" aria-label="Show">
+          {FILTERS.map((f) => (
+            <button key={f.key} type="button" role="tab" aria-selected={filter === f.key} onClick={() => setFilter(f.key)}
+              className={cn("h-8 shrink-0 rounded-full border px-4 text-[13.5px] font-semibold transition-colors",
+                filter === f.key ? "border-foreground bg-foreground text-background" : "border-foreground/15 text-foreground active:bg-foreground/5")}>
+              {f.label}
+            </button>
+          ))}
         </div>
-      </ScrollArea>
+      </div>
+
+      {q.isLoading ? (
+        <div className="pt-2">
+          {Array.from({ length: 8 }, (_, i) => (
+            <div key={i} className="flex items-center gap-3 px-4 py-2.5">
+              <div className="h-12 w-12 animate-pulse rounded-full bg-foreground/[0.07]" />
+              <div className="flex-1 space-y-2"><div className="h-3.5 w-3/4 animate-pulse rounded bg-foreground/[0.07]" /><div className="h-3 w-1/3 animate-pulse rounded bg-foreground/[0.05]" /></div>
+              <div className="h-12 w-12 animate-pulse rounded-md bg-foreground/[0.05]" />
+            </div>
+          ))}
+        </div>
+      ) : q.isError ? (
+        <p className="px-8 py-24 text-center text-[15px] text-muted-foreground">Couldn't load your activity. Check your connection and try again.</p>
+      ) : sections.length === 0 ? (
+        <div className="flex flex-col items-center px-10 py-24 text-center">
+          <span className="flex h-16 w-16 items-center justify-center rounded-full border-2 border-foreground/80"><Bell className="h-7 w-7" /></span>
+          <h2 className="mt-4 text-[18px] font-bold">{filter === "all" ? "No activity yet" : `No ${FILTERS.find((f) => f.key === filter)!.label.toLowerCase()} yet`}</h2>
+          <p className="mt-1 text-[14px] text-muted-foreground">When people like or comment on your posts, or follow you, you'll see it here.</p>
+        </div>
+      ) : (
+        sections.map((s) => (
+          <section key={s.title} aria-label={s.title}>
+            <h2 className="px-4 pb-1 pt-4 text-[15px] font-bold">{s.title}</h2>
+            {s.rows.map((r) => <Row key={r.key} row={r} isNew={s.title === "New"} />)}
+          </section>
+        ))
+      )}
     </div>
   );
 }
