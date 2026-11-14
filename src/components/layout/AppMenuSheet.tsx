@@ -1,9 +1,10 @@
 import { useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { ArrowLeft, BarChart3, Download, Bookmark, ChevronRight, FileText, History, Inbox, Info, LifeBuoy, Lock, LogOut, Settings, ShieldCheck, Sparkles, ThumbsUp, UserPlus, Video, type LucideIcon } from "lucide-react";
+import { ArrowLeft, BarChart3, Download, Bookmark, ChevronRight, FileText, History, Inbox, Info, LifeBuoy, Lock, LogOut, Settings, ShieldCheck, Sparkles, ThumbsUp, UserCheck, UserPlus, Video, type LucideIcon } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { openReportCount } from "@/services/api/safety";
 import { openFeedbackCount } from "@/services/api/feedback";
+import { signupsToday } from "@/services/api/signups";
 import { FeedbackSheet } from "@/components/feedback/FeedbackSheet";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -20,15 +21,17 @@ export const AppMenuSheet = ({ trigger }: { trigger: ReactNode }) => {
   const { isAdmin } = useIsAdmin();
   const reports = useQuery({ queryKey: ["moderation-count"], queryFn: openReportCount, enabled: isAdmin && open, staleTime: 30_000 });
   const feedback = useQuery({ queryKey: ["feedback-count"], queryFn: openFeedbackCount, enabled: isAdmin && open, staleTime: 30_000 });
+  const signups = useQuery({ queryKey: ["signups-today"], queryFn: signupsToday, enabled: isAdmin && open, staleTime: 30_000 });
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const kind = useInstallKind();
 
-  type Row = { label: string; icon: LucideIcon; to?: string; run?: () => void; badge?: number };
+  type Row = { label: string; icon: LucideIcon; to?: string; run?: () => void; badge?: number; note?: string };
   const groups: { title: string; rows: Row[] }[] = [
     ...(isAdmin ? [{ title: "Admin", rows: [
       { to: "/tiktok", icon: Sparkles, label: "Christian TikTok" },
       { to: "/moderation", icon: ShieldCheck, label: "Moderation", badge: reports.data || 0 },
       { to: "/feedback", icon: Inbox, label: "Feedback", badge: feedback.data || 0 },
+      { to: "/signups", icon: UserCheck, label: "Sign-ups", note: signups.data ? `${signups.data} today` : undefined },
       { to: "/analytics", icon: BarChart3, label: "Analytics" },
     ] }] : [{ title: "Insights", rows: [{ to: "/analytics", icon: BarChart3, label: "Analytics" }] }]),
     { title: "Your activity", rows: [
@@ -76,6 +79,7 @@ export const AppMenuSheet = ({ trigger }: { trigger: ReactNode }) => {
                       <r.icon className="h-[22px] w-[22px] shrink-0 opacity-80" strokeWidth={1.8} />
                       <span className={cn("flex min-h-[52px] min-w-0 flex-1 items-center gap-2 pr-3", i > 0 && "border-t border-foreground/[0.07]")}>
                         <span className="min-w-0 flex-1 truncate text-[15.5px]">{r.label}</span>
+                        {r.note ? <span className="shrink-0 text-[13px] text-muted-foreground">{r.note}</span> : null}
                         {r.badge ? <span className="rounded-full bg-red-500 px-2 py-0.5 text-[12px] font-bold text-white">{r.badge}</span> : null}
                         <ChevronRight className="h-[18px] w-[18px] shrink-0 text-muted-foreground/70" />
                       </span>
