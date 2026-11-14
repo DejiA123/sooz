@@ -4,7 +4,10 @@ import { useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 
-/** Unread notification count for the signed-in user, shared by every bell/badge in the app. */
+/**
+ * Unread activity for the bell (likes, comments, replies, follows, missed calls…), shared by every
+ * bell / badge. Chat messages aren't counted: they have their own unread counts in Messages.
+ */
 export function useUnreadNotifications() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -18,7 +21,8 @@ export function useUnreadNotifications() {
         .from("notifications")
         .select("id", { count: "exact", head: true })
         .eq("user_id", user!.id)
-        .eq("is_read", false);
+        .eq("is_read", false)
+        .neq("type", "message");
       return count ?? 0;
     },
     enabled: !!user,
@@ -27,11 +31,14 @@ export function useUnreadNotifications() {
     refetchOnWindowFocus: true,
   });
 
-  // Opening Activity/Notifications marks things as seen, so clear the badge right away.
+  // Opening Activity / Notifications counts as seeing them: the badge clears at once, and they're
+  // marked read on the account, so it doesn't come back when the app is opened again.
   useEffect(() => {
-    if (user && /^\/(activity|notifications)/.test(location.pathname)) {
-      queryClient.setQueryData(["unread-notifications", user.id], 0);
-    }
+    if (!user || !/^\/(activity|notifications)/.test(location.pathname)) return;
+    queryClient.setQueryData(["unread-notifications", user.id], 0);
+    supabase.from("notifications").update({ is_read: true })
+      .eq("user_id", user.id).eq("is_read", false).neq("type", "message")
+      .then(({ error }) => { if (!error) queryClient.invalidateQueries({ queryKey: ["unread-notifications", user.id] }); });
   }, [location.pathname, user, queryClient]);
 
   return user ? data : 0;
