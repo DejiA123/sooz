@@ -1,10 +1,11 @@
 import { useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { ArrowLeft, BarChart3, Download, Bookmark, ChevronRight, FileText, History, Inbox, Info, LifeBuoy, Lock, LogOut, Settings, ShieldCheck, Sparkles, ThumbsUp, UserCheck, UserPlus, Video, type LucideIcon } from "lucide-react";
+import { ArrowLeft, BarChart3, Download, Bookmark, ChevronRight, FileText, History, Inbox, Info, LifeBuoy, Lock, LogOut, Settings, ShieldCheck, Sparkles, ThumbsUp, Eye, UserCheck, UserPlus, Video, type LucideIcon } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { openReportCount } from "@/services/api/safety";
 import { openFeedbackCount } from "@/services/api/feedback";
 import { signupsToday } from "@/services/api/signups";
+import { visitorsNow } from "@/services/api/visitors";
 import { FeedbackSheet } from "@/components/feedback/FeedbackSheet";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -22,6 +23,7 @@ export const AppMenuSheet = ({ trigger }: { trigger: ReactNode }) => {
   const reports = useQuery({ queryKey: ["moderation-count"], queryFn: openReportCount, enabled: isAdmin && open, staleTime: 30_000 });
   const feedback = useQuery({ queryKey: ["feedback-count"], queryFn: openFeedbackCount, enabled: isAdmin && open, staleTime: 30_000 });
   const signups = useQuery({ queryKey: ["signups-today"], queryFn: signupsToday, enabled: isAdmin && open, staleTime: 30_000 });
+  const visitors = useQuery({ queryKey: ["visitors-now"], queryFn: visitorsNow, enabled: isAdmin && open, staleTime: 20_000 });
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const kind = useInstallKind();
 
@@ -32,6 +34,7 @@ export const AppMenuSheet = ({ trigger }: { trigger: ReactNode }) => {
       { to: "/moderation", icon: ShieldCheck, label: "Moderation", badge: reports.data || 0 },
       { to: "/feedback", icon: Inbox, label: "Feedback", badge: feedback.data || 0 },
       { to: "/signups", icon: UserCheck, label: "Sign-ups", note: signups.data ? `${signups.data} today` : undefined },
+      { to: "/visitors", icon: Eye, label: "Visitors", note: visitors.data ? `${visitors.data} now` : undefined },
       { to: "/analytics", icon: BarChart3, label: "Analytics" },
     ] }] : [{ title: "Insights", rows: [{ to: "/analytics", icon: BarChart3, label: "Analytics" }] }]),
     { title: "Your activity", rows: [
