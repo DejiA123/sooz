@@ -21,6 +21,9 @@ export const TikTokTile = ({ video, showLikes = false }: { video: TikTokVideo; s
           alt=""
           loading="lazy"
           decoding="async"
+          // Read with CORS so the app's offline copy only keeps real pictures, never an error page
+          // (an opaque "no-cors" answer could be a 404 kept for 30 days — e.g. while the repo was private).
+          crossOrigin="anonymous"
           onError={() => setNoCover(true)}
           className="absolute left-1/2 top-1/2 h-auto max-w-none -translate-x-1/2 -translate-y-1/2"
           style={{ width: "339%" }}

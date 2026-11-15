@@ -95,6 +95,17 @@ export default defineConfig(({ mode }) => ({
             },
           },
           {
+            // TikTok covers (GitHub "covers" branch): only real pictures are kept (status 200), in their
+            // own cache, so a cover that failed once (e.g. while the repo was private) is fetched again.
+            urlPattern: /^https:\/\/raw\.githubusercontent\.com\/DejiA123\/sooz\/covers\//,
+            handler: "CacheFirst",
+            options: {
+              cacheName: "sooz-covers",
+              expiration: { maxEntries: 600, maxAgeSeconds: 60 * 60 * 24 * 14 },
+              cacheableResponse: { statuses: [200] },
+            },
+          },
+          {
             urlPattern: ({ request }) => request.destination === "image",
             handler: "CacheFirst",
             options: {
