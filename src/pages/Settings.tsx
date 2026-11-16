@@ -7,6 +7,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { FamilySafeSetting } from "@/components/safety/FamilySafeSetting";
 import { useIsAdmin } from "@/lib/admin";
+import { useAuth } from "@/hooks/useAuth";
 import { REEL_UI_DEFAULT, setReelUi, useReelUi, type ReelUi } from "@/lib/reelUi";
 import { cn } from "@/lib/utils";
 import { forgetPushOnThisPhone, isIOS } from "@/lib/push";
@@ -110,6 +111,7 @@ export default function Settings() {
   const navigate = useNavigate();
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const { isAdmin } = useIsAdmin();
+  const { user } = useAuth();
   const handleLogout = async () => {
     try { await forgetPushOnThisPhone(); await supabase.auth.signOut(); } catch (error) { console.error(error); }
     finally { Object.keys(localStorage).forEach((key) => { if (key.startsWith("sb-")) localStorage.removeItem(key); }); window.location.href = "/auth"; }
@@ -145,13 +147,13 @@ export default function Settings() {
             <ChevronRight className="h-5 w-5 text-muted-foreground" />
           </button>
 
-          {/* Logout */}
-          <div className="pt-4">
+          {/* Logout (only for signed-in people) */}
+          {user && <div className="pt-4">
             <Button variant="ghost" className="w-full justify-start gap-3 h-14 text-destructive hover:text-destructive hover:bg-destructive/5 rounded-2xl" onClick={handleLogout}>
               <LogOut className="w-5 h-5" />
               <span className="font-bold">Log Out</span>
             </Button>
-          </div>
+          </div>}
 
           <AppVersion />
         </div>
