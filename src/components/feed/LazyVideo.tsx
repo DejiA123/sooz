@@ -4,6 +4,7 @@ import { useInView } from "react-intersection-observer";
 import { useVideoStore } from "@/store/useVideoStore";
 import { useAutoplayUnlock } from "@/hooks/useAutoplayUnlock";
 import { useVideoCache } from "@/store/useVideoCache";
+import { soundBlocked } from "@/lib/soundAutoplay";
 
 interface LazyVideoProps {
     src: string;
@@ -110,7 +111,7 @@ export const LazyVideo = ({ src, id, onClick, startTime = 0, priority = false, d
                                 // If unmuted autoplay fails (browser policy), try muting and playing
                                 if (!video.muted) {
                                     video.muted = true;
-                                    setGlobalMuted(true); // Fallback to global mute
+                                    soundBlocked(); // the browser blocked sound: carry on muted (not the person's choice)
                                     try {
                                         await video.play();
                                         setIsPlaying(true);

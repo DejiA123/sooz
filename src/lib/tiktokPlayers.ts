@@ -53,11 +53,14 @@ export function playerAnswered(ok: boolean): void {
   else if (++tiktokTapForwarding.silent >= 2) tiktokTapForwarding.broken = true;
 }
 
+import { soundOnFromGesture } from "./soundAutoplay";
+
 let started = false;
 export function startTikTokGestures(): void {
   if (started || typeof window === "undefined") return;
   started = true;
-  const onGesture = () => {
+  const onGesture = (e: Event) => {
+    soundOnFromGesture(e); // a real click / key press turns the feed's sound on first
     for (const p of players) if (p.ready && (!p.blessed || p.isActive())) p.onGesture();
   };
   for (const type of ["touchstart", "touchend", "pointerup", "click", "keydown"]) {

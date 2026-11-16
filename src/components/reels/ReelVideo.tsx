@@ -5,6 +5,7 @@ import { useVideoStore } from "@/store/useVideoStore";
 import { isSlowConnection } from "@/lib/network";
 import { acquireVideo, releaseVideo, setActiveVideo } from "@/lib/videoPool";
 import { Spinner } from "./gestures";
+import { soundBlocked } from "@/lib/soundAutoplay";
 
 export interface ReelVideoHandle {
   togglePlay: () => void;
@@ -117,7 +118,7 @@ export const ReelVideo = forwardRef<ReelVideoHandle, ReelVideoProps>(({ src, pos
         // Sound blocked until the first tap — fall back to muted autoplay.
         if (!v.muted) {
           v.muted = true;
-          setGlobalMuted(true);
+          soundBlocked(); // not the person's choice: carry on muted, "Tap for sound"
           v.play().catch((e2) => { if (refused(e2)) setBlocked(true); });
         } else {
           setBlocked(true); // even muted autoplay refused (Low Power Mode)
