@@ -3,12 +3,14 @@ import App from "./App.tsx";
 import "./index.css";
 import { startVideoPool } from "./lib/videoPool";
 import { startTikTokGestures } from "./lib/tiktokPlayers";
+import { probeSoundAutoplay } from "./lib/soundAutoplay";
 import { applyReelUi } from "./lib/reelUi";
 import { warmForYou } from "./services/api/feed";
 
 function start() {
   startVideoPool();
   startTikTokGestures();
+  probeSoundAutoplay(); // start with sound where the browser allows it, like TikTok
   applyReelUi();
   // Home: start fetching the videos now, while the rest of the app is still loading.
   if (window.location.pathname === "/") warmForYou();

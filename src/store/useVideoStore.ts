@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { saveSoundChoice } from '@/lib/soundPref';
 
 interface VideoState {
     activeVideoId: string | null;
@@ -14,7 +15,9 @@ export const useVideoStore = create<VideoState>((set) => ({
     activeVideoId: null,
     setActiveVideo: (id) => set({ activeVideoId: id }),
     isGlobalMuted: true,
-    setGlobalMuted: (muted) => set({ isGlobalMuted: muted }),
+    // Only the person's own choices go through here (sound button, tap, TikTok's button), so it's remembered;
+    // the browser blocking sound uses soundBlocked() instead.
+    setGlobalMuted: (muted) => { saveSoundChoice(muted); set({ isGlobalMuted: muted }); },
     soundUnlocked: false,
     setSoundUnlocked: (unlocked) => set({ soundUnlocked: unlocked }),
 }));

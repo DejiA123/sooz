@@ -10,6 +10,7 @@ import { requestTikTokRefresh, tiktokPlayerUrl, type TikTokVideo } from "@/servi
 import { playerAnswered, registerTikTokPlayer, tapForwarded, tiktokTapForwarding, type TikTokPlayerHandle } from "@/lib/tiktokPlayers";
 import { useReelUi } from "@/lib/reelUi";
 import { useVideoStore } from "@/store/useVideoStore";
+import { soundAutoplay, soundBlocked } from "@/lib/soundAutoplay";
 import { countTikTokComments } from "@/services/api/tiktokComments";
 import { formatCount, Spinner } from "./gestures";
 import { RailButton, ShareArrow, railIconClass } from "./ReelRail";
@@ -224,6 +225,7 @@ export const TikTokReel = memo(function TikTokReel({ video, active, near = false
   const gestureAt = useRef(0);
   const ourMuteAt = useRef(0);
   const autoUnmuteAt = useRef(0);
+  const autoUnmuteViaPolicy = useRef(false);
   const setGlobalMuted = useVideoStore((s) => s.setGlobalMuted);
   const setSoundUnlocked = useVideoStore((s) => s.setSoundUnlocked);
   /** Sound is on for the whole feed (one tap on any video turns it on, like TikTok). */
@@ -330,8 +332,13 @@ export const TikTokReel = memo(function TikTokReel({ video, active, near = false
             setBlockedHint(false);
             setPausedIcon(false);
             clock.current.at = performance.now();
-            // Sound is on for the feed: bring it back (allowed once a tap has started this player).
-            if (soundWanted() && mutedRef.current && handle.current?.blessed) { autoUnmuteAt.current = Date.now(); send("unMute"); }
+            // Sound is on for the feed: bring it back — allowed once a tap has started this player, or
+            // whenever the browser lets sound start by itself (src/lib/soundAutoplay.ts).
+            if (soundWanted() && mutedRef.current && (handle.current?.blessed || soundAutoplay.allowed)) {
+              autoUnmuteViaPolicy.current = !handle.current?.blessed;
+              autoUnmuteAt.current = Date.now();
+              send("unMute");
+            }
           }
         } else if (state === 2) {
           playing.current = false;
@@ -340,6 +347,9 @@ export const TikTokReel = memo(function TikTokReel({ video, active, near = false
             // Safari wouldn't allow sound without a tap and paused it: carry on muted.
             autoUnmuteAt.current = 0;
             if (handle.current) handle.current.blessed = false;
+            // The browser said sound could start by itself but this player was stopped: stop trying on
+            // the next videos and show "Tap for sound".
+            if (autoUnmuteViaPolicy.current) soundBlocked();
             ourMuteAt.current = Date.now();
             send("mute");
             send("play");
@@ -367,6 +377,8 @@ export const TikTokReel = memo(function TikTokReel({ video, active, near = false
       } else if (data.type === "onMute") {
         const m = !!data.value;
         setMuted(m);
+        // Sound came on: the attempt worked, so a pause right after is the person's, not the browser's.
+        if (!m) autoUnmuteAt.current = 0;
         if (!m && handle.current && Date.now() - gestureAt.current < 4000) handle.current.blessed = true;
         // Sound turned on/off with TikTok's own button: the whole feed follows.
         if (activeRef.current && playing.current && Date.now() - ourMuteAt.current > 1500 && m !== useVideoStore.getState().isGlobalMuted) {
@@ -467,6 +479,7 @@ export const TikTokReel = memo(function TikTokReel({ video, active, near = false
       check(() => !mutedRef.current);
     } else {
       userPaused.current = true;
+      autoUnmuteAt.current = 0; // their pause, not the browser refusing sound
       setPausedIcon(true);
       send("pause");
     }
