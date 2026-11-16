@@ -7,7 +7,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { isReposted } from "@/services/api/reposts";
 import { cn } from "@/lib/utils";
 import { requestTikTokRefresh, tiktokPlayerUrl, type TikTokVideo } from "@/services/api/tiktok";
-import { playerAnswered, registerTikTokPlayer, tapForwarded, tiktokTapForwarding, type TikTokPlayerHandle } from "@/lib/tiktokPlayers";
+import { firstPlayerReady, markPlayerReady, playerAnswered, registerTikTokPlayer, tapForwarded, tiktokTapForwarding, whenFirstPlayerReady, type TikTokPlayerHandle } from "@/lib/tiktokPlayers";
 import { useReelUi } from "@/lib/reelUi";
 import { useVideoStore } from "@/store/useVideoStore";
 import { soundAutoplay, soundBlocked } from "@/lib/soundAutoplay";
@@ -25,6 +25,8 @@ const TIKTOK_ORIGIN = "https://www.tiktok.com";
 /** Fill the screen (cropping a little, like TikTok) only when that hides at most this much of the video. */
 const MAX_FILL_CROP = 0.2;
 const clampRatio = (r: number) => Math.min(2, Math.max(0.45, r));
+/** Fresh starts for a player stuck on TikTok's loading screen. */
+const MAX_RESTARTS = 1;
 
 /** Small TikTok-style note mark for attribution. */
 export const TikTokMark = ({ className }: { className?: string }) => (
@@ -149,7 +151,24 @@ interface TikTokReelProps {
  * shows (if TikTok can't play a video here, it says so and the viewer swipes on).
  */
 export const TikTokReel = memo(function TikTokReel({ video, active, near = false, repostedBy }: TikTokReelProps) {
-  const mounted = near || active;
+  // Next door: load ahead of time — except on a fresh open, where the video on screen goes first
+  // (until the first TikTok player is ready, at most 4s; see tiktokPlayers.ts).
+  const [mayPreload, setMayPreload] = useState(firstPlayerReady);
+  useEffect(() => {
+    if (mayPreload || !near || active) return;
+    const off = whenFirstPlayerReady(() => setMayPreload(true));
+    const t = setTimeout(() => setMayPreload(true), 4000);
+    return () => { off(); clearTimeout(t); };
+  }, [mayPreload, near, active]);
+  const mounted = active || (near && mayPreload);
+  // A player stuck on TikTok's grey loading logo (TikTok only retries its own request after 10s) is
+  // started again once: `attempt` gives the frame a fresh start.
+  const [attempt, setAttempt] = useState(0);
+  const [errored, setErrored] = useState(false);
+  const [gaveUp, setGaveUp] = useState(false);
+  // A slide counts once as "a player that didn't answer" (tiktokPlayers.ts), however it ended up there.
+  const silentCounted = useRef(false);
+  const countSilent = () => { if (silentCounted.current) return; silentCounted.current = true; playerAnswered(false); };
   const [loaded, setLoaded] = useState(false);
   const [ready, setReady] = useState(false);
   const [slow, setSlow] = useState(false);
@@ -278,7 +297,7 @@ export const TikTokReel = memo(function TikTokReel({ video, active, near = false
   // Player removed (scrolled far away): start fresh next time.
   useEffect(() => {
     if (mounted) return;
-    setLoaded(false); setReady(false); setSlow(false);
+    setLoaded(false); setReady(false); setSlow(false); setAttempt(0); setErrored(false); setGaveUp(false); silentCounted.current = false;
     setIsPlaying(false); setBlockedHint(false); setMuted(true); setPausedIcon(false);
     setTapThrough(tiktokTapForwarding.broken); // another chance at the floating look next time
     playing.current = false; lastState.current = -1; ourPause.current = false;
@@ -314,6 +333,7 @@ export const TikTokReel = memo(function TikTokReel({ video, active, near = false
       if (!data || typeof data !== "object" || typeof data.type !== "string") return;
       if (data.type === "onPlayerReady") {
         playerAnswered(true);
+        markPlayerReady();
         if (handle.current) handle.current.ready = true;
         setReady(true);
         kick();
@@ -373,7 +393,7 @@ export const TikTokReel = memo(function TikTokReel({ video, active, near = false
         // earlier way, so its own message and buttons can be read and tapped. (3xxx = it only refused
         // to start by itself, which SOOZ handles.)
         const code = Number((data.value as { errorCode?: number } | undefined)?.errorCode);
-        if (code > 0 && code < 3000) setTapThrough(true);
+        if (code > 0 && code < 3000) { setTapThrough(true); setErrored(true); }
       } else if (data.type === "onMute") {
         const m = !!data.value;
         setMuted(m);
@@ -414,11 +434,35 @@ export const TikTokReel = memo(function TikTokReel({ video, active, near = false
 
   // Floating look: a player that has loaded but never says it is ready can't be started by SOOZ —
   // show it the earlier way (TikTok starts it by itself there, and its own controls can be tapped).
+  // (Only once fresh starts haven't helped — see below.)
   useEffect(() => {
-    if (!active || !loaded || ready || !float) return;
-    const t = setTimeout(() => { playerAnswered(false); setTapThrough(true); }, 9000);
+    if (!active || !loaded || ready || !float || attempt < MAX_RESTARTS) return;
+    const t = setTimeout(() => { countSilent(); setTapThrough(true); }, 9000);
     return () => clearTimeout(t);
-  }, [active, loaded, ready, float]);
+  }, [active, loaded, ready, float, attempt]);
+
+  // Loaded, on screen, but TikTok still hasn't got its video ready after 6s: start the player again.
+  // Not while SOOZ has stopped relying on TikTok's messages this visit (then "ready" never comes).
+  const trustMessages = !tiktokTapForwarding.broken;
+  useEffect(() => {
+    if (!active || !loaded || ready || errored || !trustMessages || attempt >= MAX_RESTARTS) return;
+    const t = setTimeout(() => {
+      if (document.hidden) return;
+      setLoaded(false);
+      playing.current = false; lastState.current = -1;
+      if (handle.current) handle.current.ready = false;
+      setAttempt((a) => a + 1);
+    }, 6000);
+    return () => clearTimeout(t);
+  }, [active, loaded, ready, errored, trustMessages, attempt]);
+  // Fresh start used up: show TikTok's own screen after all (whatever it says), never hide it for good —
+  // and count it as a player that didn't answer (two in a row and SOOZ stops waiting for "ready" this
+  // visit, in case TikTok's messages have changed).
+  useEffect(() => {
+    if (!loaded || ready || attempt < MAX_RESTARTS || gaveUp) return;
+    const t = setTimeout(() => { setGaveUp(true); if (activeRef.current) countSilent(); }, 3000);
+    return () => clearTimeout(t);
+  }, [loaded, ready, attempt, gaveUp]);
 
   // …and once SOOZ has stopped relying on commands for this visit, slides already loaded follow.
   useEffect(() => { if (tiktokTapForwarding.broken) setTapThrough(true); }, [active, near]);
@@ -448,7 +492,11 @@ export const TikTokReel = memo(function TikTokReel({ video, active, near = false
   }, [near, active, user, video]);
 
 
-  const showPlayer = loaded || ready;
+  // The video's cover and a spinner stay up until TikTok's player has its video ready (instead of
+  // TikTok's grey loading logo); its own screen shows at once if it reports a problem (removed,
+  // private…), and after the fresh starts are used up. If TikTok's messages can't be relied on this
+  // visit, it shows as soon as it has loaded, as before.
+  const showPlayer = ready || errored || gaveUp || (loaded && !trustMessages);
   useEffect(() => {
     if (!active || showPlayer) return;
     const t = setTimeout(() => setSlow(true), 14000);
@@ -548,8 +596,8 @@ export const TikTokReel = memo(function TikTokReel({ video, active, near = false
             {mounted && (
               <iframe
                 ref={iframeRef}
-                key={video.tiktok_id}
-                src={tiktokPlayerUrl(video.tiktok_id)}
+                key={`${video.tiktok_id}:${attempt}`}
+                src={tiktokPlayerUrl(video.tiktok_id) + (attempt ? `&sooz_retry=${attempt}` : "")}
                 title={video.title || `TikTok by ${who}`}
                 allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
                 referrerPolicy="strict-origin-when-cross-origin"
