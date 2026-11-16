@@ -144,21 +144,24 @@ export const Sidebar = () => {
 
                             <div className="h-px bg-border my-2 mx-1" />
 
-                            <DropdownMenuItem onClick={() => toast("Switch accounts coming soon!")} className="flex items-center gap-3 p-3 cursor-pointer rounded-lg focus:bg-secondary/50">
-                                <span className="pl-8">Switch accounts</span>
-                            </DropdownMenuItem>
-
-                            <div className="h-px bg-border my-2 mx-1" />
-
-                            <DropdownMenuItem
-                                onClick={async () => {
-                                    await forgetPushOnThisPhone(); await supabase.auth.signOut();
-                                    window.location.href = "/auth";
-                                }}
-                                className="flex items-center gap-3 p-3 cursor-pointer rounded-lg focus:bg-secondary/50 hover:text-red-500 focus:text-red-500"
-                            >
-                                <span className="pl-8">Log out</span>
-                            </DropdownMenuItem>
+                            {/* Only signed-in people can log out; everyone else gets Sign in. */}
+                            {user ? (
+                                <DropdownMenuItem
+                                    onClick={async () => {
+                                        await forgetPushOnThisPhone(); await supabase.auth.signOut();
+                                        window.location.href = "/auth";
+                                    }}
+                                    className="flex items-center gap-3 p-3 cursor-pointer rounded-lg focus:bg-secondary/50 hover:text-red-500 focus:text-red-500"
+                                >
+                                    <span className="pl-8">Log out</span>
+                                </DropdownMenuItem>
+                            ) : (
+                                <DropdownMenuItem asChild>
+                                    <Link to="/auth" className="flex items-center gap-3 p-3 cursor-pointer rounded-lg font-semibold text-primary focus:bg-secondary/50">
+                                        <span className="pl-8">Sign in</span>
+                                    </Link>
+                                </DropdownMenuItem>
+                            )}
                         </DropdownMenuContent>
                     </DropdownMenu>
                 </div>

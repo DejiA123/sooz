@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { ArrowLeft, BarChart3, Download, Bookmark, ChevronRight, FileText, History, Inbox, Info, LifeBuoy, Lock, LogOut, Settings, ShieldCheck, Sparkles, ThumbsUp, Eye, UserCheck, UserPlus, Video, type LucideIcon } from "lucide-react";
+import { ArrowLeft, BarChart3, Download, Bookmark, ChevronRight, FileText, History, Inbox, Info, LifeBuoy, LogIn, Lock, LogOut, Settings, ShieldCheck, Sparkles, ThumbsUp, Eye, UserCheck, UserPlus, Video, type LucideIcon } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { openReportCount } from "@/services/api/safety";
 import { openFeedbackCount } from "@/services/api/feedback";
@@ -10,6 +10,7 @@ import { FeedbackSheet } from "@/components/feedback/FeedbackSheet";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useIsAdmin } from "@/lib/admin";
+import { useAuth } from "@/hooks/useAuth";
 import { Sheet, SheetClose, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { appVersionLabel } from "@/lib/appUpdate";
 import { forgetPushOnThisPhone } from "@/lib/push";
@@ -20,6 +21,7 @@ export const AppMenuSheet = ({ trigger }: { trigger: ReactNode }) => {
   const [open, setOpen] = useState(false);
   const close = () => setOpen(false);
   const { isAdmin } = useIsAdmin();
+  const { user } = useAuth();
   const reports = useQuery({ queryKey: ["moderation-count"], queryFn: openReportCount, enabled: isAdmin && open, staleTime: 30_000 });
   const feedback = useQuery({ queryKey: ["feedback-count"], queryFn: openFeedbackCount, enabled: isAdmin && open, staleTime: 30_000 });
   const signups = useQuery({ queryKey: ["signups-today"], queryFn: signupsToday, enabled: isAdmin && open, staleTime: 30_000 });
@@ -96,13 +98,24 @@ export const AppMenuSheet = ({ trigger }: { trigger: ReactNode }) => {
               </div>
             </section>
           ))}
-          <button
-            type="button"
-            onClick={async () => { close(); await forgetPushOnThisPhone(); await supabase.auth.signOut(); window.location.href = "/auth"; }}
-            className="mt-6 flex h-[52px] w-full items-center gap-3.5 rounded-2xl bg-foreground/[0.045] pl-4 text-left text-[15.5px] font-semibold text-red-500 active:bg-foreground/[0.08]"
-          >
-            <LogOut className="h-[22px] w-[22px]" strokeWidth={1.8} /> Log out
-          </button>
+          {/* Only signed-in people can log out; everyone else gets Sign in. */}
+          {user ? (
+            <button
+              type="button"
+              onClick={async () => { close(); await forgetPushOnThisPhone(); await supabase.auth.signOut(); window.location.href = "/auth"; }}
+              className="mt-6 flex h-[52px] w-full items-center gap-3.5 rounded-2xl bg-foreground/[0.045] pl-4 text-left text-[15.5px] font-semibold text-red-500 active:bg-foreground/[0.08]"
+            >
+              <LogOut className="h-[22px] w-[22px]" strokeWidth={1.8} /> Log out
+            </button>
+          ) : (
+            <Link
+              to="/auth"
+              onClick={close}
+              className="mt-6 flex h-[52px] w-full items-center gap-3.5 rounded-2xl bg-foreground/[0.045] pl-4 text-left text-[15.5px] font-semibold text-primary active:bg-foreground/[0.08]"
+            >
+              <LogIn className="h-[22px] w-[22px]" strokeWidth={1.8} /> Sign in
+            </Link>
+          )}
           <p className="mt-5 text-center text-[12px] text-muted-foreground/80">SOOZ {appVersionLabel()}</p>
         </div>
       </SheetContent>
