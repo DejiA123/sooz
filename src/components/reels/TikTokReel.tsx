@@ -7,10 +7,11 @@ import { useAuth } from "@/hooks/useAuth";
 import { isReposted } from "@/services/api/reposts";
 import { cn } from "@/lib/utils";
 import { requestTikTokRefresh, tiktokPlayerUrl, type TikTokVideo } from "@/services/api/tiktok";
-import { playerAnswered, registerTikTokPlayer, tapForwarded, tiktokTapForwarding, type TikTokPlayerHandle } from "@/lib/tiktokPlayers";
+import { firstPlayerReady, markPlayerReady, playerAnswered, registerTikTokPlayer, tapForwarded, tiktokTapForwarding, whenFirstPlayerReady, type TikTokPlayerHandle } from "@/lib/tiktokPlayers";
 import { useReelUi } from "@/lib/reelUi";
 import { useVideoStore } from "@/store/useVideoStore";
 import { soundAutoplay, soundBlocked } from "@/lib/soundAutoplay";
+import { soundTurnedOff } from "@/lib/soundPref";
 import { countTikTokComments } from "@/services/api/tiktokComments";
 import { formatCount, Spinner } from "./gestures";
 import { RailButton, ShareArrow, railIconClass } from "./ReelRail";
@@ -25,6 +26,10 @@ const TIKTOK_ORIGIN = "https://www.tiktok.com";
 /** Fill the screen (cropping a little, like TikTok) only when that hides at most this much of the video. */
 const MAX_FILL_CROP = 0.2;
 const clampRatio = (r: number) => Math.min(2, Math.max(0.45, r));
+/** SOOZ's daily link-preview cards (800×420, the video's cover in the middle with a play button). */
+const CARDS = "https://raw.githubusercontent.com/DejiA123/sooz/covers/tt";
+/** Fresh starts for a player stuck on TikTok's loading screen. */
+const MAX_RESTARTS = 1;
 
 /** Small TikTok-style note mark for attribution. */
 export const TikTokMark = ({ className }: { className?: string }) => (
@@ -149,11 +154,29 @@ interface TikTokReelProps {
  * shows (if TikTok can't play a video here, it says so and the viewer swipes on).
  */
 export const TikTokReel = memo(function TikTokReel({ video, active, near = false, repostedBy }: TikTokReelProps) {
-  const mounted = near || active;
+  // Next door: load ahead of time — except on a fresh open, where the video on screen goes first
+  // (until the first TikTok player is ready, at most 4s; see tiktokPlayers.ts).
+  const [mayPreload, setMayPreload] = useState(firstPlayerReady);
+  useEffect(() => {
+    if (mayPreload || !near || active) return;
+    const off = whenFirstPlayerReady(() => setMayPreload(true));
+    const t = setTimeout(() => setMayPreload(true), 4000);
+    return () => { off(); clearTimeout(t); };
+  }, [mayPreload, near, active]);
+  const mounted = active || (near && mayPreload);
+  // A player stuck on TikTok's grey loading logo (TikTok only retries its own request after 10s) is
+  // started again once: `attempt` gives the frame a fresh start.
+  const [attempt, setAttempt] = useState(0);
+  const [errored, setErrored] = useState(false);
+  const [gaveUp, setGaveUp] = useState(false);
+  // A slide counts once as "a player that didn't answer" (tiktokPlayers.ts), however it ended up there.
+  const silentCounted = useRef(false);
+  const countSilent = () => { if (silentCounted.current) return; silentCounted.current = true; playerAnswered(false); };
   const [loaded, setLoaded] = useState(false);
   const [ready, setReady] = useState(false);
   const [slow, setSlow] = useState(false);
   const [thumbFailed, setThumbFailed] = useState(false);
+  const [cardFailed, setCardFailed] = useState(false);
   const [thumbRatio, setThumbRatio] = useState<number | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [muted, setMuted] = useState(true);
@@ -278,7 +301,7 @@ export const TikTokReel = memo(function TikTokReel({ video, active, near = false
   // Player removed (scrolled far away): start fresh next time.
   useEffect(() => {
     if (mounted) return;
-    setLoaded(false); setReady(false); setSlow(false);
+    setLoaded(false); setReady(false); setSlow(false); setAttempt(0); setErrored(false); setGaveUp(false); silentCounted.current = false;
     setIsPlaying(false); setBlockedHint(false); setMuted(true); setPausedIcon(false);
     setTapThrough(tiktokTapForwarding.broken); // another chance at the floating look next time
     playing.current = false; lastState.current = -1; ourPause.current = false;
@@ -314,6 +337,7 @@ export const TikTokReel = memo(function TikTokReel({ video, active, near = false
       if (!data || typeof data !== "object" || typeof data.type !== "string") return;
       if (data.type === "onPlayerReady") {
         playerAnswered(true);
+        markPlayerReady();
         if (handle.current) handle.current.ready = true;
         setReady(true);
         kick();
@@ -373,7 +397,7 @@ export const TikTokReel = memo(function TikTokReel({ video, active, near = false
         // earlier way, so its own message and buttons can be read and tapped. (3xxx = it only refused
         // to start by itself, which SOOZ handles.)
         const code = Number((data.value as { errorCode?: number } | undefined)?.errorCode);
-        if (code > 0 && code < 3000) setTapThrough(true);
+        if (code > 0 && code < 3000) { setTapThrough(true); setErrored(true); }
       } else if (data.type === "onMute") {
         const m = !!data.value;
         setMuted(m);
@@ -414,11 +438,35 @@ export const TikTokReel = memo(function TikTokReel({ video, active, near = false
 
   // Floating look: a player that has loaded but never says it is ready can't be started by SOOZ —
   // show it the earlier way (TikTok starts it by itself there, and its own controls can be tapped).
+  // (Only once fresh starts haven't helped — see below.)
   useEffect(() => {
-    if (!active || !loaded || ready || !float) return;
-    const t = setTimeout(() => { playerAnswered(false); setTapThrough(true); }, 9000);
+    if (!active || !loaded || ready || !float || attempt < MAX_RESTARTS) return;
+    const t = setTimeout(() => { countSilent(); setTapThrough(true); }, 9000);
     return () => clearTimeout(t);
-  }, [active, loaded, ready, float]);
+  }, [active, loaded, ready, float, attempt]);
+
+  // Loaded, on screen, but TikTok still hasn't got its video ready after 6s: start the player again.
+  // Not while SOOZ has stopped relying on TikTok's messages this visit (then "ready" never comes).
+  const trustMessages = !tiktokTapForwarding.broken;
+  useEffect(() => {
+    if (!active || !loaded || ready || errored || !trustMessages || attempt >= MAX_RESTARTS) return;
+    const t = setTimeout(() => {
+      if (document.hidden) return;
+      setLoaded(false);
+      playing.current = false; lastState.current = -1;
+      if (handle.current) handle.current.ready = false;
+      setAttempt((a) => a + 1);
+    }, 6000);
+    return () => clearTimeout(t);
+  }, [active, loaded, ready, errored, trustMessages, attempt]);
+  // Fresh start used up: show TikTok's own screen after all (whatever it says), never hide it for good —
+  // and count it as a player that didn't answer (two in a row and SOOZ stops waiting for "ready" this
+  // visit, in case TikTok's messages have changed).
+  useEffect(() => {
+    if (!loaded || ready || attempt < MAX_RESTARTS || gaveUp) return;
+    const t = setTimeout(() => { setGaveUp(true); if (activeRef.current) countSilent(); }, 3000);
+    return () => clearTimeout(t);
+  }, [loaded, ready, attempt, gaveUp]);
 
   // …and once SOOZ has stopped relying on commands for this visit, slides already loaded follow.
   useEffect(() => { if (tiktokTapForwarding.broken) setTapThrough(true); }, [active, near]);
@@ -448,7 +496,11 @@ export const TikTokReel = memo(function TikTokReel({ video, active, near = false
   }, [near, active, user, video]);
 
 
-  const showPlayer = loaded || ready;
+  // The video's cover and a spinner stay up until TikTok's player has its video ready (instead of
+  // TikTok's grey loading logo); its own screen shows at once if it reports a problem (removed,
+  // private…), and after the fresh starts are used up. If TikTok's messages can't be relied on this
+  // visit, it shows as soon as it has loaded, as before.
+  const showPlayer = ready || errored || gaveUp || (loaded && !trustMessages);
   useEffect(() => {
     if (!active || showPlayer) return;
     const t = setTimeout(() => setSlow(true), 14000);
@@ -470,7 +522,12 @@ export const TikTokReel = memo(function TikTokReel({ video, active, near = false
       userPaused.current = false;
       setPausedIcon(false);
       send("play");
-      if (soundWanted()) send("unMute");
+      // A first tap that starts the video also turns the sound on (like TikTok), unless they turned it off.
+      const st = useVideoStore.getState();
+      if (soundWanted() || (!st.soundUnlocked && !soundTurnedOff())) {
+        send("unMute");
+        if (!soundWanted()) { setGlobalMuted(false); setSoundUnlocked(true); }
+      }
       check(() => lastState.current === 1 || lastState.current === 3);
     } else if (mutedRef.current) {
       send("unMute");
@@ -501,6 +558,13 @@ export const TikTokReel = memo(function TikTokReel({ video, active, near = false
   const sar = stageAR ?? 390 / 738;
   const fill = 1 - Math.min(sar / ratio, ratio / sar) <= MAX_FILL_CROP;
   const thumbnail = video.thumbnail_url || null;
+  const cardCover = cardFailed ? null : `${CARDS}/${video.tiktok_id}.jpg`;
+  // The phone won't start this video without a tap (iPhone Low Power Mode refuses every video until
+  // then — TikTok's player would show its grey logo with its own play button): show the cover and
+  // "Tap to play"; a tap anywhere on the slide starts it.
+  const tapToStart = active && blockedHint && !isPlaying && !tapThrough && !userPaused.current;
+  const posterUp = !(mounted && showPlayer) || tapToStart;
+  const posterHasPlay = !!cardCover && !(thumbnail && !thumbFailed);
   const handleName = video.author_handle ? `@${video.author_handle}` : null;
   const who = video.author_name || handleName || "Christian TikTok";
   const tiktokUrl = video.url;
@@ -515,9 +579,10 @@ export const TikTokReel = memo(function TikTokReel({ video, active, near = false
             className={cn("tiktok-player", fill && (float ? "tiktok-player--cover" : "tiktok-player--fill"), float && "tiktok-player--float")}
             style={{ ["--ar" as string]: String(ratio) }}
           >
-            {/* Until TikTok's player is ready */}
-            {!(mounted && showPlayer) && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black px-8 text-center text-white">
+            {/* The video's cover: until TikTok's player is ready, and while the phone won't let it start
+                without a tap (iPhone Low Power Mode) — instead of TikTok's grey logo and play button. */}
+            {posterUp && (
+              <div className="absolute inset-0 z-[2] flex flex-col items-center justify-center gap-3 bg-black px-8 text-center text-white">
                 {thumbnail && !thumbFailed ? (
                   <img
                     src={thumbnail}
@@ -530,14 +595,26 @@ export const TikTokReel = memo(function TikTokReel({ video, active, near = false
                     }}
                     onError={() => { setThumbFailed(true); requestTikTokRefresh(video.id); }}
                   />
+                ) : cardCover ? (
+                  // The cover is the middle of SOOZ's daily preview card (with its play button), so the
+                  // picture is scaled until that middle part fills the box.
+                  <img
+                    src={cardCover}
+                    alt=""
+                    crossOrigin="anonymous"
+                    decoding="async"
+                    onError={() => setCardFailed(true)}
+                    className="absolute left-1/2 top-1/2 h-auto max-w-none -translate-x-1/2 -translate-y-1/2"
+                    style={{ width: `${(800 / (420 * Math.min(ratio, 800 / 420))) * 100}%` }}
+                  />
                 ) : (
                   <>
                     <TikTokMark className="h-9 w-9 text-white/40" />
                     <p className="text-[15px] font-bold text-white/85">{who}</p>
                   </>
                 )}
-                {active && !slow && <Spinner className="relative mt-4" />}
-                {active && slow && (
+                {active && !slow && !tapToStart && <Spinner className={cn("relative", cardCover && !(thumbnail && !thumbFailed) ? "mt-60" : "mt-4")} />}
+                {active && slow && !tapToStart && (
                   <a href={tiktokUrl} target="_blank" rel="noopener noreferrer" className="relative mt-4 flex items-center gap-2 rounded-full bg-white px-5 py-2.5 text-sm font-bold text-black">
                     <ExternalLink className="h-4 w-4" /> Watch on TikTok
                   </a>
@@ -548,13 +625,13 @@ export const TikTokReel = memo(function TikTokReel({ video, active, near = false
             {mounted && (
               <iframe
                 ref={iframeRef}
-                key={video.tiktok_id}
-                src={tiktokPlayerUrl(video.tiktok_id)}
+                key={`${video.tiktok_id}:${attempt}`}
+                src={tiktokPlayerUrl(video.tiktok_id) + (attempt ? `&sooz_retry=${attempt}` : "")}
                 title={video.title || `TikTok by ${who}`}
                 allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
                 referrerPolicy="strict-origin-when-cross-origin"
                 onLoad={() => setLoaded(true)}
-                className={cn("tiktok-iframe absolute inset-0 h-full w-full border-0 bg-black transition-opacity duration-300", showPlayer ? "opacity-100" : "opacity-0")}
+                className={cn("tiktok-iframe absolute inset-0 h-full w-full border-0 bg-black transition-opacity duration-300", showPlayer && !posterUp ? "opacity-100" : "opacity-0")}
               />
             )}
           </div>
@@ -576,10 +653,13 @@ export const TikTokReel = memo(function TikTokReel({ video, active, near = false
           {/* Floating look: SOOZ's pause icon, as on SOOZ videos */}
           {float && active && showPlayer && !isPlaying && (pausedIcon || blockedHint) && (
             <div className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center gap-3">
-              <div className="flex h-20 w-20 items-center justify-center rounded-full bg-black/35 backdrop-blur-sm animate-scale-in">
-                <Play className="ml-1 h-10 w-10 fill-white/90 text-white/90" />
-              </div>
-              {blockedHint && !pausedIcon && <span className="rounded-full bg-black/55 px-3 py-1 text-[13px] font-semibold text-white">Tap to play</span>}
+              {/* (The preview card's cover already has a play button in the middle.) */}
+              {!(tapToStart && posterHasPlay) && (
+                <div className="flex h-20 w-20 items-center justify-center rounded-full bg-black/35 backdrop-blur-sm animate-scale-in">
+                  <Play className="ml-1 h-10 w-10 fill-white/90 text-white/90" />
+                </div>
+              )}
+              {blockedHint && !pausedIcon && <span className={cn("rounded-full bg-black/55 px-3 py-1 text-[13px] font-semibold text-white", tapToStart && posterHasPlay && "mt-60")}>Tap to play</span>}
             </div>
           )}
 

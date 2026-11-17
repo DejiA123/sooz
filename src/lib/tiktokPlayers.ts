@@ -55,6 +55,27 @@ export function playerAnswered(ok: boolean): void {
 
 import { soundOnFromGesture } from "./soundAutoplay";
 
+/**
+ * Fresh open: the video on screen gets TikTok's attention first. Until the first TikTok player of
+ * this visit is ready, the one waiting next door doesn't start loading (two TikTok players booting at
+ * once on a phone — each running TikTok's heavy page — could leave the first stuck on TikTok's grey
+ * logo). After that, next-door players load straight away as before.
+ */
+let firstReady = false;
+const readyWaiters = new Set<() => void>();
+export const firstPlayerReady = () => firstReady;
+export function markPlayerReady(): void {
+  if (firstReady) return;
+  firstReady = true;
+  readyWaiters.forEach((f) => f());
+  readyWaiters.clear();
+}
+export function whenFirstPlayerReady(cb: () => void): () => void {
+  if (firstReady) { cb(); return () => {}; }
+  readyWaiters.add(cb);
+  return () => { readyWaiters.delete(cb); };
+}
+
 let started = false;
 export function startTikTokGestures(): void {
   if (started || typeof window === "undefined") return;
