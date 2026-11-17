@@ -12,6 +12,7 @@ import { useReelUi } from "@/lib/reelUi";
 import { useVideoStore } from "@/store/useVideoStore";
 import { soundAutoplay, soundBlocked } from "@/lib/soundAutoplay";
 import { soundTurnedOff } from "@/lib/soundPref";
+import { isIOS } from "@/lib/push";
 import { countTikTokComments } from "@/services/api/tiktokComments";
 import { formatCount, Spinner } from "./gestures";
 import { RailButton, ShareArrow, railIconClass } from "./ReelRail";
@@ -401,8 +402,8 @@ export const TikTokReel = memo(function TikTokReel({ video, active, near = false
       } else if (data.type === "onMute") {
         const m = !!data.value;
         setMuted(m);
-        // Sound came on: the attempt worked, so a pause right after is the person's, not the browser's.
-        if (!m) autoUnmuteAt.current = 0;
+        // (Not taken as "the sound worked": iPhone reports the sound on and only then pauses the video
+        // when it won't allow sound without a tap. A pause the person taps clears autoUnmuteAt in onTap.)
         if (!m && handle.current && Date.now() - gestureAt.current < 4000) handle.current.blessed = true;
         // Sound turned on/off with TikTok's own button: the whole feed follows.
         if (activeRef.current && playing.current && Date.now() - ourMuteAt.current > 1500 && m !== useVideoStore.getState().isGlobalMuted) {
@@ -522,9 +523,11 @@ export const TikTokReel = memo(function TikTokReel({ video, active, near = false
       userPaused.current = false;
       setPausedIcon(false);
       send("play");
-      // A first tap that starts the video also turns the sound on (like TikTok), unless they turned it off.
+      // A first tap that starts the video also turns the sound on (like TikTok), unless they turned it
+      // off — but not on iPhone: there the next videos could then only start with sound from a tap, and
+      // in Low Power Mode they'd stay paused. The next tap turns the sound on there, as before.
       const st = useVideoStore.getState();
-      if (soundWanted() || (!st.soundUnlocked && !soundTurnedOff())) {
+      if (soundWanted() || (!isIOS() && !st.soundUnlocked && !soundTurnedOff())) {
         send("unMute");
         if (!soundWanted()) { setGlobalMuted(false); setSoundUnlocked(true); }
       }
