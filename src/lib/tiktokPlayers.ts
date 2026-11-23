@@ -76,6 +76,26 @@ export function whenFirstPlayerReady(cb: () => void): () => void {
   return () => { readyWaiters.delete(cb); };
 }
 
+/**
+ * This phone refuses to start videos by themselves (iPhone Low Power Mode): only a tap blesses a
+ * player, and swipes don't count as taps. So once that's been seen this visit, the feed keeps the next
+ * three TikToks loaded (not just one) — every tap then blesses all of them, and the next few videos
+ * play by themselves instead of every other one stopping at "Tap to play". (Only then: each TikTok
+ * player is a heavy page, so phones that autoplay keep loading just one ahead.)
+ */
+let refused = false;
+const refusedListeners = new Set<() => void>();
+export const autoplayRefused = () => refused;
+export function onAutoplayRefused(l: () => void): () => void {
+  refusedListeners.add(l);
+  return () => { refusedListeners.delete(l); };
+}
+export function markAutoplayRefused(): void {
+  if (refused) return;
+  refused = true;
+  refusedListeners.forEach((l) => l());
+}
+
 let started = false;
 export function startTikTokGestures(): void {
   if (started || typeof window === "undefined") return;
