@@ -184,11 +184,11 @@ export async function checkForUpdate(): Promise<boolean> {
   return ready || newer;
 }
 
-/** This copy of the app: "v1.0.0 (2611121039)" — the build number is the build time (UTC, yyMMddHHmm). */
+/** This copy of the app: "v1.0.0 (3f9a1c2)" — package.json's version and the build code (a fingerprint
+ *  of the app's files, so it only changes when the app does). */
 export function appVersionLabel(): string {
   const version = typeof __SOOZ_VERSION__ === "undefined" ? "1.0.0" : __SOOZ_VERSION__;
-  const m = thisBuild.match(/^\d{2}(\d{2})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
-  return m ? `v${version} (${m.slice(1).join("")})` : `v${version} (dev)`;
+  return thisBuild === "dev" ? `v${version} (dev)` : `v${version} (${thisBuild.slice(0, 7)})`;
 }
 
 /** A page change: switch to the new version now if one is ready (the next page loads fresh). */

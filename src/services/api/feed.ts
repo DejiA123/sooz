@@ -104,6 +104,14 @@ async function fetchLiveLibrary(timeoutMs: number): Promise<Library | null> {
   }
 }
 
+/** The copy published with the app (`/christian-library.json`, written by the build — not part of the
+ *  app's code, so the daily library refresh doesn't make every phone update the app). */
+async function bundledLibrary(): Promise<Library> {
+  const res = await fetch("/christian-library.json");
+  if (!res.ok) throw new Error(`library ${res.status}`);
+  return (await res.json()) as Library;
+}
+
 /** The newest library we can get without slowing the feed: this phone's copy (refreshed quietly for
  *  next time), else the live file, else the copy built into the app. */
 let libraryLoad: Promise<Library> | null = null;
@@ -111,7 +119,7 @@ export function loadLibrary(): Promise<Library> {
   libraryLoad ??= (async () => {
     const saved = await savedLibrary();
     if (saved) { setTimeout(() => fetchLiveLibrary(20000), 8000); return saved; } // refreshed once the first video is playing
-    return (await fetchLiveLibrary(6000)) ?? ((await import("@/data/christianTikTokLibrary.json")).default as unknown as Library);
+    return (await fetchLiveLibrary(6000)) ?? (await bundledLibrary());
   })().finally(() => setTimeout(() => { libraryLoad = null; }, 60_000));
   return libraryLoad;
 }
