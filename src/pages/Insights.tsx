@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Bookmark, Heart, Loader2, MessageCircle, Play, Send, UserPlus, Image as ImageIcon } from "lucide-react";
+import { ArrowLeft, Bookmark, Clock, Heart, Layers, Loader2, MessageCircle, Play, Send, Timer, UserPlus, Image as ImageIcon } from "lucide-react";
 import { format, formatDistanceToNowStrict } from "date-fns";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { useIsAdmin } from "@/lib/admin";
 import { supabase } from "@/integrations/supabase/client";
+import { screenTime } from "@/services/api/visitors";
 
 interface InsightsData {
   days: number;
@@ -14,7 +15,9 @@ interface InsightsData {
   new_members: number;
   active: { today: number; d7: number; d30: number };
   totals: Partial<Record<"post" | "story" | "like" | "comment" | "follow" | "repost" | "share" | "save" | "message", number>>;
-  daily: { day: string; active: number; actions: number }[];
+  watch?: { videos: number; seconds: number; visits: number; visitors: number; counted: number };
+  daily: { day: string; active: number; actions: number; videos?: number }[];
+  top_watchers?: { id: string; username: string; name: string; avatar: string | null; videos: number; seconds: number; visits: number; last_at: string }[];
   top_members: { id: string; username: string; name: string; avatar: string | null; total: number; posts: number; likes: number; comments: number; follows: number; shares: number; messages: number; last_at: string }[];
   top_posts: { id: string; caption: string | null; media_type: string | null; image: string | null; username: string; name: string; likes: number; comments: number }[];
 }
@@ -39,6 +42,9 @@ export default function Insights() {
   const d = q.data;
   const t = d?.totals ?? {};
   const max = Math.max(1, ...(d?.daily ?? []).map((x) => x.active));
+  const maxVideos = Math.max(1, ...(d?.daily ?? []).map((x) => x.videos ?? 0));
+  const w = d?.watch;
+  const perVisit = w && w.counted ? { videos: Math.round(w.videos / w.counted), seconds: w.seconds / w.counted } : null;
   const tiles: { label: string; value: number; icon: typeof Heart }[] = [
     { label: "Posts & stories", value: (t.post ?? 0) + (t.story ?? 0), icon: ImageIcon },
     { label: "Likes", value: t.like ?? 0, icon: Heart },
@@ -91,7 +97,7 @@ export default function Insights() {
                 <div key={x.day} className="group relative flex h-full flex-1 flex-col justify-end">
                   <div className={cn("w-full rounded-t-[3px]", x.active ? "bg-amber-500" : "bg-foreground/10")} style={{ height: x.active ? `${Math.max(6, (x.active / max) * 100)}%` : "2px" }} />
                   <span className="pointer-events-none absolute -top-6 left-1/2 z-10 hidden -translate-x-1/2 whitespace-nowrap rounded bg-foreground px-1.5 py-0.5 text-[11px] text-background group-hover:block">
-                    {format(new Date(x.day.slice(0, 10) + "T12:00:00"), "d MMM")}: {x.active} active · {x.actions} actions
+                    {format(new Date(x.day.slice(0, 10) + "T12:00:00"), "d MMM")}: {x.active} active · {x.actions} actions{x.videos ? ` · ${x.videos} videos` : ""}
                   </span>
                 </div>
               ))}
@@ -102,6 +108,43 @@ export default function Insights() {
               </div>
             )}
           </section>
+
+          {/* Watching: scrolls and time on screen (everyone, signed in or not) */}
+          {w && (
+            <>
+              <h2 className="px-1 pb-2 pt-5 text-[13px] font-semibold text-muted-foreground">Watching · {d.days} days</h2>
+              <div className="grid grid-cols-2 gap-2.5">
+                {([
+                  ["Videos scrolled", w.videos.toLocaleString(), Layers],
+                  ["Time in SOOZ", screenTime(w.seconds), Clock],
+                  ["Videos per visit", perVisit ? perVisit.videos.toLocaleString() : "–", Play],
+                  ["Time per visit", perVisit ? screenTime(perVisit.seconds) : "–", Timer],
+                ] as const).map(([label, value, Icon]) => (
+                  <div key={label} className="flex items-center gap-3 rounded-2xl bg-foreground/[0.045] px-3.5 py-3">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber-500/15 text-amber-700"><Icon className="h-[18px] w-[18px]" /></span>
+                    <span className="min-w-0">
+                      <span className="block truncate font-display text-[20px] font-bold leading-tight tabular-nums">{value}</span>
+                      <span className="block truncate text-[12.5px] text-muted-foreground">{label}</span>
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <section className="mt-2.5 rounded-2xl bg-foreground/[0.045] p-4">
+                <h2 className="text-[15px] font-semibold">Videos scrolled per day</h2>
+                <div className="mt-4 flex h-24 items-end gap-[2px]" role="img" aria-label="Videos scrolled per day">
+                  {d.daily.map((x) => (
+                    <div key={x.day} className="group relative flex h-full flex-1 flex-col justify-end">
+                      <div className={cn("w-full rounded-t-[3px]", x.videos ? "bg-amber-500" : "bg-foreground/10")} style={{ height: x.videos ? `${Math.max(6, ((x.videos ?? 0) / maxVideos) * 100)}%` : "2px" }} />
+                      <span className="pointer-events-none absolute -top-6 left-1/2 z-10 hidden -translate-x-1/2 whitespace-nowrap rounded bg-foreground px-1.5 py-0.5 text-[11px] text-background group-hover:block">
+                        {format(new Date(x.day.slice(0, 10) + "T12:00:00"), "d MMM")}: {x.videos ?? 0} videos
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </section>
+              <p className="mt-2 px-1 text-[12px] text-muted-foreground">Everyone who opens SOOZ, signed in or not ({w.visitors.toLocaleString()} phones / computers, {w.visits.toLocaleString()} visits). Only counts — never which videos. Counted since 23 Nov 2026; your own visits aren't counted.</p>
+            </>
+          )}
 
           {/* What they did */}
           <h2 className="px-1 pb-2 pt-5 text-[13px] font-semibold text-muted-foreground">What people did · {d.days} days</h2>
@@ -145,6 +188,27 @@ export default function Insights() {
               );
             })}
           </div>
+
+          {/* Who watches the most */}
+          {(d.top_watchers?.length ?? 0) > 0 && (
+            <>
+              <h2 className="px-1 pb-2 pt-5 text-[13px] font-semibold text-muted-foreground">Members who watch the most</h2>
+              <div className="overflow-hidden rounded-2xl bg-foreground/[0.045]">
+                {d.top_watchers!.map((m, i) => (
+                  <button key={m.id} type="button" onClick={() => navigate(`/profile/${m.username}`)}
+                    className={cn("flex w-full items-center gap-3 px-4 py-2.5 text-left active:bg-foreground/[0.06]", i > 0 && "border-t border-foreground/[0.07]")}>
+                    <span className="w-5 shrink-0 text-center text-[13px] font-bold tabular-nums text-muted-foreground">{i + 1}</span>
+                    <Avatar className="h-10 w-10 shrink-0"><AvatarImage src={m.avatar || ""} className="object-cover" /><AvatarFallback className="bg-amber-500/15 font-semibold text-amber-700">{m.name[0]?.toUpperCase()}</AvatarFallback></Avatar>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[15px] font-semibold">{m.name}</span>
+                      <span className="block truncate text-[12.5px] text-muted-foreground">{m.videos.toLocaleString()} video{m.videos === 1 ? "" : "s"} · {screenTime(m.seconds)} · {m.visits} visit{m.visits === 1 ? "" : "s"}</span>
+                    </span>
+                    <span className="shrink-0 text-right text-[12px] text-muted-foreground">{formatDistanceToNowStrict(new Date(m.last_at), { addSuffix: true })}</span>
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
 
           {/* Top posts */}
           <h2 className="px-1 pb-2 pt-5 text-[13px] font-semibold text-muted-foreground">Top posts · {d.days} days</h2>
