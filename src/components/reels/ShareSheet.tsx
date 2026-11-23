@@ -15,6 +15,7 @@ import { isReposted, setReposted, soozTikTokLink, type RepostTarget } from "@/se
 import type { TikTokVideo } from "@/services/api/tiktok";
 import type { FeedPost } from "@/services/api/posts";
 import { refreshProfiles } from "@/lib/profileRefresh";
+import { shareOnWhatsApp } from "@/lib/whatsapp";
 
 export type ShareItem = { kind: "post"; post: FeedPost } | { kind: "tiktok"; video: TikTokVideo };
 
@@ -119,7 +120,7 @@ export const ShareSheet = ({ item, open, onOpenChange, onShared, onRepostChange 
     try { if (navigator.share) { await navigator.share({ title: "SOOZ", text, url: link }); shared(); } else copy(); }
     catch { /* cancelled */ }
   };
-  const whatsapp = () => { window.open(`https://wa.me/?text=${encodeURIComponent(`${text}\n${link}`)}`, "_blank", "noopener"); shared(); };
+  const whatsapp = () => { shareOnWhatsApp(`${text}\n${link}`); shared(); };
 
   return (
     <>
