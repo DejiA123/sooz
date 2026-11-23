@@ -2,13 +2,33 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { VitePWA } from "vite-plugin-pwa";
-import { readFileSync } from "fs";
+import { readFileSync, readdirSync, statSync } from "fs";
+import { createHash } from "crypto";
 
-// Each build gets an id; it is baked into the app and written to /version.json, so a running app
-// can tell when a newer version has been published (see src/lib/appUpdate.ts).
-const BUILD_ID = new Date().toISOString();
-// The version shown at the bottom of Settings: package.json's version plus a build number from the
-// build time (e.g. 2611121039 = 2026-11-12 10:39 UTC), so every release has its own number.
+// Each build gets an id; it is baked into the app and written to /version.json, so a running app can
+// tell when a newer version has been published (see src/lib/appUpdate.ts). It's a fingerprint of the
+// app's own files — NOT the build time — so the daily Christian TikTok library refresh (a commit to
+// the library JSON that makes the hosts rebuild) doesn't look like an app update: the build comes out
+// identical and nobody sees "Updating…". It changes only when the app itself changes.
+const LIBRARY_FILE = path.resolve(__dirname, "src/data/christianTikTokLibrary.json");
+function sourceFingerprint(): string {
+  const hash = createHash("sha256");
+  const add = (p: string) => {
+    let st;
+    try { st = statSync(p); } catch { return; }
+    if (st.isDirectory()) {
+      for (const name of readdirSync(p).sort()) if (name !== "node_modules" && !name.startsWith(".")) add(path.join(p, name));
+    } else if (p !== LIBRARY_FILE) {
+      hash.update(path.relative(__dirname, p).split(path.sep).join("/"));
+      hash.update(readFileSync(p));
+    }
+  };
+  for (const p of ["src", "public", "index.html", "package.json", "package-lock.json", "vite.config.ts", "tailwind.config.ts", "postcss.config.js", "tsconfig.json", "tsconfig.app.json"]) add(path.resolve(__dirname, p));
+  return hash.digest("hex").slice(0, 12);
+}
+const BUILD_ID = sourceFingerprint();
+// The version shown at the bottom of Settings: package.json's version plus the build code
+// (e.g. "v1.0.0 (3f9a1c2)").
 const APP_VERSION: string = JSON.parse(readFileSync(path.resolve(__dirname, "package.json"), "utf8")).version;
 
 // https://vitejs.dev/config/
@@ -27,6 +47,9 @@ export default defineConfig(({ mode }) => ({
       name: "sooz-version-file",
       generateBundle() {
         this.emitFile({ type: "asset", fileName: "version.json", source: JSON.stringify({ build: BUILD_ID }) });
+        // The library copy the app falls back to when GitHub can't be reached: a plain file next to the
+        // app (not part of its code), so a library refresh doesn't change the app's code files.
+        this.emitFile({ type: "asset", fileName: "christian-library.json", source: readFileSync(LIBRARY_FILE, "utf8") });
       },
       // index.html's opening check compares this copy's build with /version.json.
       transformIndexHtml: { order: "pre", handler: (html: string) => html.replace(/\{\{SOOZ_BUILD\}\}/g, BUILD_ID) },
