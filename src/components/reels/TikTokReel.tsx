@@ -180,6 +180,8 @@ export const TikTokReel = memo(function TikTokReel({ video, active, near = false
   const [cardFailed, setCardFailed] = useState(false);
   const [thumbRatio, setThumbRatio] = useState<number | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  // Has it actually started playing while on screen (since it was loaded)? Until then its cover stays up.
+  const [started, setStarted] = useState(false);
   const [muted, setMuted] = useState(true);
   const [blockedHint, setBlockedHint] = useState(false);
   const [tapThrough, setTapThrough] = useState(tiktokTapForwarding.broken);
@@ -303,7 +305,7 @@ export const TikTokReel = memo(function TikTokReel({ video, active, near = false
   useEffect(() => {
     if (mounted) return;
     setLoaded(false); setReady(false); setSlow(false); setAttempt(0); setErrored(false); setGaveUp(false); silentCounted.current = false;
-    setIsPlaying(false); setBlockedHint(false); setMuted(true); setPausedIcon(false);
+    setIsPlaying(false); setStarted(false); setBlockedHint(false); setMuted(true); setPausedIcon(false);
     setTapThrough(tiktokTapForwarding.broken); // another chance at the floating look next time
     playing.current = false; lastState.current = -1; ourPause.current = false;
     clock.current = { t: 0, d: 0, at: 0 };
@@ -354,6 +356,7 @@ export const TikTokReel = memo(function TikTokReel({ video, active, near = false
           else {
             watch.played();
             setIsPlaying(true);
+            setStarted(true);
             setBlockedHint(false);
             setPausedIcon(false);
             clock.current.at = performance.now();
@@ -566,7 +569,13 @@ export const TikTokReel = memo(function TikTokReel({ video, active, near = false
   // then — TikTok's player would show its grey logo with its own play button): show the cover and
   // "Tap to play"; a tap anywhere on the slide starts it.
   const tapToStart = active && blockedHint && !isPlaying && !tapThrough && !userPaused.current;
-  const posterUp = !(mounted && showPlayer) || tapToStart;
+  // On screen, the cover stays up until the video is actually playing — not just until TikTok's player
+  // says it's ready: on a fresh open the phone may refuse to start it (Low Power Mode), and in between
+  // TikTok's own black screen with its grey logo would flash up (owner's report). TikTok's screen only
+  // shows by itself if it has a message (removed / private video), SOOZ gave up waiting, or SOOZ can't
+  // rely on TikTok's messages this visit.
+  const waitingToPlay = active && !started && !errored && !gaveUp && trustMessages && !tapThrough;
+  const posterUp = !(mounted && showPlayer) || tapToStart || waitingToPlay;
   const posterHasPlay = !!cardCover && !(thumbnail && !thumbFailed);
   const handleName = video.author_handle ? `@${video.author_handle}` : null;
   const who = video.author_name || handleName || "Christian TikTok";
@@ -585,7 +594,9 @@ export const TikTokReel = memo(function TikTokReel({ video, active, near = false
             {/* The video's cover: until TikTok's player is ready, and while the phone won't let it start
                 without a tap (iPhone Low Power Mode) — instead of TikTok's grey logo and play button. */}
             {posterUp && (
-              <div className="absolute inset-0 z-[2] flex flex-col items-center justify-center gap-3 bg-black px-8 text-center text-white">
+              <div className="absolute inset-0 z-[2] flex flex-col items-center justify-center gap-3 bg-black px-8 text-center text-white"
+                // (A tap on the cover starts the video, wherever SOOZ's tap layer isn't on top of it.)
+                onClick={active && mounted && showPlayer ? onTap : undefined}>
                 {thumbnail && !thumbFailed ? (
                   <img
                     src={thumbnail}

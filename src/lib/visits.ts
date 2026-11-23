@@ -57,9 +57,12 @@ function sourceOf(): string {
 
 let source: string | null = null;
 let last = 0;
+/** Robots, link previews and the hosts' own build / screenshot checks (headless browsers) aren't people. */
+const isRobot = () => navigator.webdriver === true || /HeadlessChrome|bot\b|crawl|spider|slurp|Lighthouse|Prerender|PhantomJS|Puppeteer|Playwright|facebookexternalhit|WhatsApp\/|TelegramBot|Discordbot|vercel|lovable/i.test(navigator.userAgent);
+
 /** Note this visit (cheap; safe to call often — the database merges calls within the same visit). */
 export function trackVisit(newPage = false) {
-  if (import.meta.env.DEV) return;
+  if (import.meta.env.DEV || isRobot()) return;
   const now = Date.now();
   if (!newPage && now - last < 60_000) return; // at most once a minute unless the page changed
   last = now;
