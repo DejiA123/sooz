@@ -7,7 +7,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { isReposted } from "@/services/api/reposts";
 import { cn } from "@/lib/utils";
 import { requestTikTokRefresh, tiktokPlayerUrl, type TikTokVideo } from "@/services/api/tiktok";
-import { firstPlayerReady, markPlayerReady, playerAnswered, registerTikTokPlayer, tapForwarded, tiktokTapForwarding, whenFirstPlayerReady, type TikTokPlayerHandle } from "@/lib/tiktokPlayers";
+import { firstPlayerReady, markAutoplayRefused, markPlayerReady, playerAnswered, registerTikTokPlayer, tapForwarded, tiktokTapForwarding, whenFirstPlayerReady, type TikTokPlayerHandle } from "@/lib/tiktokPlayers";
 import { useReelUi } from "@/lib/reelUi";
 import { useVideoStore } from "@/store/useVideoStore";
 import { soundAutoplay, soundBlocked } from "@/lib/soundAutoplay";
@@ -478,7 +478,7 @@ export const TikTokReel = memo(function TikTokReel({ video, active, near = false
   // Ready but still not playing: the phone is refusing autoplay — say "tap to play".
   useEffect(() => {
     if (!active || !ready) return;
-    const t = setTimeout(() => { if (!playing.current && !userPaused.current) setBlockedHint(true); }, 3500);
+    const t = setTimeout(() => { if (!playing.current && !userPaused.current) { setBlockedHint(true); markAutoplayRefused(); } }, 3500);
     return () => clearTimeout(t);
   }, [active, ready]);
 

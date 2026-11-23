@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import type { FeedItem } from "@/services/api/feed";
 import { PostReel } from "./PostReel";
 import { TikTokReel } from "./TikTokReel";
 import { Spinner } from "./gestures";
+import { autoplayRefused, onAutoplayRefused } from "@/lib/tiktokPlayers";
 
 interface ReelsFeedProps {
   items: FeedItem[];
@@ -122,6 +123,8 @@ export const ReelsFeed = ({ items, hasMore, loadingMore, loadMore, initialIndex 
     return () => window.removeEventListener("sooz:feed-cover", onCover);
   }, []);
 
+  const refused = useSyncExternalStore(onAutoplayRefused, autoplayRefused, () => false);
+
   return (
     <div className="relative h-full w-full">
       <div
@@ -132,14 +135,16 @@ export const ReelsFeed = ({ items, hasMore, loadingMore, loadMore, initialIndex 
       >
         {items.map((item, i) => {
           const distance = Math.abs(i - active);
+          // Low Power Mode seen this visit: keep the next three TikToks loaded, so each tap blesses them all.
+          const ahead = refused && i > active && i - active <= 3;
           const isActive = i === active && pageVisible && !covered;
           return (
             <section key={item.key} className="reel-slide" data-kind={item.kind} aria-roledescription="slide" aria-label={`${i + 1} of ${items.length}`}>
-              {distance <= RENDER_WINDOW &&
+              {(distance <= RENDER_WINDOW || (ahead && item.kind === "tiktok")) &&
                 (item.kind === "post" ? (
                   <PostReel post={item.post} active={isActive} mounted={distance <= 1} repostedBy={item.repostedBy} />
                 ) : (
-                  <TikTokReel video={item.video} active={isActive} near={distance <= 1} repostedBy={item.repostedBy} />
+                  <TikTokReel video={item.video} active={isActive} near={distance <= 1 || ahead} repostedBy={item.repostedBy} />
                 ))}
             </section>
           );
