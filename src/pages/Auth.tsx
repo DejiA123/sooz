@@ -29,7 +29,8 @@ const usernameSchema = z.string().min(3, "Username must be at least 3 characters
 const loginIdentifierSchema = z.string().min(3, "Please enter your email or username");
 
 const Auth = () => {
-  const [isLogin, setIsLogin] = useState(true);
+  // "/auth?mode=signup" (e.g. from the Join SOOZ invitation) opens on Sign up.
+  const [isLogin, setIsLogin] = useState(() => new URLSearchParams(window.location.search).get("mode") !== "signup");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [username, setUsername] = useState("");

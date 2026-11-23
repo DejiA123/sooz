@@ -63,6 +63,7 @@ const AccountSync = () => { useAccountSync(); return null; };
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { NotificationManager } from "./components/NotificationManager";
 import { InstallPrompt } from "./components/InstallPrompt";
+import { SignupPrompt } from "./components/SignupPrompt";
 import { CallProvider, useCall } from "@/contexts/CallContext";
 import { CallOverlay } from "@/components/video/CallOverlay";
 import { AutoUpdate } from "@/components/layout/AutoUpdate";
@@ -157,6 +158,7 @@ const App = () => {
                 <AccountSync />
                 <NotificationManager />
                 <InstallPrompt />
+                <SignupPrompt />
                 <Routes>
                   <Route path="/auth" element={<Suspense fallback={null}><Auth /></Suspense>} />
                   <Route path="/email-confirmation" element={<Suspense fallback={null}><EmailConfirmation /></Suspense>} />
