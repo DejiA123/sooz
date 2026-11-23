@@ -11,6 +11,7 @@ import { SHARE_ORIGIN } from "@/lib/shareLink";
 import { useFollowing } from "@/components/reels/useFollowing";
 import { searchPeople, type PersonResult } from "@/services/api/chat";
 import { friendSuggestions, type FriendSuggestion } from "@/services/api/friends";
+import { shareOnWhatsApp } from "@/lib/whatsapp";
 
 const REASON: Record<FriendSuggestion["reason"], string> = {
   follows_you: "Follows you",
@@ -90,7 +91,7 @@ export default function AddFriends() {
 
   const link = me.data ? `${SHARE_ORIGIN}/profile/${me.data}` : SHARE_ORIGIN;
   const invite = `Join me on SOOZ 🙌🏾 Christian videos, nothing else — worship, preaching, gospel & more. Follow me here: ${link}`;
-  const whatsapp = () => window.open(`https://wa.me/?text=${encodeURIComponent(invite)}`, "_blank", "noopener");
+  const whatsapp = () => shareOnWhatsApp(invite);
   const copy = async () => { try { await navigator.clipboard.writeText(link); toast.success("Your link is copied"); } catch { toast.error("Couldn't copy"); } };
   const share = async () => { try { if (navigator.share) await navigator.share({ title: "SOOZ", text: invite, url: link }); else copy(); } catch { /* cancelled */ } };
 
