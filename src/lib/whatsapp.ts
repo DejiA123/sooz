@@ -1,26 +1,22 @@
 /**
- * Share text on WhatsApp. On phones this opens the WhatsApp app itself (`whatsapp://send`): the web
- * link (wa.me) opened from the installed iPhone app shows up in a pop-up browser that hands over to
- * WhatsApp and then stays behind as a blank white page when people come back (owner's report). If the
- * phone has no WhatsApp (nothing happens), the web link opens after a moment instead. Computers use the
- * web link (WhatsApp Web / desktop).
+ * Share text on WhatsApp, opening the WhatsApp app itself on phones.
+ *
+ * Never a web link (wa.me) on iPhone: from the installed app, iOS opens web links in a pop-up browser
+ * that hands over to WhatsApp and then stays behind as a blank white page when people come back
+ * (owner's report). And no "backup" web link after a delay either: iOS first asks "Open in WhatsApp?",
+ * and while that question is up the page still looks unchanged, so a timed backup would open the blank
+ * pop-up as well. Android: an intent link, which falls back to the web link by itself if WhatsApp
+ * isn't installed. Computers: the web link (WhatsApp Web / desktop).
  */
 export function shareOnWhatsApp(text: string) {
   const enc = encodeURIComponent(text);
   const web = `https://wa.me/?text=${enc}`;
-  const phone = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
-  if (!phone) { window.open(web, "_blank", "noopener"); return; }
-  let left = false;
-  const away = () => { left = true; };
-  const onVis = () => { if (document.visibilityState === "hidden") away(); };
-  document.addEventListener("visibilitychange", onVis);
-  window.addEventListener("pagehide", away);
-  window.addEventListener("blur", away);
-  window.location.href = `whatsapp://send?text=${enc}`;
-  setTimeout(() => {
-    document.removeEventListener("visibilitychange", onVis);
-    window.removeEventListener("pagehide", away);
-    window.removeEventListener("blur", away);
-    if (!left && document.visibilityState === "visible") window.open(web, "_blank", "noopener");
-  }, 1600);
+  const ua = navigator.userAgent;
+  const ios = /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
+  if (ios) { window.location.href = `whatsapp://send?text=${enc}`; return; }
+  if (/Android/i.test(ua)) {
+    window.location.href = `intent://send?text=${enc}#Intent;scheme=whatsapp;package=com.whatsapp;S.browser_fallback_url=${encodeURIComponent(web)};end`;
+    return;
+  }
+  window.open(web, "_blank", "noopener");
 }
