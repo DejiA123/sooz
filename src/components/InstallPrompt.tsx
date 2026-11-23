@@ -4,6 +4,7 @@ import { ArrowDown, ArrowUp, Bell, Check, Compass, Download, Ellipsis, EllipsisV
 import { toast } from "sonner";
 import { Drawer, DrawerContent, DrawerDescription, DrawerTitle } from "@/components/ui/drawer";
 import { useAuth } from "@/hooks/useAuth";
+import { notePromptShown, promptShownRecently } from "@/lib/prompts";
 import {
   confirmHasApp, forgetApp, inAppBrowser, installAskSnoozed, installKind, iosNewSafari, isAndroid, onInstallChange, openInBrowser, promptInstall,
   snoozeInstallAsk, startInstallWatch, syncInstallWithAccount, type InstallKind,
@@ -54,7 +55,8 @@ export const InstallPrompt = () => {
   useEffect(() => {
     if (open || !OFFER.includes(kind) || installAskSnoozed() || QUIET.includes(pathname)) return;
     const t = setTimeout(() => {
-      if (document.body.classList.contains("sooz-feed-covered") || document.querySelector("[role=dialog]")) return;
+      if (document.body.classList.contains("sooz-feed-covered") || document.querySelector("[role=dialog]") || promptShownRecently()) return;
+      notePromptShown();
       setOpen(true);
     }, kind === "in-app" ? 8000 : 25000);
     return () => clearTimeout(t);
