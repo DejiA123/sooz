@@ -12,6 +12,7 @@
 import { useEffect, useMemo, useRef } from "react";
 import type { FeedPost } from "@/services/api/posts";
 import type { TikTokVideo } from "@/services/api/tiktok";
+import { noteVideoViewed } from "@/lib/visits";
 
 export type TasteKind = "tiktok" | "post";
 export interface TasteItem {
@@ -330,6 +331,7 @@ export function useTasteWatch(item: TasteItem | null, active: boolean) {
       if (!s.open && itemRef.current) {
         st.current = { open: true, since: Date.now(), dwell: 0, played: itemRef.current.kind === "post", frac: 0, ends: 0 };
         markSeen(itemRef.current);
+        noteVideoViewed(tasteKey(itemRef.current.kind, itemRef.current.id)); // one scroll, for the admin Insights (a count only)
       } else if (s.open && !s.since) s.since = Date.now(); // back from the background
       return;
     }

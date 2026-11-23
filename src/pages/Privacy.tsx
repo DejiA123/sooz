@@ -21,7 +21,7 @@ export default function Privacy() {
                 </p>
                 <h3 className="text-foreground font-semibold text-lg">Visit statistics</h3>
                 <p>
-                    To know how many people use SOOZ, the app notes each visit: the time, the first page opened, where the visit came from (for example Instagram, WhatsApp or a direct link), the kind of device (phone, tablet or computer, app or browser) and, if you're signed in, your account. If you're not signed in you're only a random number kept on your device. We don't record your IP address or location. Only SOOZ's administrators can see these statistics.
+                    To know how many people use SOOZ, the app notes each visit: the time, the first page opened, where the visit came from (for example Instagram, WhatsApp or a direct link), the kind of device (phone, tablet or computer, app or browser), how many videos you scrolled through and how long SOOZ was on screen (just the numbers, not which videos) and, if you're signed in, your account. If you're not signed in you're only a random number kept on your device. We don't record your IP address or location. Only SOOZ's administrators can see these statistics.
                 </p>
                 <h3 className="text-foreground font-semibold text-lg">2. How We Use Information</h3>
                 <p>

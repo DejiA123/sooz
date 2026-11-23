@@ -6,7 +6,7 @@ import { format, formatDistanceToNowStrict } from "date-fns";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { useIsAdmin } from "@/lib/admin";
-import { fetchRecentVisits, fetchVisitSummary, type Visit } from "@/services/api/visitors";
+import { fetchRecentVisits, fetchVisitSummary, watchLine, type Counts, type Visit } from "@/services/api/visitors";
 
 const RANGES = [7, 30, 90] as const;
 
@@ -61,12 +61,13 @@ export default function Visitors() {
               <div key={label as string} className="rounded-2xl bg-foreground/[0.045] px-3.5 py-3">
                 <p className="text-[13px] font-medium text-muted-foreground">{label as string}</p>
                 <p className="font-display text-[26px] font-bold leading-tight tabular-nums">{(c as { visitors: number }).visitors.toLocaleString()}</p>
-                <p className="text-[12px] text-muted-foreground">{(c as { visits: number }).visits.toLocaleString()} visits</p>
+                <p className="text-[12px] text-muted-foreground">{(c as Counts).visits.toLocaleString()} visits</p>
+                {watchLine((c as Counts).videos, (c as Counts).seconds) && <p className="mt-0.5 text-[11.5px] leading-snug text-muted-foreground">{watchLine((c as Counts).videos, (c as Counts).seconds)}</p>}
               </div>
             ))}
           </div>
           <p className="mt-2 px-1 text-[12.5px] text-muted-foreground">
-            Visitors = different phones / computers. {s.members} signed-in member{s.members === 1 ? "" : "s"} visited in the last 30 days. Your own visits aren't counted.
+            Visitors = different phones / computers; videos = scrolled through, time = SOOZ on screen. {s.members} signed-in member{s.members === 1 ? "" : "s"} visited in the last 30 days. Your own visits aren't counted.
           </p>
 
           {/* Per day */}
@@ -86,7 +87,7 @@ export default function Visitors() {
                 <div key={d.day} className="group relative flex h-full flex-1 flex-col justify-end">
                   <div className={cn("w-full rounded-t-[3px]", d.visitors ? "bg-amber-500" : "bg-foreground/10")} style={{ height: d.visitors ? `${Math.max(6, (d.visitors / max) * 100)}%` : "2px" }} />
                   <span className="pointer-events-none absolute -top-6 left-1/2 z-10 hidden -translate-x-1/2 whitespace-nowrap rounded bg-foreground px-1.5 py-0.5 text-[11px] text-background group-hover:block">
-                    {format(new Date(d.day.slice(0, 10) + "T12:00:00"), "d MMM")}: {d.visitors}
+                    {format(new Date(d.day.slice(0, 10) + "T12:00:00"), "d MMM")}: {d.visitors}{d.videos ? ` · ${d.videos} videos` : ""}
                   </span>
                 </div>
               ))}
@@ -134,7 +135,7 @@ export default function Visitors() {
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-[15px] font-semibold">{v.person ? v.person.name : visitorName(v.device)}</span>
                       <span className="flex items-center gap-1.5 truncate text-[12.5px] text-muted-foreground">
-                        <DeviceIcon kind={v.device_kind} />{v.device_kind ?? "Device"}{v.installed ? " app" : ""}{v.installed && v.source === "Home Screen app" ? "" : ` · ${v.source ?? "Direct"}`} · {v.pages} page{v.pages === 1 ? "" : "s"}
+                        <DeviceIcon kind={v.device_kind} />{v.device_kind ?? "Device"}{v.installed ? " app" : ""}{v.installed && v.source === "Home Screen app" ? "" : ` · ${v.source ?? "Direct"}`} · {v.pages} page{v.pages === 1 ? "" : "s"}{watchLine(v.videos, v.seconds) && ` · ${watchLine(v.videos, v.seconds)}`}
                       </span>
                     </span>
                     <span className="shrink-0 text-right text-[12.5px] text-muted-foreground">
